@@ -142,12 +142,16 @@ class M1EndToEndTest {
         val pairing = assertNotNull_(Graph.pairing.current)
         compose.onNodeWithTag("continue").performClick()
 
-        // 2. Home shows a live connection to the relay.
+        // 2. Status (from the menu) shows a live connection to the relay.
+        compose.onNodeWithTag("open_menu").performClick()
+        compose.onNodeWithTag("nav_status").performClick()
         waitForTag("relay_status", context.getString(R.string.connected), timeoutMs = 20_000)
         screenshot("03-home")
 
         // 3. Agent message arrives live in the thread (WebSocket path).
-        compose.onNodeWithTag("tab_messages").performClick()
+        compose.onNodeWithTag("open_menu").performClick()
+        compose.onNodeWithTag("nav_chats").performClick()
+        compose.onNodeWithTag("chat_agent:main").performClick()
         val agentMsg = agent("POST", "/v1/messages", """{"text":"hola desde CI 👋"}""")
         val agentMsgId = agentMsg["msg_id"]!!.jsonPrimitive.content
         waitForText("hola desde CI")
@@ -163,7 +167,9 @@ class M1EndToEndTest {
         screenshot("04-messages")
 
         // 5. Push path: a relay-signed payload (exactly what FCM delivers) shows a notification.
-        compose.onNodeWithTag("tab_home").performClick()
+        compose.onNodeWithTag("chat_back").performClick()
+        compose.onNodeWithTag("open_menu").performClick()
+        compose.onNodeWithTag("nav_status").performClick()
         compose.waitForIdle()
         val pushed = agent("POST", "/v1/messages", """{"text":"¿Despliego a producción?"}""")
         val event = agent("GET", "/v1/events?after_seq=0&limit=500")["events"]!!.jsonArray
