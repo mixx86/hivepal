@@ -4,6 +4,8 @@ import android.app.Application
 import android.os.Build
 import dev.agentring.app.call.CallManager
 import dev.agentring.app.data.AppSettings
+import dev.agentring.app.data.CallHistory
+import dev.agentring.app.data.Directory
 import dev.agentring.app.data.MessageRepository
 import dev.agentring.app.data.Pairing
 import dev.agentring.app.data.PairingStore
@@ -31,6 +33,25 @@ object Graph {
     val connection: ConnectionManager by lazy { ConnectionManager() }
     val settings: AppSettings by lazy { AppSettings(app) }
     val calls: CallManager by lazy { CallManager(app) }
+    val directory: Directory by lazy { Directory(app) }
+    val callHistory: CallHistory by lazy { CallHistory(app) }
+
+    /** Name of the agent behind the relay's own key, as the pairing knows it. */
+    val mainName: String get() = pairing.current?.agentName ?: ""
+
+    /** Refreshes the agents, groups and call history. Blocking; errors are logged. */
+    fun refreshDirectory(api: RelayApi) {
+        runCatching { directory.refresh(api) }.onFailure { android.util.Log.w("Graph", "agents refresh failed", it) }
+        runCatching { callHistory.refresh(api) }.onFailure { android.util.Log.w("Graph", "calls refresh failed", it) }
+    }
+
+    /** After a call event: the history (and the Phone app's log) follow. */
+    fun refreshCallsSoon() {
+        appScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(1500)
+            api()?.let { runCatching { callHistory.refresh(it) } }
+        }
+    }
 
     val userAgent: String get() = "agentring-android/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE})"
 
@@ -64,6 +85,8 @@ object Graph {
         // In this order: whatever reads the pairing after the clear is the new one.
         pairing.save(p)
         messages.clear()
+        directory.clear()
+        callHistory.clear()
         calls.onActiveCall(null)
         connection.reconnect()
         appScope.launch(Dispatchers.IO) { push.ensureRegistered() }
@@ -76,6 +99,8 @@ object Graph {
         Notifications.cancelMessages(app)
         pairing.clear()
         messages.clear()
+        directory.clear()
+        callHistory.clear()
         calls.onActiveCall(null)
         push.reset()
     }

@@ -76,63 +76,8 @@ import dev.agentring.core.RelaySocket
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-private enum class Tab { HOME, MESSAGES, SETTINGS }
-
 @Composable
-fun MainScaffold(pairing: Pairing, openMessages: MutableState<Boolean>) {
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    LaunchedEffect(openMessages.value) {
-        if (openMessages.value) {
-            tab = Tab.MESSAGES
-            openMessages.value = false
-        }
-    }
-    val messages by Graph.messages.messages.collectAsStateWithLifecycle()
-    val unread = messages.count { it.fromAgent && it.readAt == null }
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
-                NavigationBarItem(
-                    selected = tab == Tab.HOME,
-                    onClick = { tab = Tab.HOME },
-                    icon = { Icon(painterResource(R.drawable.ic_call), null) },
-                    label = { Text(stringResource(R.string.tab_home)) },
-                    modifier = Modifier.testTag("tab_home"),
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.MESSAGES,
-                    onClick = { tab = Tab.MESSAGES },
-                    icon = {
-                        BadgedBox(badge = { if (unread > 0 && tab != Tab.MESSAGES) Badge { Text("$unread") } }) {
-                            Icon(painterResource(R.drawable.ic_chat), null)
-                        }
-                    },
-                    label = { Text(stringResource(R.string.tab_messages)) },
-                    modifier = Modifier.testTag("tab_messages"),
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.SETTINGS,
-                    onClick = { tab = Tab.SETTINGS },
-                    icon = { Icon(Icons.Filled.Settings, null) },
-                    label = { Text(stringResource(R.string.tab_settings)) },
-                    modifier = Modifier.testTag("tab_settings"),
-                )
-            }
-        },
-    ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
-            when (tab) {
-                Tab.HOME -> HomeScreen(pairing)
-                Tab.MESSAGES -> MessagesScreen(pairing)
-                Tab.SETTINGS -> SettingsScreen(pairing)
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeScreen(pairing: Pairing) {
+fun HomeScreen(pairing: Pairing) {
     val relay by Graph.connection.relayState.collectAsStateWithLifecycle()
     val agent by Graph.connection.agentOnline.collectAsStateWithLifecycle()
     val push by Graph.push.state.collectAsStateWithLifecycle()
@@ -216,7 +161,7 @@ private fun HomeScreen(pairing: Pairing) {
 
 /** "Call agent" (M4): places a call to the agent and opens the call screen. */
 @Composable
-private fun CallAgentButton(pairing: Pairing, relayConnected: Boolean, agentOnline: Boolean, revoked: Boolean) {
+internal fun CallAgentButton(pairing: Pairing, relayConnected: Boolean, agentOnline: Boolean, revoked: Boolean) {
     val ctx = LocalContext.current
     val call by Graph.calls.state.collectAsStateWithLifecycle()
     var placing by remember { mutableStateOf(false) }
@@ -328,15 +273,13 @@ private fun StatusRow(label: String, value: String, color: Color, tag: String) {
 }
 
 @Composable
-private fun SettingsScreen(pairing: Pairing) {
+fun SettingsScreen(pairing: Pairing) {
     val ctx = LocalContext.current
     var confirmUnpair by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.tab_settings), style = MaterialTheme.typography.headlineMedium)
-
         SectionLabel(stringResource(R.string.settings_pairing))
         BrandCard {
             Column(Modifier.padding(vertical = 6.dp)) {
@@ -368,6 +311,39 @@ private fun SettingsScreen(pairing: Pairing) {
                         Graph.settings.useTelecom = it
                     },
                     modifier = Modifier.testTag("use_telecom"),
+                )
+            }
+        }
+
+        BrandCard {
+            var phoneLog by remember { mutableStateOf(Graph.callHistory.phoneLogEnabled && Graph.callHistory.canWritePhoneLog()) }
+            val askLog = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                phoneLog = granted
+                Graph.callHistory.phoneLogEnabled = granted
+            }
+            Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.phone_log_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.phone_log_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = phoneLog,
+                    onCheckedChange = { on ->
+                        if (!on) {
+                            phoneLog = false
+                            Graph.callHistory.phoneLogEnabled = false
+                        } else if (Graph.callHistory.canWritePhoneLog()) {
+                            phoneLog = true
+                            Graph.callHistory.phoneLogEnabled = true
+                        } else {
+                            askLog.launch(Manifest.permission.WRITE_CALL_LOG)
+                        }
+                    },
+                    modifier = Modifier.testTag("phone_log"),
                 )
             }
         }

@@ -1,0 +1,8 @@
+{
+  "type": "agent.updated",
+  "id": "evt_01JB0000000000000000000022",
+  "ts": 1761200000000,
+  "seq": 61,
+  "agent_id": "nubi",
+  "name": "Nubi"
+}

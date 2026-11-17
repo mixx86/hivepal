@@ -43,6 +43,17 @@ class RelayApi(
         val text: String,
         @SerialName("reply_to") val replyTo: String? = null,
         @SerialName("client_msg_id") val clientMsgId: String? = null,
+        val conv: String? = null,
+    )
+
+    @Serializable
+    private data class NameBody(val name: String)
+
+    @Serializable
+    private data class GroupBody(
+        @SerialName("group_id") val groupId: String? = null,
+        val name: String? = null,
+        val members: List<String>? = null,
     )
 
     @Serializable
@@ -67,12 +78,34 @@ class RelayApi(
 
     fun getMessage(msgId: String): Message = call("GET", "/v1/messages/$msgId", null, Message.serializer())
 
-    fun postMessage(text: String, replyTo: String? = null, clientMsgId: String? = null): Message =
+    /** `conv` = the conversation to write in (multi-agent fork); null = `agent:main`. */
+    fun postMessage(text: String, replyTo: String? = null, clientMsgId: String? = null, conv: String? = null): Message =
         call(
             "POST", "/v1/messages",
-            body(PostMessageBody.serializer(), PostMessageBody(text, replyTo, clientMsgId)),
+            body(PostMessageBody.serializer(), PostMessageBody(text, replyTo, clientMsgId, conv?.takeIf { it != Conv.MAIN })),
             Message.serializer(),
         )
+
+    // ---------- agents and groups (multi-agent fork; 404 on an upstream relay) ----------
+
+    fun listAgents(): List<Agent> = call("GET", "/v1/agents", null, AgentList.serializer()).agents
+
+    fun renameAgent(agentId: String, name: String): Agent =
+        call("PATCH", "/v1/agents/$agentId", body(NameBody.serializer(), NameBody(name)), Agent.serializer())
+
+    fun listGroups(): List<Group> = call("GET", "/v1/groups", null, GroupList.serializer()).groups
+
+    fun createGroup(groupId: String, name: String, members: List<String>): Group =
+        call("POST", "/v1/groups", body(GroupBody.serializer(), GroupBody(groupId, name, members)), Group.serializer())
+
+    fun updateGroup(groupId: String, name: String? = null, members: List<String>? = null): Group =
+        call("PATCH", "/v1/groups/$groupId", body(GroupBody.serializer(), GroupBody(null, name, members)), Group.serializer())
+
+    fun deleteGroup(groupId: String) {
+        call<Unit>("DELETE", "/v1/groups/$groupId", null, null)
+    }
+
+    fun listCalls(limit: Int = 100): List<Call> = call("GET", "/v1/calls?limit=$limit", null, CallList.serializer()).calls
 
     fun markRead(msgId: String) {
         call<Unit>("POST", "/v1/messages/$msgId/read", "".toRequestBody(null), null)

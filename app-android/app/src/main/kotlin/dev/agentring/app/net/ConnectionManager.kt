@@ -50,11 +50,15 @@ class ConnectionManager : DefaultLifecycleObserver {
         val s = RelaySocket(api, { Graph.messages.lastSeq }, object : RelaySocket.Listener {
             override fun onEvent(event: Event) {
                 if (stale()) return
-                if (event is Event.AgentPresence) _agentOnline.value = event.online
+                if (event is Event.AgentPresence && (event.agentId ?: "main") == "main") _agentOnline.value = event.online
+                Graph.directory.apply(event)
                 when (event) {
                     // The socket may replay an old invite: check it's still ringing first.
                     is Event.CallInvite -> Graph.calls.onInvite(event, verifyFirst = true)
-                    is Event.CallAnswer, is Event.CallEnd, is Event.CallMissed -> Graph.calls.onCallEvent(event)
+                    is Event.CallAnswer, is Event.CallEnd, is Event.CallMissed -> {
+                        Graph.calls.onCallEvent(event)
+                        if (event !is Event.CallAnswer) Graph.refreshCallsSoon()
+                    }
                     else -> Unit
                 }
                 Graph.messages.apply(event, advanceSeq = true, generation = generation)
@@ -81,6 +85,7 @@ class ConnectionManager : DefaultLifecycleObserver {
         Graph.appScope.launch(Dispatchers.IO) {
             try {
                 Graph.messages.refresh(api, generation)
+                if (!stale()) Graph.refreshDirectory(api)
                 // A group call may be going on without this phone (missed ring, push lost): offer to join.
                 val activeCall = api.status().activeCall
                 if (!stale()) Graph.calls.onActiveCall(activeCall)

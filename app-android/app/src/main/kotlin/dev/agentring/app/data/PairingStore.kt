@@ -58,6 +58,14 @@ class PairingStore(context: Context) {
         _setupComplete.value = done
     }
 
+    /** The main agent was renamed (multi-agent fork): keep the stored name in step, without re-running setup. */
+    fun renameAgent(name: String) {
+        val p = current ?: return
+        val renamed = p.copy(agentName = name)
+        secrets.put(KEY_PAIRING, ProtocolJson.encodeToString(Pairing.serializer(), renamed))
+        _pairing.value = renamed
+    }
+
     fun markRevoked() {
         _revoked.value = true
     }

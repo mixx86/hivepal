@@ -59,8 +59,13 @@ class MessageRepository(context: Context) {
         }
     }
 
+    /** Per conversation, the newest msg_id the user cleared: older messages there stay hidden. */
+    private fun clearedUpTo(conv: String): String? = prefs.getString(KEY_CLEARED + conv, null)
+
     /** Inserts or updates by msg_id. A truncated push never overwrites a full text we already have. */
     fun upsert(m: Message, truncated: Boolean = false, generation: Long = this.generation) = mutate(generation) { list ->
+        val cleared = clearedUpTo(m.convId)
+        if (cleared != null && m.msgId <= cleared) return@mutate list
         val existing = list.firstOrNull { it.msgId == m.msgId }
         val merged = when {
             existing == null -> m
@@ -98,9 +103,9 @@ class MessageRepository(context: Context) {
         }
     }
 
-    /** Sends read receipts for the agent's messages. Blocking. */
-    fun markAgentMessagesRead(api: RelayApi) {
-        val unread = _messages.value.filter { it.fromAgent && it.readAt == null }
+    /** Sends read receipts for the agents' messages (in one conversation, or all). Blocking. */
+    fun markAgentMessagesRead(api: RelayApi, conv: String? = null) {
+        val unread = _messages.value.filter { it.fromAgent && it.readAt == null && (conv == null || it.convId == conv) }
         val now = System.currentTimeMillis()
         for (m in unread) {
             try {
@@ -113,18 +118,29 @@ class MessageRepository(context: Context) {
         }
     }
 
-    fun unreadFromAgent(): List<Message> = _messages.value.filter { it.fromAgent && it.readAt == null }
+    fun unreadFromAgent(conv: String? = null): List<Message> =
+        _messages.value.filter { it.fromAgent && it.readAt == null && (conv == null || it.convId == conv) }
+
+    /** Hides a conversation's messages on this phone (the relay keeps them). */
+    fun clearConversation(conv: String) = synchronized(this) {
+        val newest = _messages.value.filter { it.convId == conv }.maxOfOrNull { it.msgId } ?: return@synchronized
+        prefs.edit().putString(KEY_CLEARED + conv, newest).apply()
+        mutate { list -> list.filter { it.convId != conv } }
+    }
 
     fun clear() = synchronized(this) {
         generation++
         _messages.value = emptyList()
         cache.delete()
-        prefs.edit().remove(KEY_SEQ).apply()
+        val edit = prefs.edit().remove(KEY_SEQ)
+        prefs.all.keys.filter { it.startsWith(KEY_CLEARED) }.forEach { edit.remove(it) }
+        edit.apply()
     }
 
     private companion object {
         const val TAG = "MessageRepository"
         const val KEY_SEQ = "last_seq"
+        const val KEY_CLEARED = "cleared:"
         const val MAX_CACHED = 500
     }
 }

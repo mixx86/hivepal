@@ -1,0 +1,11 @@
+{
+  "type": "msg.new",
+  "id": "evt_01JB0000000000000000000020",
+  "ts": 1761200000000,
+  "seq": 60,
+  "msg_id": "msg_01JB0000000000000000000021",
+  "from": "agent",
+  "text": "Gym a las 18:00",
+  "conv": "group:todos",
+  "agent_id": "nubi"
+}

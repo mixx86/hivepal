@@ -38,8 +38,8 @@ object PushHandler {
                     }
                 }
                 Graph.messages.upsert(msg, truncated = truncated, generation = generation)
-                if (msg.fromAgent && !AppVisibility.messagesVisible) {
-                    Notifications.showMessages(context, p.agentName)
+                if (msg.fromAgent && AppVisibility.openConv != msg.convId) {
+                    Notifications.showMessages(context, msg.convId)
                     Outcome.Notified(msg.msgId)
                 } else {
                     Outcome.Applied
@@ -51,6 +51,7 @@ object PushHandler {
             }
             is Event.CallAnswer, is Event.CallEnd, is Event.CallMissed -> {
                 Graph.calls.onCallEvent(event)
+                if (event !is Event.CallAnswer) Graph.refreshCallsSoon()
                 Outcome.Applied
             }
             else -> {

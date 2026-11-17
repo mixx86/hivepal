@@ -1,0 +1,9 @@
+{
+  "type": "group.updated",
+  "id": "evt_01JB0000000000000000000023",
+  "ts": 1761200000000,
+  "seq": 62,
+  "group_id": "todos",
+  "name": "Todos",
+  "members": ["nubi", "rutina"]
+}

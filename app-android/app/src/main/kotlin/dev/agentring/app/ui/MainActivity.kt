@@ -12,13 +12,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.agentring.app.Graph
 
-/** Which screen is on top, so a push for a conversation the user is reading doesn't notify. */
+/** Which conversation is on screen, so a push for the conversation the user is reading doesn't notify. */
 object AppVisibility {
-    @Volatile var messagesVisible: Boolean = false
+    @Volatile var openConv: String? = null
 }
 
 class MainActivity : ComponentActivity() {
-    private val openMessages = mutableStateOf(false)
+    private val openRequest = mutableStateOf<OpenRequest?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             AgentringTheme {
-                AppRoot(openMessages)
+                AppRoot(openRequest)
             }
         }
     }
@@ -37,23 +37,24 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.getStringExtra(EXTRA_OPEN) == OPEN_MESSAGES) openMessages.value = true
+        if (intent?.getStringExtra(EXTRA_OPEN) == OPEN_MESSAGES) openRequest.value = OpenRequest(intent.getStringExtra(EXTRA_CONV))
     }
 
     companion object {
         const val EXTRA_OPEN = "open"
         const val OPEN_MESSAGES = "messages"
+        const val EXTRA_CONV = "conv"
     }
 }
 
 @Composable
-fun AppRoot(openMessages: MutableState<Boolean>) {
+fun AppRoot(openRequest: MutableState<OpenRequest?>) {
     val pairing by Graph.pairing.pairing.collectAsStateWithLifecycle()
     val setupComplete by Graph.pairing.setupComplete.collectAsStateWithLifecycle()
     val p = pairing
     if (p == null || !setupComplete) {
         OnboardingFlow(paired = p, onFinished = { Graph.pairing.setSetupComplete(true) })
     } else {
-        MainScaffold(p, openMessages)
+        MainScaffold(p, openRequest)
     }
 }

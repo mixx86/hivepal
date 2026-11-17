@@ -79,14 +79,58 @@ data class Message(
     @SerialName("device_id") val deviceId: String? = null,
     @SerialName("created_at") val createdAt: Long,
     @SerialName("read_at") val readAt: Long? = null,
+    /** Multi-agent fork: `agent:<id>` or `group:<id>`; absent (older relays) = `agent:main`. */
+    val conv: String? = null,
+    @SerialName("agent_id") val agentId: String? = null,
 ) {
     val fromAgent: Boolean get() = from == FROM_AGENT
+
+    /** The conversation, never null. */
+    val convId: String get() = conv ?: Conv.MAIN
+
+    /** The agent that wrote it (`main` for older relays), or null for the user's messages. */
+    val author: String? get() = if (fromAgent) agentId ?: Conv.MAIN_AGENT else null
 
     companion object {
         const val FROM_AGENT = "agent"
         const val FROM_USER = "user"
     }
 }
+
+/** Conversation ids (multi-agent fork): `agent:<agent_id>` with one agent, `group:<group_id>` with several. */
+object Conv {
+    const val MAIN_AGENT = "main"
+    const val MAIN = "agent:main"
+    fun ofAgent(agentId: String) = "agent:$agentId"
+    fun ofGroup(groupId: String) = "group:$groupId"
+    fun isGroup(conv: String) = conv.startsWith("group:")
+    fun id(conv: String) = conv.substringAfter(':')
+}
+
+@Serializable
+data class Agent(
+    @SerialName("agent_id") val agentId: String,
+    val name: String,
+    @SerialName("created_at") val createdAt: Long = 0,
+    val online: Boolean? = null,
+)
+
+@Serializable
+data class Group(
+    @SerialName("group_id") val groupId: String,
+    val name: String,
+    val members: List<String> = emptyList(),
+    @SerialName("created_at") val createdAt: Long = 0,
+)
+
+@Serializable
+data class AgentList(val agents: List<Agent>)
+
+@Serializable
+data class GroupList(val groups: List<Group>)
+
+@Serializable
+data class CallList(val calls: List<Call>)
 
 @Serializable
 data class MessagePage(val messages: List<Message>, @SerialName("has_more") val hasMore: Boolean)
@@ -110,6 +154,7 @@ data class Call(
     val reason: String? = null,
     val priority: String,
     @SerialName("agent_name") val agentName: String,
+    @SerialName("agent_id") val agentId: String? = null,
     @SerialName("created_at") val createdAt: Long,
     @SerialName("answered_at") val answeredAt: Long? = null,
     @SerialName("ended_at") val endedAt: Long? = null,
@@ -159,6 +204,7 @@ sealed interface Event {
         val reason: String,
         val priority: String,
         @SerialName("expires_at") val expiresAt: Long,
+        @SerialName("agent_id") val agentId: String? = null,
     ) : Event
 
     @Serializable
@@ -200,8 +246,10 @@ sealed interface Event {
         val text: String,
         @SerialName("reply_to") val replyTo: String? = null,
         val truncated: Boolean? = null,
+        val conv: String? = null,
+        @SerialName("agent_id") val agentId: String? = null,
     ) : Event {
-        fun toMessage() = Message(msgId = msgId, from = from, text = text, replyTo = replyTo, createdAt = ts)
+        fun toMessage() = Message(msgId = msgId, from = from, text = text, replyTo = replyTo, createdAt = ts, conv = conv, agentId = agentId)
     }
 
     @Serializable
@@ -209,12 +257,34 @@ sealed interface Event {
         override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
         @SerialName("msg_id") val msgId: String,
         val by: String,
+        val conv: String? = null,
     ) : Event
 
     @Serializable
     data class AgentPresence(
         override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
         val online: Boolean,
+        /** Absent = `main` (older relays). */
+        @SerialName("agent_id") val agentId: String? = null,
+    ) : Event
+
+    /** An agent was added, renamed or removed (multi-agent fork). */
+    @Serializable
+    data class AgentUpdated(
+        override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
+        @SerialName("agent_id") val agentId: String,
+        val name: String,
+        val removed: Boolean? = null,
+    ) : Event
+
+    /** A group was created, changed or removed (multi-agent fork). */
+    @Serializable
+    data class GroupUpdated(
+        override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
+        @SerialName("group_id") val groupId: String,
+        val name: String,
+        val members: List<String> = emptyList(),
+        val removed: Boolean? = null,
     ) : Event
 
     @Serializable
@@ -246,6 +316,8 @@ sealed interface Event {
                 "msg.read" -> j.decodeFromJsonElement(MsgRead.serializer(), obj)
                 "agent.presence" -> j.decodeFromJsonElement(AgentPresence.serializer(), obj)
                 "ws.hello" -> j.decodeFromJsonElement(WsHello.serializer(), obj)
+                "agent.updated" -> j.decodeFromJsonElement(AgentUpdated.serializer(), obj)
+                "group.updated" -> j.decodeFromJsonElement(GroupUpdated.serializer(), obj)
                 else -> Unknown(
                     type = type,
                     id = obj["id"]?.jsonPrimitive?.content ?: "",
