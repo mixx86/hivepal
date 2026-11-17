@@ -46,7 +46,7 @@ def apply_event(store: Store, event: dict[str, Any]) -> None:
     try:
         if t == "msg.new":
             store.upsert_message(event["msg_id"], event["from"], _clean(event["text"]), event["ts"],
-                                 _clean(event.get("reply_to")))
+                                 _clean(event.get("reply_to")), event.get("conv"), event.get("agent_id"))
         elif t == "msg.read":
             store.mark_read(event["msg_id"], event["ts"])
     except (ValueError, KeyError, TypeError) as e:
@@ -60,9 +60,11 @@ def catch_up(client: RelayClient, store: Store, *, lock: AbstractContextManager 
     """Pulls every event after our cursor. Returns how many were applied. `lock`, if the store
     is shared between threads, is held around store access and never during a relay request."""
     guard = lock or nullcontext()
-    relay_id = client.status()["relay_id"]
+    st = client.status()
+    relay_id = st["relay_id"]
     with guard:
         store.reset_if_relay_changed(relay_id)
+        store.set_state("self_agent_id", (st.get("self") or {}).get("agent_id") or "main")
         after = store.last_seq
     n = 0
     while True:

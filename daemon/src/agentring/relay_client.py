@@ -130,8 +130,12 @@ class RelayClient:
         self._request("DELETE", f"/v1/devices/{device_id}")
 
     # messages
-    def post_message(self, text: str, *, reply_to: str | None = None, client_msg_id: str | None = None) -> dict:
+    def post_message(self, text: str, *, reply_to: str | None = None, client_msg_id: str | None = None,
+                     conv: str | None = None) -> dict:
+        """`conv`: `group:<id>` to write in a group (multi-agent fork); default the agent's own conversation."""
         body: dict[str, Any] = {"text": text}
+        if conv:
+            body["conv"] = conv
         if reply_to:
             body["reply_to"] = reply_to
         if client_msg_id:
@@ -143,6 +147,39 @@ class RelayClient:
 
     def mark_read(self, msg_id: str) -> None:
         self._request("POST", f"/v1/messages/{msg_id}/read")
+
+    # agents and groups (multi-agent fork)
+    def list_agents(self) -> list[dict]:
+        return self._request("GET", "/v1/agents")["agents"]
+
+    def create_agent(self, agent_id: str, name: str) -> dict:
+        return self._request("POST", "/v1/agents", json={"agent_id": agent_id, "name": name})
+
+    def rename_agent(self, agent_id: str, name: str) -> dict:
+        return self._request("PATCH", f"/v1/agents/{agent_id}", json={"name": name})
+
+    def remove_agent(self, agent_id: str) -> None:
+        self._request("DELETE", f"/v1/agents/{agent_id}")
+
+    def rotate_agent_key(self, agent_id: str) -> dict:
+        return self._request("POST", f"/v1/agents/{agent_id}/key")
+
+    def list_groups(self) -> list[dict]:
+        return self._request("GET", "/v1/groups")["groups"]
+
+    def create_group(self, group_id: str, name: str, members: list[str]) -> dict:
+        return self._request("POST", "/v1/groups", json={"group_id": group_id, "name": name, "members": members})
+
+    def update_group(self, group_id: str, *, name: str | None = None, members: list[str] | None = None) -> dict:
+        body: dict[str, Any] = {}
+        if name is not None:
+            body["name"] = name
+        if members is not None:
+            body["members"] = members
+        return self._request("PATCH", f"/v1/groups/{group_id}", json=body)
+
+    def remove_group(self, group_id: str) -> None:
+        self._request("DELETE", f"/v1/groups/{group_id}")
 
     # calls
     def create_call(

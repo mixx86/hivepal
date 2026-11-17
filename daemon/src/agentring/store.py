@@ -20,10 +20,16 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at INTEGER NOT NULL,
     read_at INTEGER,
     -- when `agentring replies` / get_replies last handed this message to the agent
-    delivered_at INTEGER
+    delivered_at INTEGER,
+    -- multi-agent fork: the conversation (NULL = agent:main) and the sending agent
+    conv TEXT,
+    agent_id TEXT
 );
 CREATE INDEX IF NOT EXISTS messages_created ON messages(created_at);
 """
+
+#: Columns added after the first release, for mirrors created by an older daemon.
+_ADDED_COLUMNS = {"conv": "TEXT", "agent_id": "TEXT"}
 
 
 def _make_private(path: Path) -> None:
@@ -51,6 +57,10 @@ class Store:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA busy_timeout=5000")
         self.db.executescript(SCHEMA)
+        have = {r["name"] for r in self.db.execute("PRAGMA table_info(messages)")}
+        for col, typ in _ADDED_COLUMNS.items():
+            if col not in have:
+                self.db.execute(f"ALTER TABLE messages ADD COLUMN {col} {typ}")
 
     def close(self) -> None:
         self.db.close()
@@ -86,19 +96,31 @@ class Store:
         return False
 
     # messages
-    def upsert_message(self, msg_id: str, sender: str, text: str, created_at: int, reply_to: str | None = None) -> bool:
+    def upsert_message(self, msg_id: str, sender: str, text: str, created_at: int, reply_to: str | None = None,
+                       conv: str | None = None, agent_id: str | None = None) -> bool:
         cur = self.db.execute(
-            "INSERT OR IGNORE INTO messages (msg_id, sender, text, reply_to, created_at) VALUES (?, ?, ?, ?, ?)",
-            (msg_id, sender, text, reply_to, created_at),
+            "INSERT OR IGNORE INTO messages (msg_id, sender, text, reply_to, created_at, conv, agent_id)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (msg_id, sender, text, reply_to, created_at, conv, agent_id),
         )
         return cur.rowcount == 1
+
+    @property
+    def self_agent_id(self) -> str:
+        """The agent this daemon's key belongs to (multi-agent fork); `main` for the relay API key."""
+        return self.get_state("self_agent_id", "main") or "main"
 
     def mark_read(self, msg_id: str, ts: int) -> None:
         self.db.execute("UPDATE messages SET read_at = COALESCE(read_at, ?) WHERE msg_id = ?", (ts, msg_id))
 
-    def replies(self, *, since: int | None = None, undelivered_only: bool = False, limit: int = 100) -> list[dict[str, Any]]:
-        q = "SELECT * FROM messages WHERE sender = 'user'"
-        args: list[Any] = []
+    def replies(self, *, since: int | None = None, undelivered_only: bool = False, limit: int = 100,
+                conv: str | None = None) -> list[dict[str, Any]]:
+        """Messages for this agent: the user's, and in a group also the other agents'."""
+        q = "SELECT * FROM messages WHERE NOT (sender = 'agent' AND COALESCE(agent_id, 'main') = ?)"
+        args: list[Any] = [self.self_agent_id]
+        if conv is not None:
+            q += " AND COALESCE(conv, 'agent:main') = ?"
+            args.append(conv)
         if since is not None:
             q += " AND created_at >= ?"
             args.append(since)

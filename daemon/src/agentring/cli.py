@@ -33,6 +33,11 @@ agents_app = typer.Typer(help="Your agents the voice AI can consult (agents.yaml
 app.add_typer(agents_app, name="agents")
 voice_app = typer.Typer(help="Voice AI tools.", no_args_is_help=True)
 app.add_typer(voice_app, name="voice")
+bots_app = typer.Typer(help="Agents with their own key and conversation on the relay (multi-agent fork).",
+                       no_args_is_help=False)
+app.add_typer(bots_app, name="bots")
+groups_app = typer.Typer(help="Group conversations: the user and several agents, who all read them.", no_args_is_help=False)
+app.add_typer(groups_app, name="groups")
 
 JsonOpt = Annotated[bool, typer.Option("--json", help="Machine-readable JSON output.")]
 AiOpt = Annotated[bool, typer.Option("--ai", help="A voice AI talks on the call (default Gemini Live; see --provider).")]
@@ -395,17 +400,20 @@ def call(
 def msg(
     text: Annotated[str, typer.Argument(help="Message text (max 4000 chars).")],
     reply_to: Annotated[Optional[str], typer.Option("--reply-to", help="msg_id or call_id this answers.")] = None,
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="Write in this group (see `agentring groups`) "
+                                                 "instead of your own conversation.")] = None,
     json_out: JsonOpt = False,
 ) -> None:
     """Send a message to the phone. Prints the msg_id."""
     s = _settings()
     with _client(s) as c:
         try:
-            m = c.post_message(text, reply_to=reply_to)
+            m = c.post_message(text, reply_to=reply_to, conv=f"group:{group}" if group else None)
         except RelayError as e:
             raise _fail(str(e)) from None
     store = Store(s.db_path)
-    store.upsert_message(m["msg_id"], "agent", m["text"], m["created_at"], m.get("reply_to"))
+    store.upsert_message(m["msg_id"], "agent", m["text"], m["created_at"], m.get("reply_to"), m.get("conv"),
+                         m.get("agent_id"))
     store.close()
     if json_out:
         _emit_json({"msg_id": m["msg_id"]})
@@ -421,11 +429,15 @@ def replies(
     all_: Annotated[bool, typer.Option("--all", help="Show all replies, not just new ones.")] = False,
     peek: Annotated[bool, typer.Option("--peek", help="Don't mark the replies as seen.")] = False,
     limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 100,
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="Only this group's messages.")] = None,
     json_out: JsonOpt = False,
 ) -> None:
-    """Show the user's replies. By default only new ones (not shown before), which are then marked as seen."""
+    """Show the user's replies. By default only new ones (not shown before), which are then marked as seen.
+
+    In a group you also get what the other agents write there; those lines say the group and who wrote."""
     s = _settings()
     store = Store(s.db_path)
+    names: dict[str, str] = {}
     with _client(s) as c:
         try:
             catch_up(c, store)
@@ -434,21 +446,40 @@ def replies(
 
         since_ms = parse_since(since) if since else None
         undelivered_only = since is None and not all_
-        rows = store.replies(since=since_ms, undelivered_only=undelivered_only, limit=limit)
+        rows = store.replies(since=since_ms, undelivered_only=undelivered_only, limit=limit,
+                             conv=f"group:{group}" if group else None)
         if rows and not peek:
             store.mark_delivered([r["msg_id"] for r in rows], _now_ms())
             for r in rows:
-                if r["read_at"] is None:
+                if r["read_at"] is None and r["sender"] == "user":
                     try:
                         c.mark_read(r["msg_id"])
                     except RelayError:
                         pass  # best effort; the read receipt is cosmetic
+        if any((r["conv"] or "").startswith("group:") for r in rows):
+            try:
+                names = {f"agent:{a['agent_id']}": a["name"] for a in c.list_agents()}
+                names.update({f"group:{g['group_id']}": g["name"] for g in c.list_groups()})
+            except RelayError:
+                pass  # names are cosmetic; ids are shown instead
     store.close()
 
-    out = [
-        {"msg_id": r["msg_id"], "text": r["text"], "created_at": r["created_at"], "reply_to": r["reply_to"]}
-        for r in rows
-    ]
+    def who(r: dict[str, Any]) -> str:
+        if r["sender"] == "user":
+            return "user"
+        aid = r["agent_id"] or "main"
+        return names.get(f"agent:{aid}", aid)
+
+    out = []
+    for r in rows:
+        item = {"msg_id": r["msg_id"], "text": r["text"], "created_at": r["created_at"], "reply_to": r["reply_to"]}
+        conv = r["conv"] or "agent:main"
+        if conv.startswith("group:"):
+            item.update(conv=conv, group=names.get(conv, conv[6:]), from_=r["sender"], author=who(r))
+            item["from"] = item.pop("from_")
+            if r["sender"] == "agent":
+                item["agent_id"] = r["agent_id"]
+        out.append(item)
     if json_out:
         _emit_json({"replies": out})
         return
@@ -456,7 +487,8 @@ def replies(
         typer.echo("No new replies." if undelivered_only else "No replies.")
         return
     for r in out:
-        typer.echo(f"[{_fmt_ts(r['created_at'])}] {r['text']}")
+        prefix = f"[{r['group']}] {r['author']}: " if "group" in r else ""
+        typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}")
 
 
 @app.command()
@@ -466,7 +498,12 @@ def status(json_out: JsonOpt = False) -> None:
     with _client(s) as c:
         try:
             st = c.status()
-            devs = c.list_devices()
+            try:
+                devs = c.list_devices()
+            except RelayError as e:
+                if e.status != 403:  # an agent's own key (multi-agent fork) can't list phones
+                    raise
+                devs = None
         except RelayError as e:
             if json_out:
                 _emit_json({"relay_url": s.relay_url, "reachable": False, "error": str(e)})
@@ -475,9 +512,13 @@ def status(json_out: JsonOpt = False) -> None:
         _emit_json({"relay_url": s.relay_url, "reachable": True, **st, "devices": devs})
         return
     typer.echo(f"Relay:       {s.relay_url} ({st['relay_id']}, v{st['version']})")
-    typer.echo(f"Agent name:  {st['agent_name']}")
+    me = st.get("self")
+    typer.echo(f"Agent name:  {st['agent_name']}" + (f" (id {me['agent_id']})" if me else ""))
     typer.echo(f"Daemon:      {'connected (serve running)' if st['agent_online'] else 'not connected'}")
     typer.echo(f"Push:        {st['push_provider']}")
+    if devs is None:
+        typer.echo(f"Devices:     {st.get('device_count', '?')} paired")
+        return
     if not devs:
         typer.echo("Devices:     none — run `agentring pair`")
     for d in devs:
@@ -618,6 +659,156 @@ def agents_ask(
         typer.echo(asyncio.run(agent.ask(task)))
     except (OSError, RuntimeError, TimeoutError) as e:
         raise _fail(str(e)) from None
+
+
+@bots_app.callback(invoke_without_command=True)
+def bots_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
+    """List the agents on the relay (`main` is the relay's own API key)."""
+    if ctx.invoked_subcommand:
+        return
+    s = _settings()
+    with _client(s) as c:
+        try:
+            agents = c.list_agents()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json({"agents": agents})
+        return
+    for a in agents:
+        typer.echo(f"{a['agent_id']:<16} {a['name']:<24} {'online' if a.get('online') else ''}")
+
+
+def _bot_key_out(r: dict, json_out: bool) -> None:
+    if json_out:
+        _emit_json(r)
+        return
+    typer.echo(f"Agent {r['agent']['agent_id']} ({r['agent']['name']}). Its API key (shown only now):")
+    typer.echo(r["api_key"])
+    typer.echo("Give it to that agent: AGENTRING_API_KEY, or `agentring init --api-key` in its own AGENTRING_HOME.")
+
+
+@bots_app.command("add")
+def bots_add(
+    agent_id: Annotated[str, typer.Argument(help="Short id: lowercase letters, digits, - and _ (e.g. nubi).")],
+    name: Annotated[str, typer.Argument(help="Name shown on the phone.")],
+    json_out: JsonOpt = False,
+) -> None:
+    """Add an agent with its own API key and conversation. Needs the relay's API key."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            r = c.create_agent(agent_id, name)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    _bot_key_out(r, json_out)
+
+
+@bots_app.command("rename")
+def bots_rename(
+    agent_id: Annotated[str, typer.Argument()],
+    name: Annotated[str, typer.Argument(help="New name shown on the phone.")],
+) -> None:
+    """Rename an agent (main too). The user can also do it from the app."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            a = c.rename_agent(agent_id, name)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"{a['agent_id']} is now {a['name']}")
+
+
+@bots_app.command("key")
+def bots_key(agent_id: Annotated[str, typer.Argument()], json_out: JsonOpt = False) -> None:
+    """Give an agent a new API key; the old one stops working at once."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            r = c.rotate_agent_key(agent_id)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    _bot_key_out(r, json_out)
+
+
+@bots_app.command("remove")
+def bots_remove(agent_id: Annotated[str, typer.Argument()]) -> None:
+    """Revoke an agent's key and take it out of its groups. Its messages stay."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.remove_agent(agent_id)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"Removed {agent_id}")
+
+
+def _members(value: str) -> list[str]:
+    return [m.strip() for m in value.split(",") if m.strip()]
+
+
+@groups_app.callback(invoke_without_command=True)
+def groups_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
+    """List the groups (an agent sees the ones it is in)."""
+    if ctx.invoked_subcommand:
+        return
+    s = _settings()
+    with _client(s) as c:
+        try:
+            groups = c.list_groups()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json({"groups": groups})
+        return
+    if not groups:
+        typer.echo("No groups.")
+    for g in groups:
+        typer.echo(f"{g['group_id']:<16} {g['name']:<24} {', '.join(g['members'])}")
+
+
+@groups_app.command("add")
+def groups_add(
+    group_id: Annotated[str, typer.Argument(help="Short id (e.g. todos). Agents write there with --group <id>.")],
+    name: Annotated[str, typer.Argument(help="Name shown on the phone.")],
+    members: Annotated[str, typer.Option("--members", "-m", help="Comma-separated agent ids.")],
+) -> None:
+    """Create a group. Needs the relay's API key (the user can also create groups from the app)."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            g = c.create_group(group_id, name, _members(members))
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"Group {g['group_id']} ({g['name']}): {', '.join(g['members'])}")
+
+
+@groups_app.command("set")
+def groups_set(
+    group_id: Annotated[str, typer.Argument()],
+    name: Annotated[Optional[str], typer.Option("--name", help="New name.")] = None,
+    members: Annotated[Optional[str], typer.Option("--members", "-m", help="The new member list, comma-separated.")] = None,
+) -> None:
+    """Rename a group or replace its members."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            g = c.update_group(group_id, name=name, members=_members(members) if members is not None else None)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"Group {g['group_id']} ({g['name']}): {', '.join(g['members'])}")
+
+
+@groups_app.command("remove")
+def groups_remove(group_id: Annotated[str, typer.Argument()]) -> None:
+    """Delete a group. Its messages stay in the relay's log."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.remove_group(group_id)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"Removed group {group_id}")
 
 
 @voice_app.command("bench")
