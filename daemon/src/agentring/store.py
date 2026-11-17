@@ -116,8 +116,12 @@ class Store:
     def replies(self, *, since: int | None = None, undelivered_only: bool = False, limit: int = 100,
                 conv: str | None = None) -> list[dict[str, Any]]:
         """Messages for this agent: the user's, and in a group also the other agents'."""
-        q = "SELECT * FROM messages WHERE NOT (sender = 'agent' AND COALESCE(agent_id, 'main') = ?)"
-        args: list[Any] = [self.self_agent_id]
+        me = self.self_agent_id
+        # Not our own messages, and not another agent's conversation: a mirror that was filled with
+        # the relay's shared key (before this agent had its own) holds those, as agent:main.
+        q = ("SELECT * FROM messages WHERE NOT (sender = 'agent' AND COALESCE(agent_id, 'main') = ?)"
+             " AND (COALESCE(conv, 'agent:main') LIKE 'group:%' OR COALESCE(conv, 'agent:main') = ?)")
+        args: list[Any] = [me, f"agent:{me}"]
         if conv is not None:
             q += " AND COALESCE(conv, 'agent:main') = ?"
             args.append(conv)

@@ -105,6 +105,19 @@ def test_two_agents_hold_websockets_at_once(relay: str):
     assert sorted(asyncio.run(main())) == ["main", "nubi"]
 
 
+def test_switching_to_an_own_key_does_not_replay_the_shared_conversation(tmp_path: Path):
+    s = Store(tmp_path / "m.db")
+    # Filled with the shared (main) key: the user's and other agents' messages, all agent:main.
+    s.upsert_message("msg_1", "user", "para todos", 1)
+    s.upsert_message("msg_2", "agent", "de otro bot", 2)
+    s.set_state("self_agent_id", "nubi")
+    s.upsert_message("msg_3", "user", "para Nubi", 3, conv="agent:nubi")
+    s.upsert_message("msg_4", "agent", "en el grupo", 4, conv="group:todos", agent_id="rutina")
+    s.upsert_message("msg_5", "user", "para Rutina", 5, conv="agent:rutina")
+    assert [r["text"] for r in s.replies(undelivered_only=True)] == ["para Nubi", "en el grupo"]
+    s.close()
+
+
 def test_old_mirror_gets_the_new_columns(tmp_path: Path):
     import sqlite3
 
