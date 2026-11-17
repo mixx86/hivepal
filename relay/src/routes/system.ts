@@ -11,11 +11,13 @@ export function systemRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.get("/healthz", async () => ({ ok: true }));
 
   app.get("/v1/status", { preHandler: auth }, async (req) => {
+    const p = principal(req);
+    const agentId = p.kind === "agent" ? p.agentId : "main";
     const body: Schemas["Status"] = {
       relay_id: ctx.relayId,
       version: VERSION,
-      agent_name: ctx.cfg.agentName,
-      agent_online: ctx.hub.isAgentOnline(),
+      agent_name: ctx.agents.nameOf(agentId),
+      agent_online: ctx.hub.isAgentOnline(agentId),
       push_provider: ctx.pushProviderName,
       active_call: (() => {
         const open = ctx.calls?.open();
@@ -25,6 +27,7 @@ export function systemRoutes(app: FastifyInstance, ctx: Ctx): void {
     if (principal(req).kind === "agent") {
       const row = ctx.db.prepare("SELECT COUNT(*) AS n FROM devices WHERE revoked_at IS NULL").get() as { n: number };
       body.device_count = row.n;
+      body.self = { agent_id: agentId, name: ctx.agents.nameOf(agentId) };
     }
     return body;
   });

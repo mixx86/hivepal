@@ -3,8 +3,11 @@ import { SignJWT, jwtVerify } from "jose";
 import type { Db } from "./db/database.js";
 import { unauthorized } from "./errors.js";
 
-/** `expiresAt` marks a short-lived agent token (`at_…`, hub mode); a tenant API key has none. */
-export type Principal = { kind: "agent"; expiresAt?: number } | { kind: "device"; deviceId: string };
+/**
+ * `agentId` is `main` for the relay API key (and hub agent tokens), or the agent a per-agent key
+ * belongs to (multi-agent fork). `expiresAt` marks a short-lived agent token (`at_…`, hub mode).
+ */
+export type Principal = { kind: "agent"; agentId: string; expiresAt?: number } | { kind: "device"; deviceId: string };
 
 export function sha256(s: string): Buffer {
   return createHash("sha256").update(s).digest();
@@ -21,6 +24,8 @@ export class Auth {
     private readonly relayId: string,
     /** Hub mode: when a short-lived agent token (`at_…`, by its SHA-256) expires, if it is valid for this tenant. */
     private readonly agentToken?: (hash: Buffer) => number | undefined,
+    /** Multi-agent fork: the agent a per-agent API key (by its SHA-256) belongs to. */
+    private readonly agentKey: (hash: Buffer) => string | undefined = () => undefined,
   ) {
     this.jwtKey = Buffer.from(jwtSecret, "base64url");
   }
@@ -42,13 +47,16 @@ export class Auth {
     const token = m[1]!;
 
     if (token.startsWith("ak_")) {
-      if (timingSafeEqual(sha256(token), this.apiKeyHash())) return { kind: "agent" };
+      const hash = sha256(token);
+      if (timingSafeEqual(hash, this.apiKeyHash())) return { kind: "agent", agentId: "main" };
+      const agentId = this.agentKey(hash);
+      if (agentId !== undefined) return { kind: "agent", agentId };
       throw unauthorized();
     }
 
     if (token.startsWith("at_")) {
       const expiresAt = this.agentToken?.(sha256(token));
-      if (expiresAt !== undefined) return { kind: "agent", expiresAt };
+      if (expiresAt !== undefined) return { kind: "agent", agentId: "main", expiresAt };
       throw unauthorized();
     }
 

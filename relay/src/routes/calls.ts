@@ -26,6 +26,8 @@ interface CallRow {
   device_id: string | null;
   /** JSON array of the targeted device ids; NULL = every paired phone rings. */
   device_ids: string | null;
+  /** The agent that placed or takes the call; NULL = `main` (calls from before the multi-agent fork). */
+  agent_id?: string | null;
 }
 
 /** The phones a targeted call rings, or undefined when it rings every paired phone. */
@@ -33,9 +35,9 @@ export function targetsOf(r: Pick<CallRow, "device_ids">): string[] | undefined 
   return r.device_ids ? (JSON.parse(r.device_ids) as string[]) : undefined;
 }
 
-/** Whether `p` may see this call at all: a targeted call is private to its phones. */
-export function canSee(r: Pick<CallRow, "device_ids">, p: Principal): boolean {
-  if (p.kind === "agent") return true;
+/** Whether `p` may see this call at all: a targeted call is private to its phones, a call to its agent. */
+export function canSee(r: Pick<CallRow, "device_ids" | "agent_id">, p: Principal): boolean {
+  if (p.kind === "agent") return (r.agent_id ?? "main") === p.agentId;
   const targets = targetsOf(r);
   return targets === undefined || targets.includes(p.deviceId);
 }
@@ -48,6 +50,7 @@ export function callFromRow(r: CallRow): Call {
     ...(r.reason ? { reason: r.reason } : {}),
     priority: r.priority,
     agent_name: r.agent_name,
+    ...(r.agent_id ? { agent_id: r.agent_id } : {}),
     created_at: r.created_at,
     ...(r.answered_at ? { answered_at: r.answered_at } : {}),
     ...(r.ended_at ? { ended_at: r.ended_at } : {}),
@@ -62,6 +65,7 @@ export function callFromRow(r: CallRow): Call {
 /** LiveKit room of a call; hub mode prefixes it with the tenant (one LiveKit for every tenant). */
 export const roomName = (ctx: Pick<Ctx, "roomPrefix">, callId: string) => ctx.roomPrefix + callId;
 const identityOf = (p: Principal) => (p.kind === "agent" ? "agent" : `device_${p.deviceId}`);
+const agentOf = (p: Principal) => (p.kind === "agent" ? p.agentId : "main");
 /** Which side placed the call. */
 const callerKind = (d: Direction) => (d === "agent_to_user" ? "agent" : "device");
 const invalidState = (state: CallState) => new ApiError(409, "invalid_state", `Call is ${state}`);
@@ -190,7 +194,7 @@ export class Calls {
 
   /** Whether a device may see this event; events of a targeted call only reach its phones. */
   eventVisibleTo(event: Event, p: Principal): boolean {
-    if (p.kind === "agent" || !event.type.startsWith("call.")) return true;
+    if (!event.type.startsWith("call.")) return true;
     const c = this.get((event as { call_id: string }).call_id);
     return !c || canSee(c, p);
   }
@@ -205,7 +209,7 @@ export class Calls {
       if (n.n === 0) throw new ApiError(409, "no_devices", "No paired devices");
     } else if (body.device_ids !== undefined) {
       throw new ApiError(400, "invalid_request", "device_ids is only for calls placed by the agent");
-    } else if (!this.ctx.hub.isAgentOnline()) {
+    } else if (!this.ctx.hub.isAgentOnline("main")) {
       throw new ApiError(503, "agent_offline", "The agent is not connected");
     }
     if (this.open()) throw new ApiError(409, "busy", "Another call is ringing or active");
@@ -219,7 +223,7 @@ export class Calls {
       state: "ringing",
       reason: wellFormed(body.reason ?? ""),
       priority: body.priority ?? "normal",
-      agent_name: wellFormed((p.kind === "agent" ? body.agent_name : undefined) ?? this.ctx.cfg.agentName),
+      agent_name: wellFormed((p.kind === "agent" ? body.agent_name : undefined) ?? this.ctx.agents.nameOf(agentOf(p))),
       created_at: now,
       expires_at: now + this.ctx.cfg.ringTimeoutS * 1000,
       answered_at: null,
@@ -228,13 +232,14 @@ export class Calls {
       end_reason: null,
       device_id: p.kind === "device" ? p.deviceId : null,
       device_ids: targets ? JSON.stringify(targets) : null,
+      agent_id: agentOf(p),
     };
     this.ctx.db
       .prepare(
-        `INSERT INTO calls (call_id, direction, state, reason, priority, agent_name, created_at, expires_at, device_id, device_ids)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO calls (call_id, direction, state, reason, priority, agent_name, created_at, expires_at, device_id, device_ids, agent_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(row.call_id, direction, "ringing", row.reason, row.priority, row.agent_name, now, row.expires_at, row.device_id, row.device_ids);
+      .run(row.call_id, direction, "ringing", row.reason, row.priority, row.agent_name, now, row.expires_at, row.device_id, row.device_ids, row.agent_id!);
     if (direction === "agent_to_user") {
       const devs =
         targets ??
@@ -250,6 +255,7 @@ export class Calls {
       call_id: row.call_id,
       direction,
       agent_name: row.agent_name,
+      agent_id: row.agent_id!,
       reason: row.reason,
       priority: row.priority,
       expires_at: row.expires_at,
@@ -563,7 +569,7 @@ export function callRoutes(app: FastifyInstance, ctx: Ctx, calls: Calls): void {
     return ctx.livekit;
   };
   const joinFor = (callId: string, p: Principal) =>
-    livekit().join(roomName(ctx, callId), identityOf(p), p.kind === "agent" ? ctx.cfg.agentName : "user");
+    livekit().join(roomName(ctx, callId), identityOf(p), p.kind === "agent" ? ctx.agents.nameOf(p.agentId) : "user");
 
   app.post<{ Body: Schemas["CreateCallRequest"] }>(
     "/v1/calls",
@@ -624,8 +630,10 @@ export function callRoutes(app: FastifyInstance, ctx: Ctx, calls: Calls): void {
       const where = [
         ...(before ? ["call_id < ?"] : []),
         ...(p.kind === "device" ? ["(device_ids IS NULL OR EXISTS (SELECT 1 FROM json_each(calls.device_ids) WHERE value = ?))"] : []),
+        // An agent sees its own calls.
+        ...(p.kind === "agent" ? ["COALESCE(agent_id, 'main') = ?"] : []),
       ];
-      const args = [...(before ? [before] : []), ...(p.kind === "device" ? [p.deviceId] : []), limit];
+      const args = [...(before ? [before] : []), ...(p.kind === "device" ? [p.deviceId] : [p.agentId]), limit];
       const rows = ctx.db
         .prepare(`SELECT * FROM calls ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY call_id DESC LIMIT ?`)
         .all(...args) as unknown as CallRow[];

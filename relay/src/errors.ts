@@ -1,5 +1,6 @@
 export type ErrorCode =
   | "invalid_request"
+  | "exists"
   | "unauthorized"
   | "invalid_pairing_token"
   | "forbidden"

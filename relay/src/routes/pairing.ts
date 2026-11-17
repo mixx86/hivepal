@@ -140,7 +140,7 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
         device_jwt: await ctx.auth.issueDeviceJwt(deviceId),
         push_secret: pushSecret,
         relay_id: ctx.relayId,
-        agent_name: ctx.cfg.agentName,
+        agent_name: ctx.agents.nameOf("main"),
         push_config: ctx.pushConfig,
       };
       req.log.info({ device: deviceId, name: b.device_name }, "device paired");

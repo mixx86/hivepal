@@ -78,7 +78,36 @@ const MIGRATIONS: string[] = [
   -- Targeted calls: JSON array of the device ids the call rings; NULL = every paired phone.
   ALTER TABLE calls ADD COLUMN device_ids TEXT;
   `,
+  `
+  -- Multi-agent fork: agents with their own API keys, group conversations, and the
+  -- conversation of every message (NULL = 'agent:main', from before the fork).
+  CREATE TABLE agents (
+    agent_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    key_hash TEXT,
+    created_at INTEGER NOT NULL,
+    revoked_at INTEGER
+  );
+  CREATE UNIQUE INDEX agents_key ON agents(key_hash) WHERE key_hash IS NOT NULL;
+  CREATE TABLE agent_groups (
+    group_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE agent_group_members (
+    group_id TEXT NOT NULL REFERENCES agent_groups(group_id),
+    agent_id TEXT NOT NULL,
+    PRIMARY KEY (group_id, agent_id)
+  );
+  ALTER TABLE messages ADD COLUMN conv TEXT;
+  ALTER TABLE messages ADD COLUMN agent_id TEXT;
+  CREATE INDEX messages_conv ON messages(conv, msg_id);
+  ALTER TABLE calls ADD COLUMN agent_id TEXT;
+  `,
 ];
+
+/** For upgrade tests: a database at an older schema. */
+export const MIGRATIONS_FOR_TEST: readonly string[] = MIGRATIONS;
 
 export type Db = DatabaseSync;
 

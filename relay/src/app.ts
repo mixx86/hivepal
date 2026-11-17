@@ -3,6 +3,7 @@ import { chmodSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
+import { Agents, convOf } from "./agents.js";
 import { Auth, sha256 } from "./auth.js";
 import { type Config, dbPath, trustedHops } from "./config.js";
 import type { Ctx } from "./context.js";
@@ -17,6 +18,7 @@ import { PushDispatcher } from "./push/dispatcher.js";
 import { FcmProvider } from "./push/fcm.js";
 import type { PushProvider } from "./push/push-provider.js";
 import { Calls, callRoutes, targetsOf } from "./routes/calls.js";
+import { agentRoutes } from "./routes/agents.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
 import { systemRoutes } from "./routes/system.js";
@@ -107,11 +109,13 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   if (!provider && !opts.tenant) app.log.warn("Push is not configured: the phone will only get events while the app is open");
 
   const events = new EventLog(db);
+  const agents = new Agents(db, cfg);
   const ctx: Ctx = {
     cfg,
     log: app.log,
     db,
-    auth: new Auth(db, apiKeyHash, jwtSecret, relayId, opts.tenant?.agentToken),
+    auth: new Auth(db, apiKeyHash, jwtSecret, relayId, opts.tenant?.agentToken, (h) => agents.byKeyHash(h)),
+    agents,
     events,
     relayId,
     pushConfig,
@@ -124,7 +128,13 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   if (!ctx.livekit && !opts.tenant) app.log.warn("LiveKit is not configured: calls are disabled");
   const calls = new Calls(ctx);
   ctx.calls = calls;
-  events.setVisibility((e, p) => calls.eventVisibleTo(e, p));
+  // An agent only gets the messages of its own conversations (its own, and its groups).
+  events.setVisibility((e, p) => {
+    if (!calls.eventVisibleTo(e, p)) return false;
+    if (p.kind !== "agent") return true;
+    if (e.type === "msg.new" || e.type === "msg.read") return agents.canSee(p.agentId, convOf(e.conv));
+    return true;
+  });
 
   const dispatcher = new PushDispatcher(db, provider, relayId, app.log, (id) => {
     const c = calls.get(id);
@@ -153,6 +163,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   systemRoutes(app, ctx);
   pairingRoutes(app, ctx);
   messageRoutes(app, ctx);
+  agentRoutes(app, ctx);
   callRoutes(app, ctx, calls);
   calls.resume();
   // Fetch the FCM access token now so the first call's push doesn't wait for it.

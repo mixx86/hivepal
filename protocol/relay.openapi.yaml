@@ -449,6 +449,10 @@ paths:
         - name: from
           in: query
           schema: { $ref: "#/components/schemas/Party" }
+        - name: conv
+          in: query
+          description: Only this conversation. An agent always gets only its own conversations.
+          schema: { $ref: "#/components/schemas/ConvId" }
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
@@ -493,6 +497,192 @@ paths:
       responses:
         "204": { description: Marked (idempotent). }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      summary: The agents that write to this relay (multi-agent fork). `main` is the relay API key's agent.
+      description: |
+        Each agent has its own `ak_…` key and its own conversation with the user (`conv: agent:<agent_id>`).
+        `main` always exists and uses the relay's API key. `online` is true while the agent holds a WebSocket.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: Agents, `main` first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items: { $ref: "#/components/schemas/Agent" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [agents]
+      operationId: createAgent
+      summary: Add an agent with its own API key. Relay API key (`main`) only. The key is returned once.
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAgentRequest" }
+      responses:
+        "201":
+          description: Created. Emits `agent.updated`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedAgent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`exists`: an agent with this id already exists."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/agents/{agent_id}:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    patch:
+      tags: [agents]
+      operationId: updateAgent
+      summary: "Rename an agent (the user from the app, or the relay API key). Emits `agent.updated`."
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAgentRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [agents]
+      operationId: removeAgent
+      summary: Revoke an agent's key and remove it from groups. Relay API key only; `main` can't be removed.
+      security: [{ agentKey: [] }]
+      responses:
+        "204": { description: Removed. Emits `agent.updated` with `removed`. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/key:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    post:
+      tags: [agents]
+      operationId: rotateAgentKey
+      summary: Give an agent a new API key (the old one stops working). Relay API key only; not for `main`.
+      security: [{ agentKey: [] }]
+      responses:
+        "200":
+          description: The new key, returned once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedAgent" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/groups:
+    get:
+      tags: [agents]
+      operationId: listGroups
+      summary: Group conversations. An agent sees only the groups it belongs to.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: Groups.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [groups]
+                properties:
+                  groups:
+                    type: array
+                    items: { $ref: "#/components/schemas/Group" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [agents]
+      operationId: createGroup
+      summary: "Create a group conversation (`conv` = `group:<group_id>`). The user or the relay API key."
+      description: Every member reads what the user and the other members write in it. Emits `group.updated`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateGroupRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`exists`: a group with this id already exists."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/groups/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    patch:
+      tags: [agents]
+      operationId: updateGroup
+      summary: Rename a group or change its members. The user or the relay API key. Emits `group.updated`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateGroupRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [agents]
+      operationId: removeGroup
+      summary: Delete a group (its messages stay in the log). Emits `group.updated` with `removed`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/events:
@@ -657,6 +847,74 @@ components:
     EventId:
       type: string
       pattern: "^evt_[0-9A-HJKMNP-TV-Z]{26}$"
+    AgentId:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9_-]{0,31}$"
+      examples: [main, nubi]
+    ConvId:
+      description: |
+        A conversation: `agent:<agent_id>` (the user and one agent) or `group:<group_id>` (the user
+        and several agents, who all read it). Messages from before the multi-agent fork belong to `agent:main`.
+      type: string
+      pattern: "^(agent|group):[a-z0-9][a-z0-9_-]{0,31}$"
+      examples: ["agent:main", "group:todos"]
+    Agent:
+      type: object
+      required: [agent_id, name, created_at]
+      properties:
+        agent_id: { $ref: "#/components/schemas/AgentId" }
+        name: { type: string }
+        created_at: { $ref: "#/components/schemas/Timestamp" }
+        online: { type: boolean }
+    CreateAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [agent_id, name]
+      properties:
+        agent_id: { $ref: "#/components/schemas/AgentId" }
+        name: { type: string, minLength: 1, maxLength: 64 }
+    UpdateAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+    CreatedAgent:
+      type: object
+      required: [agent, api_key]
+      properties:
+        agent: { $ref: "#/components/schemas/Agent" }
+        api_key: { type: string, description: "`ak_…`; shown only here." }
+    Group:
+      type: object
+      required: [group_id, name, members, created_at]
+      properties:
+        group_id: { $ref: "#/components/schemas/AgentId" }
+        name: { type: string }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/AgentId" }
+        created_at: { $ref: "#/components/schemas/Timestamp" }
+    CreateGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [group_id, name, members]
+      properties:
+        group_id: { $ref: "#/components/schemas/AgentId" }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        members:
+          type: array
+          maxItems: 64
+          items: { $ref: "#/components/schemas/AgentId" }
+    UpdateGroupRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        members:
+          type: array
+          maxItems: 64
+          items: { $ref: "#/components/schemas/AgentId" }
     Party:
       description: A human-or-agent side of the conversation.
       type: string
@@ -687,7 +945,7 @@ components:
           properties:
             code:
               type: string
-              examples: [invalid_request, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, internal]
+              examples: [invalid_request, exists, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, internal]
             message: { type: string }
 
     # ---------- system ----------
@@ -703,6 +961,13 @@ components:
         device_count:
           description: Only returned to the agent.
           type: integer
+        self:
+          description: Only returned to an agent; the agent the key belongs to.
+          type: object
+          required: [agent_id, name]
+          properties:
+            agent_id: { $ref: "#/components/schemas/AgentId" }
+            name: { type: string }
         active_call:
           description: The call currently ringing or active, if any.
           oneOf:
@@ -827,6 +1092,9 @@ components:
         reason: { type: string }
         priority: { $ref: "#/components/schemas/Priority" }
         agent_name: { type: string }
+        agent_id:
+          description: The agent that placed (or, for `user_to_agent`, takes) the call. Absent on calls from before the fork.
+          $ref: "#/components/schemas/AgentId"
         created_at: { $ref: "#/components/schemas/Timestamp" }
         answered_at: { $ref: "#/components/schemas/Timestamp" }
         ended_at: { $ref: "#/components/schemas/Timestamp" }
@@ -879,6 +1147,11 @@ components:
           description: Idempotency key chosen by the sender (unique per sender).
           type: string
           maxLength: 64
+        conv:
+          description: |
+            Where to post. Default: the sender agent's own conversation; for the user, `agent:main`.
+            An agent may post to its own conversation or to a group it belongs to (403 otherwise).
+          $ref: "#/components/schemas/ConvId"
     Message:
       type: object
       required: [msg_id, from, text, created_at]
@@ -891,6 +1164,10 @@ components:
         device_id:
           description: Sending device when `from` = user.
           $ref: "#/components/schemas/DeviceId"
+        conv: { $ref: "#/components/schemas/ConvId" }
+        agent_id:
+          description: Sending agent when `from` = agent.
+          $ref: "#/components/schemas/AgentId"
         created_at: { $ref: "#/components/schemas/Timestamp" }
         read_at: { $ref: "#/components/schemas/Timestamp" }
 
@@ -919,6 +1196,8 @@ components:
         - $ref: "#/components/schemas/MsgReadEvent"
         - $ref: "#/components/schemas/AgentPresenceEvent"
         - $ref: "#/components/schemas/WsHelloEvent"
+        - $ref: "#/components/schemas/AgentUpdatedEvent"
+        - $ref: "#/components/schemas/GroupUpdatedEvent"
       discriminator:
         propertyName: type
         mapping:
@@ -932,6 +1211,8 @@ components:
           msg.read: "#/components/schemas/MsgReadEvent"
           agent.presence: "#/components/schemas/AgentPresenceEvent"
           ws.hello: "#/components/schemas/WsHelloEvent"
+          agent.updated: "#/components/schemas/AgentUpdatedEvent"
+          group.updated: "#/components/schemas/GroupUpdatedEvent"
 
     CallInviteEvent:
       allOf:
@@ -943,6 +1224,7 @@ components:
             call_id: { $ref: "#/components/schemas/CallId" }
             direction: { $ref: "#/components/schemas/CallDirection" }
             agent_name: { type: string }
+            agent_id: { $ref: "#/components/schemas/AgentId" }
             reason: { type: string, description: "Empty string if the user called without a reason." }
             priority: { $ref: "#/components/schemas/Priority" }
             expires_at:
@@ -1034,6 +1316,10 @@ components:
             from: { $ref: "#/components/schemas/Party" }
             text: { type: string }
             reply_to: { type: string }
+            conv: { $ref: "#/components/schemas/ConvId" }
+            agent_id:
+              description: Sending agent when `from` = agent.
+              $ref: "#/components/schemas/AgentId"
             truncated:
               description: Only in push payloads; fetch the full message via GET /v1/messages/{msg_id}.
               type: boolean
@@ -1055,6 +1341,7 @@ components:
             type: { const: msg.read }
             msg_id: { $ref: "#/components/schemas/MsgId" }
             by: { $ref: "#/components/schemas/Party" }
+            conv: { $ref: "#/components/schemas/ConvId" }
 
     AgentPresenceEvent:
       description: Ephemeral (no seq). Sent to devices when the daemon connects/disconnects.
@@ -1065,6 +1352,9 @@ components:
           properties:
             type: { const: agent.presence }
             online: { type: boolean }
+            agent_id:
+              description: Which agent connected or disconnected (absent = `main`, older relays).
+              $ref: "#/components/schemas/AgentId"
 
     WsHelloEvent:
       description: Ephemeral (no seq). First frame of every WebSocket.
@@ -1077,6 +1367,33 @@ components:
             relay_id: { $ref: "#/components/schemas/RelayId" }
             last_seq: { type: integer, minimum: 0 }
             server_ts: { $ref: "#/components/schemas/Timestamp" }
+
+    AgentUpdatedEvent:
+      description: An agent was added, renamed or removed.
+      allOf:
+        - $ref: "#/components/schemas/EventBase"
+        - type: object
+          required: [type, agent_id, name]
+          properties:
+            type: { const: agent.updated }
+            agent_id: { $ref: "#/components/schemas/AgentId" }
+            name: { type: string }
+            removed: { type: boolean }
+
+    GroupUpdatedEvent:
+      description: A group was created, changed or removed.
+      allOf:
+        - $ref: "#/components/schemas/EventBase"
+        - type: object
+          required: [type, group_id, name, members]
+          properties:
+            type: { const: group.updated }
+            group_id: { $ref: "#/components/schemas/AgentId" }
+            name: { type: string }
+            members:
+              type: array
+              items: { $ref: "#/components/schemas/AgentId" }
+            removed: { type: boolean }
 
     # ---------- push ----------
     PushData:

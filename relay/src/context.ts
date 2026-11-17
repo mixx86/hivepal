@@ -1,4 +1,5 @@
 import type { FastifyBaseLogger, FastifyRequest } from "fastify";
+import type { Agents } from "./agents.js";
 import type { Auth, Principal } from "./auth.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db/database.js";
@@ -15,6 +16,7 @@ export interface Ctx {
   log: FastifyBaseLogger;
   db: Db;
   auth: Auth;
+  agents: Agents;
   events: EventLog;
   relayId: string;
   pushConfig: PushConfig;
@@ -55,6 +57,7 @@ export function requireAgentKey(ctx: Ctx) {
     const p = await ctx.auth.authenticate(req.headers.authorization);
     if (p.kind !== "agent") throw forbidden(`This endpoint is not available to ${p.kind} credentials`);
     if (p.expiresAt !== undefined) throw forbidden("This endpoint needs the API key, not a short-lived agent token");
+    if (p.agentId !== "main") throw forbidden("This endpoint needs the relay's API key, not an agent's own key");
     req.principal = p;
   };
 }

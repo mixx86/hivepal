@@ -395,6 +395,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The agents that write to this relay (multi-agent fork). `main` is the relay API key's agent.
+         * @description Each agent has its own `ak_…` key and its own conversation with the user (`conv: agent:<agent_id>`).
+         *     `main` always exists and uses the relay's API key. `online` is true while the agent holds a WebSocket.
+         */
+        get: operations["listAgents"];
+        put?: never;
+        /** Add an agent with its own API key. Relay API key (`main`) only. The key is returned once. */
+        post: operations["createAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an agent's key and remove it from groups. Relay API key only; `main` can't be removed. */
+        delete: operations["removeAgent"];
+        options?: never;
+        head?: never;
+        /** Rename an agent (the user from the app, or the relay API key). Emits `agent.updated`. */
+        patch: operations["updateAgent"];
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Give an agent a new API key (the old one stops working). Relay API key only; not for `main`. */
+        post: operations["rotateAgentKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Group conversations. An agent sees only the groups it belongs to. */
+        get: operations["listGroups"];
+        put?: never;
+        /**
+         * Create a group conversation (`conv` = `group:<group_id>`). The user or the relay API key.
+         * @description Every member reads what the user and the other members write in it. Emits `group.updated`.
+         */
+        post: operations["createGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a group (its messages stay in the log). Emits `group.updated` with `removed`. */
+        delete: operations["removeGroup"];
+        options?: never;
+        head?: never;
+        /** Rename a group or change its members. The user or the relay API key. Emits `group.updated`. */
+        patch: operations["updateGroup"];
+        trace?: never;
+    };
     "/v1/events": {
         parameters: {
             query?: never;
@@ -451,6 +553,51 @@ export interface components {
         MsgId: string;
         EventId: string;
         /**
+         * @example main
+         * @example nubi
+         */
+        AgentId: string;
+        /**
+         * @description A conversation: `agent:<agent_id>` (the user and one agent) or `group:<group_id>` (the user
+         *     and several agents, who all read it). Messages from before the multi-agent fork belong to `agent:main`.
+         * @example agent:main
+         * @example group:todos
+         */
+        ConvId: string;
+        Agent: {
+            agent_id: components["schemas"]["AgentId"];
+            name: string;
+            created_at: components["schemas"]["Timestamp"];
+            online?: boolean;
+        };
+        CreateAgentRequest: {
+            agent_id: components["schemas"]["AgentId"];
+            name: string;
+        };
+        UpdateAgentRequest: {
+            name: string;
+        };
+        CreatedAgent: {
+            agent: components["schemas"]["Agent"];
+            /** @description `ak_…`; shown only here. */
+            api_key: string;
+        };
+        Group: {
+            group_id: components["schemas"]["AgentId"];
+            name: string;
+            members: components["schemas"]["AgentId"][];
+            created_at: components["schemas"]["Timestamp"];
+        };
+        CreateGroupRequest: {
+            group_id: components["schemas"]["AgentId"];
+            name: string;
+            members: components["schemas"]["AgentId"][];
+        };
+        UpdateGroupRequest: {
+            name?: string;
+            members?: components["schemas"]["AgentId"][];
+        };
+        /**
          * @description A human-or-agent side of the conversation.
          * @enum {string}
          */
@@ -469,6 +616,7 @@ export interface components {
             error: {
                 /**
                  * @example invalid_request
+                 * @example exists
                  * @example unauthorized
                  * @example invalid_pairing_token
                  * @example forbidden
@@ -497,6 +645,11 @@ export interface components {
             push_provider: string;
             /** @description Only returned to the agent. */
             device_count?: number;
+            /** @description Only returned to an agent; the agent the key belongs to. */
+            self?: {
+                agent_id: components["schemas"]["AgentId"];
+                name: string;
+            };
             /** @description The call currently ringing or active, if any. */
             active_call?: components["schemas"]["Call"] | null;
         };
@@ -590,6 +743,8 @@ export interface components {
             reason?: string;
             priority: components["schemas"]["Priority"];
             agent_name: string;
+            /** @description The agent that placed (or, for `user_to_agent`, takes) the call. Absent on calls from before the fork. */
+            agent_id?: components["schemas"]["AgentId"];
             created_at: components["schemas"]["Timestamp"];
             answered_at?: components["schemas"]["Timestamp"];
             ended_at?: components["schemas"]["Timestamp"];
@@ -630,6 +785,11 @@ export interface components {
             reply_to?: string;
             /** @description Idempotency key chosen by the sender (unique per sender). */
             client_msg_id?: string;
+            /**
+             * @description Where to post. Default: the sender agent's own conversation; for the user, `agent:main`.
+             *     An agent may post to its own conversation or to a group it belongs to (403 otherwise).
+             */
+            conv?: components["schemas"]["ConvId"];
         };
         Message: {
             msg_id: components["schemas"]["MsgId"];
@@ -639,6 +799,9 @@ export interface components {
             client_msg_id?: string;
             /** @description Sending device when `from` = user. */
             device_id?: components["schemas"]["DeviceId"];
+            conv?: components["schemas"]["ConvId"];
+            /** @description Sending agent when `from` = agent. */
+            agent_id?: components["schemas"]["AgentId"];
             created_at: components["schemas"]["Timestamp"];
             read_at?: components["schemas"]["Timestamp"];
         };
@@ -649,7 +812,7 @@ export interface components {
             /** @description Position in the relay event log. Absent on ephemeral events. */
             seq?: number;
         };
-        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"];
+        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"];
         /**
          * @example {
          *       "type": "call.invite",
@@ -670,6 +833,7 @@ export interface components {
             call_id: components["schemas"]["CallId"];
             direction: components["schemas"]["CallDirection"];
             agent_name: string;
+            agent_id?: components["schemas"]["AgentId"];
             /** @description Empty string if the user called without a reason. */
             reason: string;
             priority: components["schemas"]["Priority"];
@@ -773,6 +937,9 @@ export interface components {
             from: components["schemas"]["Party"];
             text: string;
             reply_to?: string;
+            conv?: components["schemas"]["ConvId"];
+            /** @description Sending agent when `from` = agent. */
+            agent_id?: components["schemas"]["AgentId"];
             /** @description Only in push payloads; fetch the full message via GET /v1/messages/{msg_id}. */
             truncated?: boolean;
         } & {
@@ -787,6 +954,7 @@ export interface components {
             type: "msg.read";
             msg_id: components["schemas"]["MsgId"];
             by: components["schemas"]["Party"];
+            conv?: components["schemas"]["ConvId"];
         } & {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -799,6 +967,8 @@ export interface components {
             /** @constant */
             type: "agent.presence";
             online: boolean;
+            /** @description Which agent connected or disconnected (absent = `main`, older relays). */
+            agent_id?: components["schemas"]["AgentId"];
         } & {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -819,6 +989,35 @@ export interface components {
              * @enum {string}
              */
             type: "ws.hello";
+        };
+        /** @description An agent was added, renamed or removed. */
+        AgentUpdatedEvent: components["schemas"]["EventBase"] & {
+            /** @constant */
+            type: "agent.updated";
+            agent_id: components["schemas"]["AgentId"];
+            name: string;
+            removed?: boolean;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "agent.updated";
+        };
+        /** @description A group was created, changed or removed. */
+        GroupUpdatedEvent: components["schemas"]["EventBase"] & {
+            /** @constant */
+            type: "group.updated";
+            group_id: components["schemas"]["AgentId"];
+            name: string;
+            members: components["schemas"]["AgentId"][];
+            removed?: boolean;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "group.updated";
         };
         /**
          * @description The FCM `data` map (all values are strings). `event` is the compact JSON
@@ -1370,6 +1569,8 @@ export interface operations {
                 /** @description Return messages created at or after this time (ms). */
                 since?: components["schemas"]["Timestamp"];
                 from?: components["schemas"]["Party"];
+                /** @description Only this conversation. An agent always gets only its own conversations. */
+                conv?: components["schemas"]["ConvId"];
                 limit?: components["parameters"]["Limit"];
             };
             header?: never;
@@ -1463,6 +1664,254 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAgents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agents, `main` first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        agents: components["schemas"]["Agent"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. Emits `agent.updated`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedAgent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description `exists`: an agent with this id already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. Emits `agent.updated` with `removed`. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAgentRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    rotateAgentKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new key, returned once. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedAgent"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Groups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        groups: components["schemas"]["Group"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description `exists`: a group with this id already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

@@ -29,9 +29,9 @@ export const CLOSE_UNAUTHORIZED = 4401;
 export const CLOSE_REPLACED = 4409;
 const CLOSE_TRY_LATER = 1013;
 
-/** Tracks open sockets: one daemon (newest wins) and any number of device sockets. */
+/** Tracks open sockets: one daemon per agent (newest wins) and any number of device sockets. */
 export class WsHub {
-  private agent?: WebSocket;
+  private readonly agents = new Map<string, WebSocket>();
   private readonly devices = new Map<string, Set<WebSocket>>();
   /** Every open socket, also those still replaying. */
   private readonly sockets = new Set<WebSocket>();
@@ -49,21 +49,25 @@ export class WsHub {
     this.sockets.delete(ws);
   }
 
-  isAgentOnline(): boolean {
-    return this.agent !== undefined;
+  isAgentOnline(agentId = "main"): boolean {
+    return this.agents.has(agentId);
   }
 
-  attachAgent(ws: WebSocket): void {
-    const previous = this.agent;
-    this.agent = ws;
+  onlineAgents(): string[] {
+    return [...this.agents.keys()];
+  }
+
+  attachAgent(agentId: string, ws: WebSocket): void {
+    const previous = this.agents.get(agentId);
+    this.agents.set(agentId, ws);
     if (previous) previous.close(CLOSE_REPLACED, "replaced by a newer agent connection");
-    else this.events.emit({ type: "agent.presence", online: true }, "devices");
+    else this.events.emit({ type: "agent.presence", online: true, agent_id: agentId }, "devices");
   }
 
-  detachAgent(ws: WebSocket): void {
-    if (this.agent !== ws) return;
-    this.agent = undefined;
-    this.events.emit({ type: "agent.presence", online: false }, "devices");
+  detachAgent(agentId: string, ws: WebSocket): void {
+    if (this.agents.get(agentId) !== ws) return;
+    this.agents.delete(agentId);
+    this.events.emit({ type: "agent.presence", online: false, agent_id: agentId }, "devices");
   }
 
   attachDevice(deviceId: string, ws: WebSocket): void {
@@ -83,9 +87,9 @@ export class WsHub {
     if (set?.size === 0) this.devices.delete(deviceId);
   }
 
-  /** Closes the agent's socket, e.g. after its API key was rotated. */
-  disconnectAgent(): void {
-    this.agent?.close(CLOSE_UNAUTHORIZED, "API key rotated");
+  /** Closes an agent's socket, e.g. after its API key was rotated. */
+  disconnectAgent(agentId = "main"): void {
+    this.agents.get(agentId)?.close(CLOSE_UNAUTHORIZED, "API key rotated");
   }
 
   /** Open sockets (agent and devices); hub mode keeps a tenant loaded while it has any. */
@@ -186,7 +190,7 @@ export function wsRoutes(app: FastifyInstance, ctx: Ctx): void {
         clearTimeout(expiry);
         unsubscribe();
         hub.untrack(socket);
-        if (p.kind === "agent") hub.detachAgent(socket);
+        if (p.kind === "agent") hub.detachAgent(p.agentId, socket);
         else hub.detachDevice(p.deviceId, socket);
       });
       // Clients don't send frames in v1; ignore anything they do send.
@@ -212,8 +216,13 @@ export function wsRoutes(app: FastifyInstance, ctx: Ctx): void {
         for (const e of pending) if (e.seq === undefined || e.seq > after) send(e);
         pending.length = 0;
 
-        if (p.kind === "agent") hub.attachAgent(socket);
-        else send(ephemeral({ type: "agent.presence", online: hub.isAgentOnline() } as Omit<Event, "id" | "ts">));
+        if (p.kind === "agent") hub.attachAgent(p.agentId, socket);
+        else {
+          send(ephemeral({ type: "agent.presence", online: hub.isAgentOnline() } as Omit<Event, "id" | "ts">));
+          for (const a of hub.onlineAgents()) {
+            if (a !== "main") send(ephemeral({ type: "agent.presence", online: true, agent_id: a } as Omit<Event, "id" | "ts">));
+          }
+        }
       };
       replay().catch((err: unknown) => {
         req.log.error({ err }, "websocket replay failed");
