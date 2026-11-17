@@ -184,23 +184,26 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Un
         ConvAvatar(r.conv, r.name, online = online)
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    r.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (r.members != null) {
-                    Spacer(Modifier.width(8.dp))
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        stringResource(R.string.group_members_count, r.members),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = scheme.onSurfaceVariant,
+                        r.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (r.members != null) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.group_members_count, r.members),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
-                Spacer(Modifier.weight(1f))
                 r.last?.let {
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         shortTime(it.createdAt),
                         style = MaterialTheme.typography.labelMedium,
@@ -213,7 +216,7 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Un
                 val last = r.last
                 val preview = when {
                     last == null -> ""
-                    !last.fromAgent -> stringResource(R.string.you_prefix) + last.text
+                    !last.fromAgent -> stringResource(R.string.you_prefix).trim() + " " + last.text
                     Conv.isGroup(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + last.text
                     else -> last.text
                 }
