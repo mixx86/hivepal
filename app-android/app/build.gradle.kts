@@ -43,7 +43,7 @@ android {
         versionName = providers.gradleProperty("versionName").orNull ?: "0.2.0-dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Hosted agentring (docs/cloud.md), offered in the setup tutorial; -PagentringCloudUrl= (empty) hides it.
-        val cloudUrl = providers.gradleProperty("agentringCloudUrl").orNull ?: "https://agentring.io"
+        val cloudUrl = providers.gradleProperty("agentringCloudUrl").orNull ?: ""  // Hivepal: no hosted service
         require(cloudUrl.isEmpty() || cloudUrl.startsWith("https://")) { "agentringCloudUrl must be https://" }
         buildConfigField("String", "CLOUD_URL", "\"$cloudUrl\"")
     }

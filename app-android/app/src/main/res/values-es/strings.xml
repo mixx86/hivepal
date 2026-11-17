@@ -48,7 +48,7 @@
     <string name="call_agent_needs_relay">Sin conexión con tu relay</string>
     <string name="call_agent_in_call">Estás en una llamada</string>
     <string name="revoked_title">Este móvil se ha desemparejado</string>
-    <string name="revoked_body">El relay ya no acepta este móvil. Vuelve a emparejarlo con agentring pair.</string>
+    <string name="revoked_body">El relay ya no acepta este móvil. Vuelve a emparejarlo con hivepal pair.</string>
     <string name="pair_again">Emparejar de nuevo</string>
 
     <string name="messages_empty">Cuando %1$s te escriba, aparecerá aquí. También puedes escribirle tú primero.</string>
@@ -62,13 +62,13 @@
     <string name="settings_device">ID del dispositivo</string>
     <string name="test_notification">Enviar notificación de prueba</string>
     <string name="unpair">Desemparejar este móvil</string>
-    <string name="unpair_confirm">¿Olvidar el emparejamiento en este móvil? Para revocarlo también en el relay ejecuta: agentring devices revoke %1$s</string>
+    <string name="unpair_confirm">¿Olvidar el emparejamiento en este móvil? Para revocarlo también en el relay ejecuta: hivepal devices revoke %1$s</string>
     <string name="cancel">Cancelar</string>
 
     <string name="channel_messages">Mensajes de tu agente</string>
     <string name="reply">Responder</string>
     <string name="reply_failed_title">Respuesta no enviada</string>
-    <string name="test_notification_text">Notificación de prueba de agentring ✓</string>
+    <string name="test_notification_text">Notificación de prueba de Hivepal ✓</string>
 
     <string name="channel_calls">Llamadas de tu agente</string>
     <string name="channel_calls_urgent">Llamadas urgentes de tu agente</string>
@@ -99,7 +99,7 @@
     <string name="perm_background">Actividad en segundo plano permitida</string>
     <string name="perm_dnd">Llamadas urgentes en No molestar</string>
     <string name="perm_fix">Permitir</string>
-    <string name="perm_oem_hint">En Xiaomi, Samsung, Huawei y otros móviles con ahorro de batería agresivo, activa también el Inicio automático / \"Apps que nunca se suspenden\" para agentring. Más en dontkillmyapp.com.</string>
+    <string name="perm_oem_hint">En Xiaomi, Samsung, Huawei y otros móviles con ahorro de batería agresivo, activa también el Inicio automático / \"Apps que nunca se suspenden\" para Hivepal. Más en dontkillmyapp.com.</string>
     <string name="settings_calls">Llamadas</string>
     <string name="settings_use_telecom">Usar el sistema de llamadas de Android</string>
     <string name="settings_use_telecom_hint">Botones de auriculares Bluetooth, relojes y coches. Desactívalo solo si las llamadas fallan en este móvil.</string>
@@ -133,7 +133,7 @@
     <string name="pair_scan_step">Escanéalo con este móvil</string>
     <string name="pair_scan_step_body">Pulsa Escanear código QR abajo y apunta la cámara a la pantalla.</string>
     <string name="pair_self_1">Arranca tu relay</string>
-    <string name="pair_self_1_body">En la carpeta de agentring (mira el README en GitHub):</string>
+    <string name="pair_self_1_body">En la carpeta de Hivepal (mira el README en GitHub):</string>
     <string name="pair_self_2">Crea un código de emparejamiento</string>
     <string name="pair_self_2_body">Muestra un código QR en la terminal:</string>
     <string name="calls_title">Que suene seguro</string>
@@ -149,7 +149,7 @@
     <string name="try_self_2">Haz una llamada de prueba</string>
     <string name="try_self_3">Conecta tu agente</string>
     <string name="try_self_3_body">Por ejemplo, Claude Code:</string>
-    <string name="open_app">Abrir agentring</string>
+    <string name="open_app">Abrir Hivepal</string>
     <string name="copy">Copiar</string>
     <string name="connection">Conexión</string>
     <string name="agent_online">En línea</string>
@@ -160,7 +160,7 @@
     <string name="settings_pairing">Emparejamiento</string>
     <string name="settings_more">Más</string>
     <string name="open_dashboard">Abrir mi panel</string>
-    <string name="settings_footer">agentring %1$s · código abierto, Apache-2.0</string>
+    <string name="settings_footer">Hivepal %1$s · basado en agentring (Apache-2.0)</string>
     <string name="perm_notifications_why">Para mostrar mensajes y llamadas entrantes.</string>
     <string name="perm_microphone_why">Para que tu agente te oiga.</string>
     <string name="perm_full_screen_why">Muestra la llamada sobre la pantalla de bloqueo.</string>
@@ -172,8 +172,8 @@
     <string name="call_in_progress_with">Llamada en curso con %1$s</string>
     <string name="call_join">Unirse</string>
     <string name="call_join_hint">Unirse a la llamada</string>
-    <string name="car_not_paired">Primero vincula agentring en el móvil, cuando sea seguro hacerlo.</string>
-    <string name="car_needs_mic">Primero permite el micrófono a agentring en el móvil, cuando sea seguro hacerlo.</string>
+    <string name="car_not_paired">Primero vincula Hivepal en el móvil, cuando sea seguro hacerlo.</string>
+    <string name="car_needs_mic">Primero permite el micrófono a Hivepal en el móvil, cuando sea seguro hacerlo.</string>
     <!-- multi-agent fork -->
     <string name="nav_chats">Chats</string>
     <string name="nav_calls">Llamadas</string>
@@ -212,7 +212,7 @@
     <string name="phone_log_title">Mostrar las llamadas en la app Teléfono</string>
     <string name="phone_log_hint">Las llamadas de tus agentes, también las perdidas, salen en el historial del teléfono.</string>
     <string name="action_failed">No se ha podido: %1$s</string>
-    <string name="no_agents_api">Este relay tiene un solo agente: añade más con `agentring bots add`.</string>
+    <string name="no_agents_api">Este relay tiene un solo agente: añade más con `hivepal bots add`.</string>
     <string name="group_need_members">Elige al menos un agente</string>
     <string name="write_message">Escribe un mensaje</string>
     <string name="group_badge">Grupo</string>

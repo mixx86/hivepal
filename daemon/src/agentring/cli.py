@@ -22,7 +22,7 @@ from .store import Store
 from .sync import FatalSyncError, catch_up, run_ws
 
 app = typer.Typer(
-    help="Let your AI agent call and message your phone.",
+    help="Hivepal: your agents call and message your phone, each with its own chat, plus group chats. (Also installed as `agentring`.)",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,

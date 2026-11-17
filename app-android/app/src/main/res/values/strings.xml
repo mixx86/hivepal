@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">agentring</string>
+    <string name="app_name" translatable="false">Hivepal</string>
     <string name="you">You</string>
 
     <!-- Onboarding -->
@@ -52,7 +52,7 @@
     <string name="call_agent_needs_relay">Not connected to your relay</string>
     <string name="call_agent_in_call">You are on a call</string>
     <string name="revoked_title">This phone was unpaired</string>
-    <string name="revoked_body">The relay no longer accepts this phone. Pair it again with agentring pair.</string>
+    <string name="revoked_body">The relay no longer accepts this phone. Pair it again with hivepal pair.</string>
     <string name="pair_again">Pair again</string>
 
     <!-- Messages -->
@@ -68,14 +68,14 @@
     <string name="settings_device">Device ID</string>
     <string name="test_notification">Send a test notification</string>
     <string name="unpair">Unpair this phone</string>
-    <string name="unpair_confirm">Forget the pairing on this phone? To also revoke it on the relay run: agentring devices revoke %1$s</string>
+    <string name="unpair_confirm">Forget the pairing on this phone? To also revoke it on the relay run: hivepal devices revoke %1$s</string>
     <string name="cancel">Cancel</string>
 
     <!-- Notifications -->
     <string name="channel_messages">Messages from your agent</string>
     <string name="reply">Reply</string>
     <string name="reply_failed_title">Reply not sent</string>
-    <string name="test_notification_text">Test notification from agentring ✓</string>
+    <string name="test_notification_text">Test notification from Hivepal ✓</string>
 
     <string name="channel_calls">Calls from your agent</string>
     <string name="channel_calls_urgent">Urgent calls from your agent</string>
@@ -110,7 +110,7 @@
     <string name="perm_background">Background activity allowed</string>
     <string name="perm_dnd">Ring urgent calls in Do Not Disturb</string>
     <string name="perm_fix">Allow</string>
-    <string name="perm_oem_hint">On Xiaomi, Samsung, Huawei and other phones with aggressive battery savers, also enable Autostart / \"Never sleeping apps\" for agentring. See dontkillmyapp.com.</string>
+    <string name="perm_oem_hint">On Xiaomi, Samsung, Huawei and other phones with aggressive battery savers, also enable Autostart / \"Never sleeping apps\" for Hivepal. See dontkillmyapp.com.</string>
     <string name="settings_calls">Calls</string>
     <string name="settings_use_telecom">Use Android\'s call system</string>
     <string name="settings_use_telecom_hint">Bluetooth headset buttons, watches and cars. Turn off only if calls misbehave on this phone.</string>
@@ -144,7 +144,7 @@
     <string name="pair_scan_step">Scan it with this phone</string>
     <string name="pair_scan_step_body">Tap Scan QR code below and point the camera at the screen.</string>
     <string name="pair_self_1">Start your relay</string>
-    <string name="pair_self_1_body">In the agentring folder (see the README on GitHub):</string>
+    <string name="pair_self_1_body">In the Hivepal folder (see the README on GitHub):</string>
     <string name="pair_self_2">Create a pairing code</string>
     <string name="pair_self_2_body">It prints a QR code in the terminal:</string>
     <string name="calls_title">Make sure it rings</string>
@@ -160,7 +160,7 @@
     <string name="try_self_2">Make a test call</string>
     <string name="try_self_3">Connect your agent</string>
     <string name="try_self_3_body">For example, Claude Code:</string>
-    <string name="open_app">Open agentring</string>
+    <string name="open_app">Open Hivepal</string>
     <string name="copy">Copy</string>
     <string name="connection">Connection</string>
     <string name="agent_online">Online</string>
@@ -171,7 +171,7 @@
     <string name="settings_pairing">Pairing</string>
     <string name="settings_more">More</string>
     <string name="open_dashboard">Open my dashboard</string>
-    <string name="settings_footer">agentring %1$s · open source, Apache-2.0</string>
+    <string name="settings_footer">Hivepal %1$s · based on agentring (Apache-2.0)</string>
     <string name="perm_notifications_why">To show messages and incoming calls.</string>
     <string name="perm_microphone_why">So your agent can hear you.</string>
     <string name="perm_full_screen_why">Shows the call screen over the lock screen.</string>
@@ -180,8 +180,8 @@
     <string name="perm_dnd_why">Urgent calls ring even in Do Not Disturb.</string>
     <string name="perm_optional_why">Optional. %1$s</string>
     <!-- Android Auto: short, and only "on your phone" when it is safe (no task on the phone while driving). -->
-    <string name="car_not_paired">Pair agentring on your phone first, when it\'s safe to do so.</string>
-    <string name="car_needs_mic">Allow the microphone for agentring on your phone first, when it\'s safe to do so.</string>
+    <string name="car_not_paired">Pair Hivepal on your phone first, when it\'s safe to do so.</string>
+    <string name="car_needs_mic">Allow the microphone for Hivepal on your phone first, when it\'s safe to do so.</string>
     <!-- multi-agent fork -->
     <string name="nav_chats">Chats</string>
     <string name="nav_calls">Calls</string>
@@ -220,7 +220,7 @@
     <string name="phone_log_title">Show calls in the Phone app</string>
     <string name="phone_log_hint">Your agents\' calls, missed ones too, appear in the phone\'s call history.</string>
     <string name="action_failed">Couldn\'t do it: %1$s</string>
-    <string name="no_agents_api">This relay has a single agent: add more with `agentring bots add`.</string>
+    <string name="no_agents_api">This relay has a single agent: add more with `hivepal bots add`.</string>
     <string name="group_need_members">Choose at least one agent</string>
     <string name="write_message">Write a message</string>
     <string name="group_badge">Group</string>

@@ -179,7 +179,7 @@ object CallNotifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val n = NotificationCompat.Builder(context, CHANNEL_MISSED)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notif_missed)
             .setContentTitle(context.getString(R.string.call_missed_from, info.agentName))
             .setContentText(info.reason)
             .setStyle(NotificationCompat.BigTextStyle().bigText(info.reason))

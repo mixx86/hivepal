@@ -1,4 +1,21 @@
-# agentring
+<p align="center"><img src="docs/hivepal-icon.png" width="120" alt="Hivepal"></p>
+
+# Hivepal
+
+Private fork of [agentring](https://github.com/mutonby/agentring) (Apache-2.0) for a hive of agents:
+each agent has its own key, its own chat on the phone and its own name, agents and the user share
+group chats, and the app has a menu, a call history (also copied into the Phone app), renaming and
+clearing of chats. See [docs/multiagent.md](docs/multiagent.md).
+
+- CLI: `hivepal` (also installed as `agentring`, so existing setups keep working).
+- Android: app name Hivepal; the package stays `dev.agentring.app` (the Firebase project is registered for it).
+- Icon: `tools/hivepal_icon.py` generates it.
+
+Everything below is the upstream README.
+
+---
+
+# agentring (upstream)
 
 **Your AI agent can call you.** When it needs a decision, hits a wall or finishes a
 long job, your phone rings like a real call, even locked and in Doze. A voice AI tells

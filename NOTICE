@@ -1,0 +1,6 @@
+Hivepal
+Copyright 2026 the Hivepal authors
+
+This product is a modified version of agentring (https://github.com/mutonby/agentring),
+licensed under the Apache License, Version 2.0. Changes: multi-agent relay (agents with their
+own keys, per-agent conversations, groups), CLI commands for them, and a redesigned Android app.

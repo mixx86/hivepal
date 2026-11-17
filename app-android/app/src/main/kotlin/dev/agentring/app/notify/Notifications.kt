@@ -97,7 +97,7 @@ object Notifications {
         if (sentReply != null) style.addMessage(sentReply, System.currentTimeMillis(), null as Person?)
 
         val n = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notif_message)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -113,7 +113,7 @@ object Notifications {
     fun showReplyFailed(context: Context, text: String, error: String) {
         if (!canNotify(context)) return
         val n = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notif_message)
             .setContentTitle(context.getString(R.string.reply_failed_title))
             .setContentText("$text — $error")
             .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n\n$error"))
@@ -130,7 +130,7 @@ object Notifications {
         val style = NotificationCompat.MessagingStyle(Person.Builder().setName(context.getString(R.string.you)).build())
             .addMessage(context.getString(R.string.test_notification_text), System.currentTimeMillis(), agentPerson(name))
         val n = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notif_message)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
