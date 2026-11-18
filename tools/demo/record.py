@@ -28,7 +28,7 @@ def phone_tap(label: str, **kw) -> None:
 
 
 rec = subprocess.Popen(["adb", "-s", demo.EMU, "shell", "screenrecord", "--size", "1080x2400", "--bit-rate", "20000000",
-                        "--time-limit", "170", "/sdcard/demo.mp4"])
+                        "--time-limit", "175", "/sdcard/demo.mp4"])
 time.sleep(1.0)
 T0 = time.time()
 time.sleep(2.5)
@@ -72,11 +72,50 @@ time.sleep(3.5)
 term("main", "subs", typing=1.0)
 time.sleep(4.0)
 
+# 7. An agent calls: it rings like a real call; open it, answer, hang up
+import os
+import re
+import threading
+demo.adb("shell", "input", "keyevent", "4")
+time.sleep(1.2)
+reason = "You skipped the gym twice this week. Two minutes?"
+events.append({"t": now(), "type": "cmd", "who": "coach", "text": f'hivepal call "{reason}"', "typing": 2.0})
+time.sleep(2.3)
+call = subprocess.Popen([demo.BIN, "call", reason], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                        env={**os.environ, "HIVEPAL_HOME": str(demo.S / "demo-coach")})
+
+
+def follow() -> None:
+    # The CLI's own progress lines, as they happen (minus the media library's logging).
+    for line in call.stdout:
+        line = line.rstrip()
+        if re.search(r"ringing on|answered on|Call ended|Call missed|declined", line):
+            line = re.sub(r"dev_[0-9A-Z]+", "your phone", line).strip()
+            events.append({"t": now(), "type": "out", "text": line})
+
+
+th = threading.Thread(target=follow)
+th.start()
+for _ in range(30):
+    if "Decline" in demo.adb("exec-out", "uiautomator", "dump", "--windows", "/dev/tty"):
+        break
+    time.sleep(0.4)
+time.sleep(2.5)
+demo.adb("shell", "input", "tap", "540", "300")  # open the incoming call screen from the notification
+time.sleep(3.0)
+phone_tap("Answer")
+time.sleep(5.5)
+phone_tap("Hang up")
+call.wait(timeout=30)
+th.join(timeout=5)
+time.sleep(3.0)
+
 events.append({"t": now(), "type": "end"})
 rec.terminate()
 time.sleep(2)
 subprocess.run(["adb", "-s", demo.EMU, "shell", "pkill", "-INT", "screenrecord"])
 time.sleep(3)
 subprocess.run(["adb", "-s", demo.EMU, "pull", "/sdcard/demo.mp4", str(demo.S / "phone.mp4")], capture_output=True)
+events.sort(key=lambda e: (e["type"] == "end", e["t"]))
 (demo.S / "events.json").write_text(json.dumps({"lead": 1.0, "events": events}, ensure_ascii=False, indent=1))
 print("events:", len(events), "duration:", round(events[-1]["t"], 1))
