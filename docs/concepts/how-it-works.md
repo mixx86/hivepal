@@ -8,33 +8,23 @@ with the [quickstart](../guide/quickstart.md).
 
 ```mermaid
 flowchart LR
-    subgraph agents["Your agents (anywhere)"]
-        A1["Claude Code / Codex<br/>(MCP or CLI)"]
-        A2["Grok bots, cron jobs,<br/>scripts, n8n (CLI)"]
-    end
-    subgraph server["Your server (Docker)"]
-        C["Caddy<br/>HTTPS"]
+    A["Your agents<br/>Claude Code · Grok bots<br/>scripts · n8n"]
+    subgraph server["Your server (Docker, behind Caddy/HTTPS)"]
         R["Relay<br/>Node + SQLite"]
-        L["LiveKit<br/>calls (WebRTC)"]
         D["Daemon<br/>voice switchboard"]
+        L["LiveKit<br/>call audio"]
     end
-    P["Android app"]
-    FCM["Firebase Cloud Messaging"]
-    G["Gemini<br/>(optional)"]
-    M["Mail server<br/>(optional)"]
+    P["📱 Android app"]
+    F["Firebase push"]
+    X["Gemini · mail server<br/>(optional)"]
 
-    A1 -- "REST + agent key" --> C
-    A2 -- "REST + agent key" --> C
-    C --> R
-    C --> L
-    R -- "WebSocket while open" --> P
-    R -- "push when closed" --> FCM --> P
-    P -- "REST + device token" --> C
-    P <-- "voice" --> L
-    D <-- "voice" --> L
+    A -- "REST + its own key" --> R
+    R <-- "REST + WebSocket" --> P
+    R -- "when the app is closed" --> F --> P
     D -- "events" --> R
-    R -. "transcribe / speak" .-> G
-    R -. "wake-up email" .-> M
+    D <-. "voice" .-> L
+    L <-. "voice" .-> P
+    R -.-> X
 ```
 
 | Piece | What it does | Where |

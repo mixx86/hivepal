@@ -169,7 +169,7 @@ xAI or Phonic); on Google's free tier, Google may use that data to improve its p
 
 Over the phone, the voice AI acts on what it hears, so give it only the tools and
 agents you'd trust someone holding your phone with. Details and the threat model:
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](../SECURITY.md).
 
 ## Limitations
 
@@ -194,7 +194,7 @@ cd app-android && ./gradlew :core:test :app:assembleDebug
 ```
 
 CI builds the APK and runs an end-to-end test on an Android emulator against a real
-relay. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/release.md](release.md).
+relay. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [docs/release.md](release.md).
 
 ## License
 
