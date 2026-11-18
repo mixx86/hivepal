@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
@@ -663,10 +664,11 @@ private fun AttachmentView(a: Attachment, mine: Boolean) {
         if (b == null) {
             Box(Modifier.size(220.dp, 160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
         } else {
+            val ratio = (b.width.toFloat() / b.height.coerceAtLeast(1)).coerceIn(0.6f, 2f)
             Image(
                 b.asImageBitmap(), null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.widthIn(max = 280.dp).heightIn(max = 320.dp).clickable { full = true }.testTag("photo"),
+                modifier = Modifier.width(280.dp).aspectRatio(ratio).clickable { full = true }.testTag("photo"),
             )
             if (full) {
                 androidx.compose.ui.window.Dialog(onDismissRequest = { full = false }) {

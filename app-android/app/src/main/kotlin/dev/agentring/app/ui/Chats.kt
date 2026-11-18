@@ -145,7 +145,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                     conv = c,
                     name = Graph.directory.convName(c, main),
                     last = list.lastOrNull(),
-                    unread = list.count { it.fromAgent && it.readAt == null },
+                    unread = if (Conv.isBots(c)) 0 else list.count { it.fromAgent && it.readAt == null },
                     members = if (Conv.isGroup(c)) Graph.directory.group(Conv.id(c))?.members?.size else null,
                 )
             }
@@ -242,12 +242,12 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, pinned: Boolean =
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val last = r.last
+                val body = last?.let { Markdown.plain(it.text).ifBlank { attachmentLabel(it) } } ?: ""
                 val preview = when {
                     last == null -> ""
-                    !last.fromAgent -> stringResource(R.string.you_prefix).trim() + " " + last.text
-                    Conv.isGroup(r.conv) || Conv.isBots(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + last.text.ifBlank { attachmentLabel(last) }
-                    last.text.isBlank() -> attachmentLabel(last)
-                    else -> last.text
+                    !last.fromAgent -> stringResource(R.string.you_prefix).trim() + " " + body
+                    Conv.isGroup(r.conv) || Conv.isBots(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + body
+                    else -> body
                 }
                 Text(
                     preview.replace('\n', ' '),

@@ -106,7 +106,10 @@ object Notifications {
         }
         unread.forEach {
             val author = it.author ?: Conv.MAIN_AGENT
-            style.addMessage(it.text, it.createdAt, agentPerson(Graph.directory.nameOf(author, main), author))
+            val shown = dev.agentring.app.ui.Markdown.plain(it.text).ifBlank {
+                if (it.attachments?.firstOrNull()?.isImage == true) "📷" else "🎤"
+            }
+            style.addMessage(shown, it.createdAt, agentPerson(Graph.directory.nameOf(author, main), author))
         }
         if (sentReply != null) style.addMessage(sentReply, System.currentTimeMillis(), null as Person?)
 
@@ -123,7 +126,7 @@ object Notifications {
                 // The newest message's quick replies (if any) as buttons; at most 3 fit next to "Reply".
                 val last = unread.lastOrNull()
                 if (sentReply == null && last != null) {
-                    last.options.orEmpty().take(3).forEachIndexed { i, o -> addAction(optionAction(context, conv, last.msgId, o, i)) }
+                    last.options.orEmpty().take(2).forEachIndexed { i, o -> addAction(optionAction(context, conv, last.msgId, o, i)) }
                 }
             }
             .build()

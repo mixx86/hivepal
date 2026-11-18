@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Search
@@ -139,6 +140,12 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                         )
                     },
                     navigationIcon = {
+                        if (dest == Dest.SEARCH) {
+                            IconButton(onClick = { dest = Dest.CHATS }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                            }
+                            return@TopAppBar
+                        }
                         IconButton(onClick = { scope.launch { drawer.open() } }, modifier = Modifier.testTag("open_menu")) {
                             Box {
                                 Icon(Icons.Filled.Menu, stringResource(R.string.open_menu))

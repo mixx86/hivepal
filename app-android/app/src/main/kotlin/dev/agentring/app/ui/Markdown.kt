@@ -71,6 +71,16 @@ object Markdown {
         }
     }
 
+    /** The text without Markdown marks, for notifications and previews. */
+    fun plain(text: String): String = text
+        .replace(Regex("```[a-zA-Z0-9]*\\n?"), "")
+        .replace(Regex("\\[([^\\]]+)]\\((https?://[^)\\s]+)\\)"), "$1")
+        .replace(Regex("(\\*\\*|__|~~|`)"), "")
+        .replace(Regex("(?<![\\w*])\\*(?!\\s)(.+?)(?<!\\s)\\*(?![\\w*])"), "$1")
+        .replace(Regex("(?m)^#{1,6}\\s+"), "")
+        .replace(Regex("(?m)^(\\s*)[-*+]\\s+"), "$1• ")
+        .replace(Regex("(?m)^>\\s?"), "")
+
     private data class Token(val start: Int, val end: Int, val kind: Char, val inner: String, val url: String? = null)
 
     /** Inline spans. Earliest match wins; nesting inside bold/italic is rendered recursively. */
