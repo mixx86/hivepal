@@ -157,5 +157,5 @@ adb logcat -s PushHandler HivepalFCM CallManager CallService TelecomBridge Ringe
 - `PushHandler: rejected push` → the signature or relay id didn't match; pair
   the phone again.
 
-Then [open a bug report](https://github.com/mutonby/agentring/issues/new/choose)
+Then [open a bug report](https://github.com/mixx86/hivepal/issues/new/choose)
 with the phone model, Android version, the checklist state and these logs.

@@ -35,7 +35,9 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.agentring.app"
+        // Upstream's package name: existing installs keep their Firebase registration, widget and shortcuts.
+        // -PhivepalApplicationId=your.own.id builds an app that can sit next to agentring from Google Play.
+        applicationId = providers.gradleProperty("hivepalApplicationId").orNull ?: "dev.agentring.app"
         minSdk = 26
         targetSdk = 36
         // Release builds pass both: -PversionName=0.2.0 -PversionCode=20099 (see docs/release.md).

@@ -218,7 +218,7 @@ you, and anything you can run as a command can be consulted from a call.
 | opencode | `opencode.json`: `"mcp": {"hivepal": {"type": "local", "command": ["hivepal", "mcp"], "timeout": 1800000}}` |
 | OpenClaw | `hivepal connect openclaw`, or by hand: `openclaw mcp set hivepal '{"command":"hivepal","args":["mcp"],"requestTimeoutMs":1800000}'` |
 | Hermes | `hivepal connect hermes`, or by hand in `~/.hermes/config.yaml`: `mcp_servers: {hivepal: {command: hivepal, args: [mcp], timeout: 1800}}` |
-| Grok Build | `grok mcp add hivepal -- hivepal mcp` (its default tool timeout is long enough). With hivepal cloud, the plugin instead: `grok plugin install mutonby/agentring#plugins/hivepal --trust` and `HIVEPAL_API_KEY` in your environment ([plugins/hivepal](../plugins/hivepal)) |
+| Grok Build | `grok mcp add hivepal -- hivepal mcp` (its default tool timeout is long enough). With hivepal cloud, the plugin instead: `grok plugin install mixx86/hivepal#plugins/hivepal --trust` and `HIVEPAL_API_KEY` in your environment ([plugins/hivepal](../plugins/hivepal)) |
 | Anything else | the `mcpServers` JSON above, the `hivepal` CLI, or the [REST API](#rest-api-n8n-scripts) |
 
 Add [`skills/hivepal`](../skills/hivepal) where the harness reads skills, so the
@@ -251,8 +251,8 @@ Then OpenClaw picks the server up on the next turn (`openclaw mcp probe hivepal`
 checks it); in Hermes run `/reload-mcp` or start a new session (`hermes mcp test
 hivepal`). The skill also carries a setup guide
 ([`references/setup.md`](../skills/hivepal/references/setup.md)): install it first
-(`openclaw skills install @mutonby/agentring`, `hermes skills install
-mutonby/agentring/skills/hivepal`) and ask your agent to "set up hivepal".
+(`openclaw skills install @mixx86/hivepal`, `hermes skills install
+mixx86/hivepal/skills/hivepal`) and ask your agent to "set up hivepal".
 
 ### You consult your agent from a call (`agents.yaml`)
 

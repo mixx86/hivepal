@@ -16,8 +16,8 @@ needs them (installing the app, signing in, pairing the phone).
 
 ## 1. The app
 
-The user installs **hivepal** from Google Play:
-https://play.google.com/store/apps/details?id=dev.agentring.app (Android only).
+The user installs the **Hivepal** Android app: from the repository, `./scripts/build-app.sh --install`
+with the phone on USB, or the APK of the latest release at https://github.com/mixx86/hivepal/releases.
 
 ## 2. Hosted or self-hosted?
 
@@ -27,7 +27,7 @@ Ask which one they want:
   the dashboard, copy the API key. The voice AI runs on hivepal's servers. Plans have
   limits; a `quota_exceeded` error tells you where to upgrade. Go to **3a**.
 - **Self-hosted**: they already run a Hivepal relay (docker compose; setup in
-  https://github.com/mutonby/agentring/blob/main/docs/setup.md) and have its URL and API
+  https://github.com/mixx86/hivepal/blob/main/docs/setup.md) and have its URL and API
   key. Go to **3b**. Don't deploy a server on your own initiative.
 
 ## 3a. hivepal cloud
@@ -59,7 +59,7 @@ Ask which one they want:
 1. Install the CLI (needs `uv`: https://docs.astral.sh/uv/; ask before installing it):
 
    ```bash
-   uv tool install 'hivepal[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
+   uv tool install 'hivepal[voice] @ git+https://github.com/mixx86/hivepal#subdirectory=daemon'
    hivepal version
    ```
 
@@ -72,7 +72,7 @@ Ask which one they want:
 4. Calls need a voice provider key. The free option is Gemini
    (https://aistudio.google.com/apikey): the user adds `GEMINI_API_KEY=...` to
    `~/.agentring/.env`. Other providers: OpenAI, Grok, Phonic
-   (https://github.com/mutonby/agentring/blob/main/docs/voice.md#providers).
+   (https://github.com/mixx86/hivepal/blob/main/docs/voice.md#providers).
 5. Connect your harness:
 
    ```bash
@@ -106,4 +106,4 @@ Ask which one they want:
 - Tool times out during a call: the harness's MCP timeout is too short; run
   `hivepal connect …` again, or set it to 1800 s (`requestTimeoutMs: 1800000` in
   OpenClaw, `timeout: 1800` in Hermes).
-- Docs: https://agentring.io (Agents menu) and https://github.com/mutonby/agentring
+- Docs: https://agentring.io (Agents menu) and https://github.com/mixx86/hivepal

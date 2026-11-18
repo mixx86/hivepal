@@ -39,7 +39,7 @@ Without them, messages and calls only reach the phone while the app is open on s
 ## 2. The relay
 
 ```bash
-git clone https://github.com/mutonby/agentring && cd hivepal/deploy
+git clone https://github.com/mixx86/hivepal && cd hivepal/deploy
 ```
 
 ### Option A: a VPS with a domain
@@ -114,13 +114,11 @@ the daemon on the VPS instead, next to the relay, see the `daemon` profile at th
 
 ## 4. The app
 
-1. On the phone, install hivepal from
-   [Google Play](https://play.google.com/store/apps/details?id=dev.agentring.app). This is the
-   recommended way: Play keeps the app up to date, and the same app works with your own relay
-   (you pair it with your relay's QR code below). If you'd rather not use Play, download `hivepal.apk` from the
-   [latest release](https://github.com/mutonby/agentring/releases) and install it (Android
-   asks you to allow installs from your browser once). The two are signed with different
-   keys, so to switch from one to the other, uninstall the app first.
+1. Build the app and install it on the phone over USB: `./scripts/build-app.sh --install` (JDK 17+
+   and the Android SDK), or install `hivepal-X.Y.Z.apk` from the
+   [latest release](https://github.com/mixx86/hivepal/releases) (Android asks you to allow installs
+   from your browser once). The app keeps upstream's package name, so if you have agentring from
+   Google Play, uninstall it first (or build with `-PhivepalApplicationId=your.own.id`).
 2. Open it and tap **Get started**. It asks, one by one, for notifications, the microphone,
    full-screen calls on the lock screen and unrestricted battery use: allow them all.
 3. On your computer, run `hivepal pair`. Scan the QR code it shows with the app, or copy

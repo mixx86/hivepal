@@ -136,7 +136,7 @@
     <string name="how_hint">You can switch later by pairing again.</string>
     <string name="pair_body_cloud">Three quick steps on your computer.</string>
     <string name="pair_body_self">Three quick steps on the computer that runs your agent.</string>
-    <string name="pair_cloud_1">Sign in on agentring.io</string>
+    <string name="pair_cloud_1">Sign in on the hosted service</string>
     <string name="pair_cloud_1_body">On your computer, open the website and sign in with your email. No password.</string>
     <string name="open_cloud">Open %1$s</string>
     <string name="pair_cloud_2">Show the pairing QR</string>

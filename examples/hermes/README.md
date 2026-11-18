@@ -10,13 +10,13 @@ The quickest way: install the skill and ask Hermes to "set up hivepal"; it walks
 through the rest ([setup guide](../../skills/hivepal/references/setup.md)).
 
 ```bash
-hermes skills install mutonby/agentring/skills/hivepal
+hermes skills install mixx86/hivepal/skills/hivepal
 ```
 
 Or by hand:
 
 ```bash
-uv tool install 'hivepal[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
+uv tool install 'hivepal[voice] @ git+https://github.com/mixx86/hivepal#subdirectory=daemon'
 hivepal init --relay https://relay.example.com --api-key ak_...
 hivepal pair                                   # scan the QR with the app
 hivepal connect hermes                         # MCP server, skill and agents.yaml

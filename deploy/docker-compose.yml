@@ -28,7 +28,7 @@
 #   docker compose run --rm -T --entrypoint sh daemon -c 'cat >> /config/.env' < gemini.env
 #
 # Prebuilt images (from a release) instead of building here: set HIVEPAL_RELAY_IMAGE /
-# HIVEPAL_DAEMON_IMAGE (e.g. ghcr.io/mutonby/agentring-relay:0.2.0) in .env, then
+# HIVEPAL_DAEMON_IMAGE (e.g. ghcr.io/mixx86/hivepal-relay:0.4.0) in .env, then
 # `docker compose pull && docker compose up -d` (no --build).
 
 services:

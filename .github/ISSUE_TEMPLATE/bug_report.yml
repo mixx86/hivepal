@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Security problem? Don't file it here: see [SECURITY.md](https://github.com/mutonby/agentring/blob/HEAD/SECURITY.md).
-        Calls not ringing with the screen off? Check [docs/troubleshooting-oem.md](https://github.com/mutonby/agentring/blob/HEAD/docs/troubleshooting-oem.md) first.
+        Security problem? Don't file it here: see [SECURITY.md](https://github.com/mixx86/hivepal/blob/HEAD/SECURITY.md).
+        Calls not ringing with the screen off? Check [docs/troubleshooting-oem.md](https://github.com/mixx86/hivepal/blob/HEAD/docs/troubleshooting-oem.md) first.
         Remove API keys (`ak_…`), JWTs, FCM tokens and pairing codes from anything you paste.
   - type: textarea
     id: what

@@ -27,10 +27,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mutonby/agentring"
-Documentation = "https://github.com/mutonby/agentring/tree/HEAD/docs"
-Issues = "https://github.com/mutonby/agentring/issues"
-Source = "https://github.com/mutonby/agentring"
+Homepage = "https://github.com/mixx86/hivepal"
+Documentation = "https://github.com/mixx86/hivepal/tree/HEAD/docs"
+Issues = "https://github.com/mixx86/hivepal/issues"
+Source = "https://github.com/mixx86/hivepal"
 
 [project.optional-dependencies]
 # Voice (M2+): LiveKit realtime SDK (brings numpy). The AI models are spoken to directly over

@@ -8,7 +8,7 @@ hivepal app.
 ## Install
 
 ```bash
-grok plugin install mutonby/agentring#plugins/hivepal --trust
+grok plugin install mixx86/hivepal#plugins/hivepal --trust
 ```
 
 Then:
@@ -49,7 +49,7 @@ enough; if you lowered it, give this server at least 30 minutes
 ## Self-hosted
 
 hivepal is open source and you can run your own relay
-([setup](https://github.com/mutonby/agentring/blob/main/docs/setup.md)). In that case skip
+([setup](https://github.com/mixx86/hivepal/blob/main/docs/setup.md)). In that case skip
 this plugin's server and add your own instead:
 
 ```bash
@@ -58,5 +58,5 @@ grok mcp add hivepal -- hivepal mcp
 
 ## License and support
 
-Apache-2.0, maintained in https://github.com/mutonby/agentring (issues welcome there).
+Apache-2.0, maintained in https://github.com/mixx86/hivepal (issues welcome there).
 Use of the hosted service follows the terms on https://agentring.io.

@@ -1,36 +1,30 @@
-# Hivepal (private fork of agentring) — read this first
+# Hivepal — read this first
 
-This repo is **Hivepal**, the user's private fork (`mixx86/hivepal`, local folder
-`~/Docs/dev/hivepal`, `upstream` = mutonby/agentring). Everything below the line is the
-upstream notes, still valid for the parts it describes. Fork specifics:
+**Hivepal** is a fork of [agentring](https://github.com/mutonby/agentring) (Apache-2.0) for a hive of
+agents. Everything below the line is upstream's notes, still valid for the parts it describes. Hivepal
+specifics:
 
-- **Renamed from agentring**, except what must stay: the Android package `dev.agentring.*` (Firebase,
-  widget, shortcuts), the app's saved-state names (`agentring_state`, …), the data dirs `~/.agentring*`
-  and `agentring.db`, the `agentring` CLI alias, and the credit to upstream. `AGENTRING_*` settings
-  (environment and `.env` files) are still read as `HIVEPAL_*`.
-
+- **Renamed from agentring**, except what must stay: the Android package `dev.agentring.*` (an
+  existing install keeps its Firebase registration, widget and shortcuts; `-PhivepalApplicationId=`
+  builds under another id), the app's saved-state names (`agentring_state`, …), the data dirs
+  `~/.agentring*` and `agentring.db`, the `agentring` CLI alias, and the credit to upstream.
+  `AGENTRING_*` settings (environment and `.env` files) are still read as `HIVEPAL_*`.
 - **Multi-agent**: agents with their own `ak_` keys, conversations `agent:<id>` / `group:<id>` /
   `bots:<a>.<b>`, quick replies (`options`), attachments (`/v1/files`), reminders sent by the relay
-  (`/v1/reminders`), calls to a specific agent with a voice persona, `last_seen_at` per agent.
+  (`/v1/reminders`, with `insist_s`/`call`), wake-up emails (`/v1/agents/{id}/wake`), subscriptions
+  (`/v1/subscriptions`), calls to a specific agent with a voice persona, `last_seen_at` per agent.
   Design and API: `docs/multiagent.md`; contract: `protocol/relay.openapi.yaml`.
-- **CLI**: `hivepal` (alias `agentring`): `bots`, `groups`, `msg --group/--to/-o/-f`, `remind`,
-  `reminders`, `file`, `replies`. Version in `daemon/pyproject.toml` (`0.4.x`).
-- **App**: name Hivepal, package still `dev.agentring.app` (Firebase is registered for it), icon from
-  `tools/hivepal_icon.py`. Drawer: Chats, Calls, Agents, Reminders, Status, Settings; widget.
-- **Tests**: relay `npm test` (87+), daemon `uv run --extra voice pytest -q` (needs `relay/dist`),
-  app `./gradlew :core:test :app:assembleRelease`. Don't run the instrumented tests on the user's
-  phone: they re-pair it.
-- **Deploy (VPS vps.example.com, user `ssh`)**: the VPS can't read the private repo, so:
-  `git bundle create fork.bundle main` → copy to `~/hivepal-fork.bundle` → on the VPS
-  `cd ~/hivepal && git fetch ~/hivepal-fork.bundle main && git reset --hard FETCH_HEAD` →
-  `cd deploy && docker compose --profile daemon up -d --build relay daemon`. Back up the DB first
-  (`VACUUM INTO`); nightly backups go to `~/backups` (support-system `vps/backup_relay.sh`).
-- **Phone**: `./gradlew :app:assembleRelease -PversionName=… -PversionCode=…` (signed with the
-  repo's debug key) and `adb install -r`; it keeps the pairing.
-- **Bots**: the user's Grok bots use the CLI from `~/datos/software` (install with
-  `sh ~/datos/software/instalar.sh`); new wheels go there. Their folders: `datos/bots/<id>/`.
-  Adding a bot: `support-system/tools/nuevo-bot`.
-- GitHub Actions are disabled on the fork. Commit as 227920566+mixx86@users.noreply.github.com.
+- **CLI**: `hivepal` (alias `agentring`): `bots`, `groups`, `msg --group/--to/-o/-f/--voice`, `remind`,
+  `reminders`, `replies`, `subs`. Version in `daemon/pyproject.toml`.
+- **App**: Hivepal, always dark ("electric blue"), English by default with Spanish (`AppLanguage`),
+  drawer with Chats, Calls, Agents, Reminders, Subscriptions, Status, Settings; widget. Subscriptions
+  are read in the app (`subs/`: in-app WebView login, daily `SubsWorker`, `BillingParser`).
+- **Tests**: relay `npm test`, daemon `uv run --extra voice pytest -q` (needs `npm run build` in
+  `relay/` first), app `./gradlew :core:test :app:testReleaseUnitTest :app:assembleRelease`. Don't
+  run the instrumented tests on someone's real phone: they re-pair it.
+- **Install / deploy**: `./install.sh` (server or `--local`), `scripts/build-app.sh`,
+  `scripts/deploy-images.sh <ssh host>` builds images locally and loads them on a small server.
+- **Docs**: user manuals and the "how it works" pages are in `docs/` (also published as the website).
 
 ---
 

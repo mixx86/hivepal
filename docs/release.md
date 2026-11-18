@@ -89,7 +89,7 @@ attaches the wheel to the GitHub release and its notes say how to install from i
    pending publisher* (the project doesn't exist yet; once it does, use the project's
    own Publishing page):
    - PyPI project name: `hivepal`
-   - Owner: `mutonby`, repository: `hivepal`
+   - Owner: `mixx86`, repository: `hivepal`
    - Workflow name: `release.yml`
    - Environment name: `pypi`
 2. On GitHub → Settings → Environments → **New environment** `pypi`. Recommended:
@@ -168,6 +168,10 @@ Without `-PversionName`/`-PversionCode` the build is `0.2.0-dev` / `1`.
 
 ## Google Play
 
+> Upstream agentring publishes its app on Google Play under `dev.agentring.app`. Hivepal doesn't: to
+> publish your own build, use your own application id (`-PhivepalApplicationId=`) and your own listing.
+> The notes below are upstream's, kept as a reference.
+
 Play takes an Android App Bundle (AAB), not an APK. Build it with the release key, which
 then acts as Play's *upload key* (enrol in Play App Signing when creating the app):
 
@@ -209,11 +213,14 @@ Play Console items this app needs:
 
 ## Directories
 
+> Upstream's listings (MCP Registry, skills, Glama) point at agentring's hosted service; a Hivepal
+> listing would point at your own relay. Kept as a reference.
+
 Where hivepal is listed, and what to refresh after a release:
 
 - **MCP Registry** (`registry.modelcontextprotocol.io`, feeds GitHub's registry and other
   directories): [`server.json`](../server.json) lists the hosted server
-  (`https://agentring.io/mcp`) as `io.github.mutonby/agentring`. Set its `version` to the
+  (`https://agentring.io/mcp`) as `io.github.mixx86/hivepal`. Set its `version` to the
   release, then `mcp-publisher validate`, `mcp-publisher login github` and
   `mcp-publisher publish` from the repository root. A version can be published once.
 - **Grok Build plugin marketplace** (`xai-org/plugin-marketplace`):
@@ -222,8 +229,8 @@ Where hivepal is listed, and what to refresh after a release:
   repository, so after changing the plugin or the skill, open a PR there that bumps the
   `sha` and regenerates the index (its CONTRIBUTING.md has the commands).
 - **skills.sh**: nothing to publish. It lists `skills/hivepal` from this repository as
-  people install it (`npx skills add mutonby/agentring`).
-- **Glama** (`glama.ai/mcp/servers/mutonby/agentring`): it builds the server from this
+  people install it (`npx skills add mixx86/hivepal`).
+- **Glama** (`glama.ai/mcp/servers/mixx86/hivepal`): it builds the server from this
   repository with the settings on its admin page (build step `uv sync --project daemon
   --frozen --no-dev`, command `uv run --project daemon --no-sync hivepal mcp`, Python
   3.12, placeholder relay URL and API key) and checks that it starts and lists its tools.

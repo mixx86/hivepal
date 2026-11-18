@@ -14,19 +14,17 @@ the issue before disclosing it.
 
 ## Supported versions
 
-Only the latest release (and the default branch) gets security fixes. Release
-APKs (`hivepal-X.Y.Z.apk`) are signed with the hivepal release key, SHA-256
-certificate fingerprint
-`afa35da7bed28a94b62693f7b4c184646b45c7855a51c3f8809283ae96889e3c`. The
-`android-preview` pre-release is a test build of the default branch signed with
-the public debug key (see below).
+Only the default branch (and the latest release, if any) gets security fixes. Hivepal has no store
+listing: you build the app yourself (`scripts/build-app.sh`), and unless you set your own keystore
+it's signed with the repository's public debug key, which is fine for your own phone but proves
+nothing about who built it.
 
 ## Threat model
 
-hivepal is self-hosted: you run the relay, LiveKit and the daemon. One user,
-one agent, one or more paired Android phones; there are no accounts. The hosted
-version runs the same relay in hub mode, many isolated tenants in one process
-(docs/cloud.md): there, one tenant must not be able to affect another.
+Hivepal is self-hosted: you run the relay, LiveKit and the daemon. One user, several agents (each
+with its own key, seeing only its own conversations), one or more paired Android phones; there are
+no user accounts. The relay can also run in upstream's hub mode (many isolated tenants in one
+process, docs/cloud.md); Hivepal doesn't offer a hosted service.
 
 ### What the relay stores and can see
 
@@ -40,6 +38,16 @@ The relay keeps a SQLite database in its data directory (`DATA_DIR/relay.db`):
 | `calls`, `call_participants` | call id, direction, state, reason, priority, agent name, timestamps, who ended it and why, per-phone state |
 | `events` | the event log (every persisted event, including message text and call reasons) |
 | `pairing_tokens` | SHA-256 hashes of pairing tokens only |
+| `agents`, `agent_groups`, `agent_group_members`, `agent_seen` | agents (name, SHA-256 of their key), groups, when each agent last used its key |
+| `files` | photos and voice notes sent in chats (the bytes), and voice-note transcripts |
+| `reminders` | scheduled messages: text, quick replies, time, follow-ups |
+| `agent_wake` | the email address each agent is woken at (never shown to other agents) |
+| `subscriptions` | what the phone read from billing pages: service, plan, status, renewal date, price, page URL |
+
+Outside services: with `GEMINI_API_KEY` set, voice notes go to Google's Gemini API to be transcribed
+and texts to be spoken; with `HIVEPAL_SMTP_URL`, wake-up emails go through that mail server (they
+only carry agent ids, never a message). The phone reads billing pages with its own logins and sends
+only plan, status, date and price.
 
 Messages, calls and events are not deleted automatically. Anyone with access to
 the relay host or its data volume can read all of them and impersonate the

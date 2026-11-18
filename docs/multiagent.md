@@ -1,7 +1,7 @@
 # Multi-agent fork
 
-This private fork (`mixx86/hivepal`) lets several agents share one relay, each with its own
-identity, instead of one agent per relay.
+Hivepal lets several agents share one relay, each with its own identity, instead of one agent per
+relay (upstream agentring's model).
 
 ## Model
 
@@ -36,7 +36,7 @@ Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
   in the app ("Between agents"); it never pushes.
 - **Calling an agent**: the phone sends `agent_id` in `POST /v1/calls`; the voice daemon (`main`)
   answers every user call and speaks as that agent, with `personas/<agent_id>.md` from its home
-  (on the VPS synced from `datos/bots/<id>/persona.md`).
+  (for example synced from wherever you keep each agent's notes).
 - **Last seen**: `last_seen_at` on `/v1/agents`, updated (once a minute at most) on every
   request with the agent's key; the app shows it and turns it red after a day.
 

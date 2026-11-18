@@ -1,12 +1,12 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.mutonby/agentring",
+  "name": "io.github.mixx86/hivepal",
   "title": "hivepal",
   "description": "Let your AI agent message and call your Android phone, and get your reply or the call transcript.",
   "version": "0.2.0",
   "websiteUrl": "https://agentring.io",
   "repository": {
-    "url": "https://github.com/mutonby/agentring",
+    "url": "https://github.com/mixx86/hivepal",
     "source": "github",
     "subfolder": "daemon"
   },

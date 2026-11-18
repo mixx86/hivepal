@@ -1,6 +1,11 @@
 Hivepal
-Copyright 2026 the Hivepal authors
+Copyright 2026 Gabriel Quintáns Souto (mixx86) and the Hivepal contributors
 
 This product is a modified version of agentring (https://github.com/mutonby/agentring),
-licensed under the Apache License, Version 2.0. Changes: multi-agent relay (agents with their
-own keys, per-agent conversations, groups), CLI commands for them, and a redesigned Android app.
+Copyright the agentring authors, licensed under the Apache License, Version 2.0.
+
+Changes from agentring: a multi-agent relay (agents with their own keys, per-agent conversations,
+groups, agent-to-agent conversations, quick replies, attachments, relay-sent reminders that insist,
+wake-up emails, subscriptions), voice-note transcripts and text-to-speech, the matching CLI commands,
+a redesigned bilingual Android app (drawer, Markdown, search, widget, subscriptions read in-app),
+installer scripts, and the Hivepal name and icon.

@@ -21,7 +21,7 @@ It rejects a production or open-testing release that contains one. So:
 |---|---|
 | Google Play (production) | not included |
 | A Play closed-testing track, if we open one | included |
-| The APK on [GitHub Releases](https://github.com/mutonby/agentring/releases) | included |
+| The APK on [GitHub Releases](https://github.com/mixx86/hivepal/releases) | included |
 | `android-preview` and any debug build | included |
 
 The APK on Releases is signed with a different key from the Play app, so uninstall one

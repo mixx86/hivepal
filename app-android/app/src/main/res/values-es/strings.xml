@@ -125,7 +125,7 @@
     <string name="how_hint">Puedes cambiarlo más tarde emparejando de nuevo.</string>
     <string name="pair_body_cloud">Tres pasos rápidos en tu ordenador.</string>
     <string name="pair_body_self">Tres pasos rápidos en el ordenador donde corre tu agente.</string>
-    <string name="pair_cloud_1">Entra en agentring.io</string>
+    <string name="pair_cloud_1">Entra en el servicio alojado</string>
     <string name="pair_cloud_1_body">En tu ordenador, abre la web y entra con tu email. Sin contraseña.</string>
     <string name="open_cloud">Abrir %1$s</string>
     <string name="pair_cloud_2">Muestra el QR de emparejamiento</string>
