@@ -36,9 +36,10 @@ status for reference). When the two disagree, the fork's part wins.
 
 ### Status (as of 2026-11-19)
 
-- Public repo since 2026-11-18, secret scanning and push protection on. No rulesets, no tagged
-  release yet (agentring's `v0.2.0` and `android-preview` tags were removed on 2026-11-18; the
-  fork's own `android-preview` pre-release exists since 2026-11-19).
+- Public repo since 2026-11-18, secret scanning and push protection on. No rulesets. First release
+  **v0.4.0** on 2026-11-19 (signed APK, wheel + sdist, public GHCR images `hivepal-relay` /
+  `hivepal-daemon`; PyPI off until `HIVEPAL_PUBLISH_PYPI=true`). agentring's tags were removed on
+  2026-11-18; the fork publishes its own `android-preview` pre-release from `main`.
 - **Release signing key** created on 2026-11-19 (certificate fingerprint in SECURITY.md; the
   maintainer keeps the keystore offline). `release.yml` reads it from the `HIVEPAL_KEYSTORE_*`
   Actions secrets. `android-preview` stays signed with the committed debug key. Not on Google Play,
