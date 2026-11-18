@@ -6,28 +6,18 @@ your own. Swap the roles for whatever you need.
 
 ```mermaid
 flowchart TB
-    subgraph you["You"]
-        PH["📱 Hivepal app<br/>one chat per agent + a group"]
-    end
-    subgraph hive["The agents (scheduled bots: Grok, Claude routines, cron…)"]
-        N["Planner<br/>daily plan, deadlines"]
-        C["Coach<br/>training, sleep"]
-        W["Check-in<br/>mood, energy"]
-        I["Writing buddy"]
-        H["Project agent"]
-    end
-    subgraph shared["Shared, private"]
-        REPO["Notes repo (git)<br/>instructions · routines · personas<br/>mailbox per agent · data"]
-    end
-    R["Hivepal relay"]
     S["Sensors (optional)<br/>PC idle log · calendar"]
+    A["🐝 <b>Your agents</b><br/>scheduled bots: Grok,<br/>Claude routines, cron…<br/><br/>Planner · Coach<br/>Check-in · Writing buddy<br/>Project agent"]
+    REPO["Notes repo (git, private)<br/>instructions · routines<br/>personas · data<br/>a mailbox per agent"]
+    R["Hivepal relay"]
+    PH["📱 Hivepal app<br/>one chat per agent<br/>+ a group"]
 
-    N & C & W & I & H -- "msg · remind · call" --> R
-    R <--> PH
-    N & C & W & I & H <-- "read / write" --> REPO
     S --> REPO
+    A <-- "read / write" --> REPO
+    A -- "msg · remind · call" --> R
+    R -. "wake-up email" .-> A
     S -- "late-night nudge" --> R
-    R -. "wake-up email when you write" .-> hive
+    R <--> PH
 ```
 
 ## The roles
