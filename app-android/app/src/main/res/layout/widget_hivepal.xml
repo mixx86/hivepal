@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:textColor="#F2A21A"
+                android:textColor="#00A6FB"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -53,7 +53,7 @@
             android:layout_marginTop="6dp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:textColor="#F2A21A"
+            android:textColor="#00A6FB"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -76,5 +76,5 @@
         android:background="@drawable/widget_call_bg"
         android:contentDescription="@string/call_agent"
         android:src="@drawable/ic_call"
-        android:tint="#14161B" />
+        android:tint="#000814" />
 </LinearLayout>

@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
@@ -114,13 +119,23 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
             }
         },
     ) {
-        val open = conv
+        // Opening a chat slides it in from the right; going back slides it out.
+        androidx.compose.animation.AnimatedContent(
+            conv,
+            transitionSpec = {
+                val opening = targetState != null
+                val dir = if (opening) 1 else -1
+                (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(280)) { it * dir / 3 } +
+                    androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220))) togetherWith
+                    (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(280)) { -it * dir / 4 } +
+                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)))
+            },
+            label = "conv",
+        ) { open ->
         if (open != null) {
             BackHandler { conv = null }
             ChatScreen(pairing, open, onBack = { conv = null })
-            return@ModalNavigationDrawer
-        }
-        Scaffold(
+        } else Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
@@ -136,7 +151,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                                     Dest.SEARCH -> R.string.search
                                 },
                             ),
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Bold),
                         )
                     },
                     navigationIcon = {
@@ -166,7 +181,16 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                 )
             },
         ) { padding ->
-            Box(Modifier.padding(padding).fillMaxSize()) {
+            androidx.compose.animation.AnimatedContent(
+                dest,
+                transitionSpec = {
+                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+                        androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(220), initialScale = 0.96f)) togetherWith
+                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150))
+                },
+                modifier = Modifier.padding(padding).fillMaxSize(),
+                label = "dest",
+            ) { dest ->
                 when (dest) {
                     Dest.CHATS -> ChatsScreen(pairing, onOpen = { conv = it })
                     Dest.CALLS -> CallsScreen(pairing)
@@ -178,6 +202,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                 }
             }
         }
+        }
     }
 }
 
@@ -188,9 +213,17 @@ private fun DrawerHeader(pairing: Pairing) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        HeroBadge(painterResource(R.drawable.ic_call), size = 40.dp)
+        Box(
+            Modifier.size(52.dp).breathingGlow(radius = 1.5f)
+                .background(Retro.Ink, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
+        ) {
+            Icon(painterResource(R.drawable.ic_launcher_foreground), null, tint = Color.Unspecified, modifier = Modifier.fillMaxSize())
+        }
         Column {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+            )
             Text(
                 pairing.relayUrl.removePrefix("https://").removePrefix("http://").trimEnd('/'),
                 style = MaterialTheme.typography.bodySmall,

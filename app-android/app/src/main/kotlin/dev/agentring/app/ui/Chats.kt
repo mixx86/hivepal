@@ -61,8 +61,8 @@ import java.util.Calendar
 
 /** A colour per agent (stable across launches), so a group's messages read at a glance. */
 private val PALETTE = listOf(
-    Color(0xFFE8703A), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFA855F7),
-    Color(0xFFEAB308), Color(0xFFEC4899), Color(0xFF14B8A6), Color(0xFF6366F1),
+    Color(0xFF00A6FB), Color(0xFF7DF9FF), Color(0xFF4361EE), Color(0xFF3DFFA8),
+    Color(0xFFB8C0FF), Color(0xFF48CAE4), Color(0xFF9D4EDD), Color(0xFFFFD60A),
 )
 
 fun colorFor(key: String): Color = PALETTE[(key.hashCode() and 0x7fffffff) % PALETTE.size]
@@ -137,8 +137,9 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
         groups.forEach { convs += Conv.ofGroup(it.groupId) }
         agents.forEach { convs += Conv.ofAgent(it.agentId) }
         convs += byConv.keys
-        // Agents that never wrote and aren't main stay out of the list until they do.
-        convs.filter { it in byConv || Conv.isGroup(it) || it == Conv.MAIN }
+        // Agents that never wrote stay out of the list until they do. `main` is the Centralita (the voice
+        // switchboard): it answers calls, not chats, so it has no chat here.
+        convs.filter { (it in byConv || Conv.isGroup(it)) && it != Conv.MAIN }
             .map { c ->
                 val list = byConv[c].orEmpty()
                 ConvRow(
@@ -160,7 +161,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
         } else {
             LazyColumn(Modifier.fillMaxSize().testTag("chat_list"), contentPadding = PaddingValues(bottom = 96.dp)) {
                 items(userRows, key = { it.conv }) { r ->
-                    ChatRow(r, online = !Conv.isGroup(r.conv) && Conv.id(r.conv) in online, main = main,
+                    ChatRow(modifier = Modifier.animateItem(), r = r, online = !Conv.isGroup(r.conv) && Conv.id(r.conv) in online, main = main,
                         pinned = r.conv in pinned, muted = r.conv in muted) { onOpen(r.conv) }
                 }
                 if (botRows.isNotEmpty()) {
@@ -173,19 +174,22 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                         )
                     }
                     items(botRows, key = { it.conv }) { r ->
-                        ChatRow(r, online = false, main = main, pinned = r.conv in pinned, muted = true) { onOpen(r.conv) }
+                        ChatRow(modifier = Modifier.animateItem(), r = r, online = false, main = main, pinned = r.conv in pinned, muted = true) { onOpen(r.conv) }
                     }
                 }
             }
         }
         if (agents.size > 1) {
+            val fab = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
             ExtendedFloatingActionButton(
                 onClick = { creating = true },
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text(stringResource(R.string.new_group)) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).testTag("new_group"),
+                interactionSource = fab,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).pressBounce(fab).breathingGlow(radius = 1.6f)
+                    .testTag("new_group"),
             )
         }
     }
@@ -193,10 +197,18 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun ChatRow(r: ConvRow, online: Boolean, main: String, pinned: Boolean = false, muted: Boolean = false, onClick: () -> Unit) {
+private fun ChatRow(
+    modifier: Modifier = Modifier,
+    r: ConvRow,
+    online: Boolean,
+    main: String,
+    pinned: Boolean = false,
+    muted: Boolean = false,
+    onClick: () -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp).testTag("chat_${r.conv}"),
+        modifier.fillMaxWidth().bouncyClick(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp).testTag("chat_${r.conv}"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -260,12 +272,7 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, pinned: Boolean =
                 )
                 if (r.unread > 0 && !Conv.isBots(r.conv)) {
                     Spacer(Modifier.width(8.dp))
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(22.dp).background(scheme.primary, CircleShape),
-                    ) {
-                        Text("${r.unread}", style = MaterialTheme.typography.labelSmall, color = scheme.onPrimary)
-                    }
+                    PulseBadge(r.unread)
                 }
             }
         }

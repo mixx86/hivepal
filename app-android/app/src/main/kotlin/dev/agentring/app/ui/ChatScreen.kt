@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -129,6 +130,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
 
     var input by rememberSaveable(conv) { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var burst by remember { mutableStateOf(0) }
     var sendError by remember { mutableStateOf<String?>(null) }
     var overQuota by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -348,7 +350,8 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().imePadding()) {
+      Box(Modifier.padding(padding).fillMaxSize()) {
+        Column(Modifier.fillMaxSize().imePadding()) {
             if (messages.isEmpty()) {
                 Box(Modifier.weight(1f)) {
                     EmptyState(stringResource(R.string.messages_empty_title), stringResource(R.string.messages_empty, title))
@@ -373,7 +376,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                             m.createdAt - older.createdAt > RUN_GAP_MS
                         val lastOfRun = newer == null || newer.author != m.author || !sameDay(newer, m) ||
                             newer.createdAt - m.createdAt > RUN_GAP_MS
-                        Column {
+                        Column(Modifier.animateItem()) {
                             if (older == null || !sameDay(older, m)) DayLabel(m.createdAt)
                             Bubble(
                                 m,
@@ -386,7 +389,10 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                             )
                             val options = m.options
                             if (m.fromAgent && !options.isNullOrEmpty() && answered[m.msgId] == null) {
-                                QuickReplies(options, enabled = !sending) { post(it, replyTo = m.msgId) }
+                                QuickReplies(options, enabled = !sending) {
+                                    burst++
+                                    post(it, replyTo = m.msgId)
+                                }
                             }
                         }
                     }
@@ -430,10 +436,14 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     ),
                     modifier = Modifier.weight(1f).testTag("message_input"),
                 )
+                val sendSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 FilledIconButton(
                     onClick = { if (input.isNotBlank()) send() else startVoice() },
                     enabled = !sending,
-                    modifier = Modifier.size(54.dp).testTag("send_button"),
+                    interactionSource = sendSource,
+                    colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(containerColor = Color.Transparent),
+                    modifier = Modifier.size(54.dp).pressBounce(sendSource).breathingGlow()
+                        .background(BrandBrush, androidx.compose.foundation.shape.CircleShape).testTag("send_button"),
                 ) {
                     when {
                         sending -> CircularProgressIndicator(Modifier.padding(12.dp), strokeWidth = 2.dp)
@@ -443,6 +453,8 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                 }
             }
         }
+        HexBurst(burst)
+      }
     }
 
     if (confirmClear) {
@@ -596,10 +608,13 @@ private fun Bubble(
                 topStart = 20.dp, topEnd = 20.dp,
                 bottomStart = if (mine) 20.dp else 6.dp, bottomEnd = if (mine) 6.dp else 20.dp,
             ),
-            color = if (mine) scheme.primary else scheme.surfaceContainerHigh,
-            contentColor = if (mine) scheme.onPrimary else scheme.onSurface,
+            color = if (mine) Color.Transparent else scheme.surfaceContainerHigh,
+            contentColor = if (mine) Color.White else scheme.onSurface,
             border = if (mine) null else BorderStroke(1.dp, scheme.outlineVariant),
-            modifier = Modifier.widthIn(max = 310.dp).combinedClickable(onClick = {}, onLongClick = { menu = true }),
+            modifier = Modifier.widthIn(max = 310.dp)
+                .then(if (mine) Modifier.background(MineBrush, RoundedCornerShape(
+                    topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp)) else Modifier)
+                .combinedClickable(onClick = {}, onLongClick = { menu = true }),
         ) {
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 if (m.text.isNotBlank()) {
@@ -625,14 +640,14 @@ private fun Bubble(
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        color = (if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.7f),
+                        color = (if (mine) Color.White else scheme.onSurface).copy(alpha = 0.7f),
                         modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp),
                     )
                 }
                 m.attachments?.forEach { a -> AttachmentView(a, mine) }
                 if (m.text.isNotBlank()) {
-                    val link = if (mine) scheme.onPrimary else scheme.primary
-                    val codeBg = if (mine) scheme.onPrimary.copy(alpha = 0.15f) else scheme.surfaceContainerHighest
+                    val link = if (mine) Color.White else scheme.primary
+                    val codeBg = if (mine) Color.White.copy(alpha = 0.15f) else scheme.surfaceContainerHighest
                     val styled = remember(m.text, link, codeBg) { Markdown.render(m.text, link, codeBg) }
                     Text(styled, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -659,13 +674,19 @@ private fun QuickReplies(options: List<String>, enabled: Boolean, onPick: (Strin
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         options.forEach { o ->
+            val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
             SuggestionChip(
-                onClick = { onPick(o) },
+                onClick = {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onPick(o)
+                },
                 enabled = enabled,
+                interactionSource = source,
                 label = { Text(o, style = MaterialTheme.typography.labelLarge) },
                 colors = SuggestionChipDefaults.suggestionChipColors(labelColor = MaterialTheme.colorScheme.primary),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                modifier = Modifier.testTag("quick_reply"),
+                modifier = Modifier.pressBounce(source).testTag("quick_reply"),
             )
         }
     }
@@ -759,8 +780,8 @@ private fun AttachmentView(a: Attachment, mine: Boolean) {
             }
             val frac = if (total > 0) (position.toFloat() / total).coerceIn(0f, 1f) else 0f
             Box(Modifier.weight(1f).size(height = 4.dp, width = 0.dp).clip(RoundedCornerShape(2.dp))
-                .background((if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.25f))) {
-                Box(Modifier.fillMaxWidth(frac).size(height = 4.dp, width = 0.dp).background(if (mine) scheme.onPrimary else scheme.primary))
+                .background((if (mine) Color.White else scheme.onSurface).copy(alpha = 0.25f))) {
+                Box(Modifier.fillMaxWidth(frac).size(height = 4.dp, width = 0.dp).background(if (mine) Color.White else scheme.primary))
             }
             Spacer(Modifier.width(10.dp))
             val shown = if (playing || position > 0) position else total
@@ -779,7 +800,7 @@ private fun AttachmentView(a: Attachment, mine: Boolean) {
             Text(
                 it,
                 style = MaterialTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
-                color = (if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.85f),
+                color = (if (mine) Color.White else scheme.onSurface).copy(alpha = 0.85f),
                 modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 10.dp).widthIn(max = 260.dp),
             )
         }

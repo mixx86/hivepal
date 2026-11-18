@@ -279,7 +279,7 @@ fun CallScreen(
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.radialGradient(listOf(Color(0xFF3A1F12), Color(0xFF0C0F12)), radius = 1400f, center = androidx.compose.ui.geometry.Offset(540f, 0f))),
+            .background(Brush.radialGradient(listOf(Color(0xFF00284D), Color(0xFF000814)), radius = 1400f, center = androidx.compose.ui.geometry.Offset(540f, 0f))),
         color = Color.Transparent,
         contentColor = Color.White,
     ) {
@@ -298,14 +298,14 @@ fun CallScreen(
             }
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(104.dp).background(Brush.linearGradient(listOf(Color(0xFFFF8A4C), Color(0xFFC2410C))), CircleShape),
+                modifier = Modifier.size(104.dp).background(Brush.linearGradient(listOf(Color(0xFF7DF9FF), Color(0xFF00A6FB), Color(0xFF0353A4))), CircleShape),
             ) {
                 Text(info.agentName.trim().take(1).uppercase().ifEmpty { "A" }, fontSize = 44.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
             Spacer(Modifier.height(20.dp))
             Text(info.agentName, fontSize = 34.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.testTag("call_agent"))
             Spacer(Modifier.height(10.dp))
-            Text(statusText(state), fontSize = 18.sp, color = Color(0xFFB8C4CC), modifier = Modifier.testTag("call_status"))
+            Text(statusText(state), fontSize = 18.sp, color = Color(0xFF8FB3D9), modifier = Modifier.testTag("call_status"))
             if (info.reason.isNotBlank() && !hideReason) {
                 Spacer(Modifier.height(28.dp))
                 Text(
@@ -397,7 +397,7 @@ private fun ToggleButton(icon: Int, label: String, on: Boolean, enabled: Boolean
             modifier = Modifier.size(64.dp).testTag(tag),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = if (on) Color.White else Color(0x33FFFFFF),
-                contentColor = if (on) Color(0xFF101418) else Color.White,
+                contentColor = if (on) Color(0xFF000814) else Color.White,
                 disabledContainerColor = Color(0x1AFFFFFF),
                 disabledContentColor = Color(0x66FFFFFF),
             ),

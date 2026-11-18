@@ -1,11 +1,11 @@
-"""Generates the Hivepal icon: a honeycomb of seven rounded cells, honey around a white centre,
+"""Generates the Hivepal icon: a honeycomb of seven rounded cells, electric blue around a white centre,
 on a dark background. Writes the Android adaptive-icon foreground and an SVG/PNG preview."""
 import math
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HONEY, WHITE, DARK = "#F2A21A", "#FFFFFF", "#14161B"
+HONEY, WHITE, DARK = "#00A6FB", "#FFFFFF", "#000814"
 CELL_R, CELL_ROUND = 9.5, 2.0
 #: Distance between neighbouring cell centres (flat sides almost touching, with a small gap).
 STEP = CELL_R * 1.85
