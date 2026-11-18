@@ -23,13 +23,16 @@ CREATE TABLE IF NOT EXISTS messages (
     delivered_at INTEGER,
     -- multi-agent fork: the conversation (NULL = agent:main) and the sending agent
     conv TEXT,
-    agent_id TEXT
+    agent_id TEXT,
+    -- Hivepal: JSON arrays of quick replies and attachments
+    options TEXT,
+    attachments TEXT
 );
 CREATE INDEX IF NOT EXISTS messages_created ON messages(created_at);
 """
 
 #: Columns added after the first release, for mirrors created by an older daemon.
-_ADDED_COLUMNS = {"conv": "TEXT", "agent_id": "TEXT"}
+_ADDED_COLUMNS = {"conv": "TEXT", "agent_id": "TEXT", "options": "TEXT", "attachments": "TEXT"}
 
 
 def _make_private(path: Path) -> None:
@@ -97,11 +100,15 @@ class Store:
 
     # messages
     def upsert_message(self, msg_id: str, sender: str, text: str, created_at: int, reply_to: str | None = None,
-                       conv: str | None = None, agent_id: str | None = None) -> bool:
+                       conv: str | None = None, agent_id: str | None = None, options: list | None = None,
+                       attachments: list | None = None) -> bool:
+        import json
+
         cur = self.db.execute(
-            "INSERT OR IGNORE INTO messages (msg_id, sender, text, reply_to, created_at, conv, agent_id)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (msg_id, sender, text, reply_to, created_at, conv, agent_id),
+            "INSERT OR IGNORE INTO messages (msg_id, sender, text, reply_to, created_at, conv, agent_id, options, attachments)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (msg_id, sender, text, reply_to, created_at, conv, agent_id,
+             json.dumps(options) if options else None, json.dumps(attachments) if attachments else None),
         )
         return cur.rowcount == 1
 
@@ -120,8 +127,9 @@ class Store:
         # Not our own messages, and not another agent's conversation: a mirror that was filled with
         # the relay's shared key (before this agent had its own) holds those, as agent:main.
         q = ("SELECT * FROM messages WHERE NOT (sender = 'agent' AND COALESCE(agent_id, 'main') = ?)"
-             " AND (COALESCE(conv, 'agent:main') LIKE 'group:%' OR COALESCE(conv, 'agent:main') = ?)")
-        args: list[Any] = [me, f"agent:{me}"]
+             " AND (COALESCE(conv, 'agent:main') LIKE 'group:%' OR COALESCE(conv, 'agent:main') = ?"
+             " OR conv LIKE ? OR conv LIKE ?)")
+        args: list[Any] = [me, f"agent:{me}", f"bots:{me}.%", f"bots:%.{me}"]
         if conv is not None:
             q += " AND COALESCE(conv, 'agent:main') = ?"
             args.append(conv)

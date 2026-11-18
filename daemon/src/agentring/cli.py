@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import re
@@ -400,25 +401,151 @@ def call(
 def msg(
     text: Annotated[str, typer.Argument(help="Message text (max 4000 chars).")],
     reply_to: Annotated[Optional[str], typer.Option("--reply-to", help="msg_id or call_id this answers.")] = None,
-    group: Annotated[Optional[str], typer.Option("--group", "-g", help="Write in this group (see `agentring groups`) "
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="Write in this group (see `hivepal groups`) "
                                                  "instead of your own conversation.")] = None,
+    to: Annotated[Optional[str], typer.Option("--to", help="Write to another agent (a bots: conversation the user can "
+                                              "read but that doesn't wake the phone).")] = None,
+    option: Annotated[Optional[list[str]], typer.Option("--option", "-o", help="A quick reply the user can tap "
+                                                        "(repeatable, up to 6). The answer comes back as a reply.")] = None,
+    file: Annotated[Optional[list[str]], typer.Option("--file", "-f", help="Attach a photo (jpg/png/webp) or audio "
+                                                      "(m4a/aac/ogg/mp3) (repeatable, up to 4).")] = None,
     json_out: JsonOpt = False,
 ) -> None:
     """Send a message to the phone. Prints the msg_id."""
+    if group and to:
+        raise _fail("use --group or --to, not both")
     s = _settings()
     with _client(s) as c:
         try:
-            m = c.post_message(text, reply_to=reply_to, conv=f"group:{group}" if group else None)
+            conv = f"group:{group}" if group else None
+            if to:
+                me = (c.status().get("self") or {}).get("agent_id") or "main"
+                if to == me:
+                    raise _fail("--to: that's you")
+                conv = "bots:" + ".".join(sorted([me, to]))
+            ids = [_upload(c, f)["file_id"] for f in file or []]
+            m = c.post_message(text, reply_to=reply_to, conv=conv, options=option or None, attachments=ids or None)
         except RelayError as e:
             raise _fail(str(e)) from None
     store = Store(s.db_path)
     store.upsert_message(m["msg_id"], "agent", m["text"], m["created_at"], m.get("reply_to"), m.get("conv"),
-                         m.get("agent_id"))
+                         m.get("agent_id"), m.get("options"), m.get("attachments"))
     store.close()
     if json_out:
         _emit_json({"msg_id": m["msg_id"]})
     else:
         typer.echo(m["msg_id"])
+
+
+_MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+         ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".aac": "audio/aac", ".ogg": "audio/ogg", ".opus": "audio/ogg",
+         ".mp3": "audio/mpeg", ".webm": "audio/webm"}
+_EXT = {v: k for k, v in reversed(list(_MIME.items()))}
+
+
+def _upload(c: RelayClient, path: str) -> dict:
+    from pathlib import Path
+
+    p = Path(path).expanduser()
+    mime = _MIME.get(p.suffix.lower())
+    if mime is None:
+        raise _fail(f"{path}: only {', '.join(sorted(_MIME))}")
+    try:
+        data = p.read_bytes()
+    except OSError as e:
+        raise _fail(f"{path}: {e.strerror}") from None
+    return c.upload_file(data, mime)
+
+
+def _when(at: str | None, in_: str | None, now_ms: int | None = None) -> int:
+    """--at 19:00 (today, or tomorrow if past), --at 2026-11-20T09:30, or --in 2h / 30m / 1d."""
+    now_ms = now_ms if now_ms is not None else _now_ms()
+    if bool(at) == bool(in_):
+        raise _fail("give --at or --in")
+    if in_:
+        m = _DURATION.match(in_.strip())
+        if not m:
+            raise typer.BadParameter("--in: e.g. 30m, 2h, 1d")
+        return now_ms + int(m.group(1)) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)] * 1000
+    v = at.strip()
+    hm = re.fullmatch(r"(\d{1,2}):(\d{2})", v)
+    if hm:
+        now = datetime.fromtimestamp(now_ms / 1000).astimezone()
+        t = now.replace(hour=int(hm.group(1)), minute=int(hm.group(2)), second=0, microsecond=0)
+        if t.timestamp() * 1000 <= now_ms:
+            from datetime import timedelta
+
+            t += timedelta(days=1)
+        return int(t.timestamp() * 1000)
+    return parse_since(v, now_ms)
+
+
+@app.command()
+def remind(
+    text: Annotated[str, typer.Argument(help="What to say then.")],
+    at: Annotated[Optional[str], typer.Option("--at", help="19:00 (next time it's 19:00), or a date: 2026-11-20T09:30.")] = None,
+    in_: Annotated[Optional[str], typer.Option("--in", help="From now: 30m, 2h, 1d.")] = None,
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="Send it in this group.")] = None,
+    option: Annotated[Optional[list[str]], typer.Option("--option", "-o", help="Quick reply (repeatable).")] = None,
+    json_out: JsonOpt = False,
+) -> None:
+    """Schedule a message: the relay sends it at that time as you, with a push, even if you aren't running then."""
+    when = _when(at, in_)
+    s = _settings()
+    with _client(s) as c:
+        try:
+            r = c.create_reminder(text, when, conv=f"group:{group}" if group else None, options=option or None)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json(r)
+    else:
+        typer.echo(f"{r['rem_id']}  {_fmt_ts(r['at'])}")
+
+
+@app.command()
+def reminders(
+    cancel: Annotated[Optional[str], typer.Option("--cancel", help="Cancel this reminder (rem_...).")] = None,
+    json_out: JsonOpt = False,
+) -> None:
+    """List your pending reminders, or cancel one."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            if cancel:
+                c.cancel_reminder(cancel)
+                typer.echo(f"Canceled {cancel}")
+                return
+            rows = c.list_reminders()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json({"reminders": rows})
+        return
+    if not rows:
+        typer.echo("No pending reminders.")
+    for r in rows:
+        where = "" if r["conv"].startswith("agent:") else f" [{r['conv']}]"
+        typer.echo(f"{r['rem_id']}  {_fmt_ts(r['at'])}{where}  {r['text']}")
+
+
+@app.command()
+def file(
+    file_id: Annotated[str, typer.Argument(help="file_... from a message's attachments (see replies).")],
+    out: Annotated[Optional[str], typer.Option("--out", "-o", help="Where to save it (default: ./<file_id>.<ext>).")] = None,
+) -> None:
+    """Download a photo or audio the user (or another agent) sent you. Prints the path."""
+    from pathlib import Path
+
+    s = _settings()
+    with _client(s) as c:
+        try:
+            data, mime = c.download_file(file_id)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    path = Path(out).expanduser() if out else Path(f"{file_id}{_EXT.get(mime.split(';')[0], '')}")
+    path.write_bytes(data)
+    typer.echo(str(path))
 
 
 @app.command()
@@ -456,7 +583,7 @@ def replies(
                         c.mark_read(r["msg_id"])
                     except RelayError:
                         pass  # best effort; the read receipt is cosmetic
-        if any((r["conv"] or "").startswith("group:") for r in rows):
+        if any((r["conv"] or "").startswith(("group:", "bots:")) for r in rows):
             try:
                 names = {f"agent:{a['agent_id']}": a["name"] for a in c.list_agents()}
                 names.update({f"group:{g['group_id']}": g["name"] for g in c.list_groups()})
@@ -472,13 +599,20 @@ def replies(
 
     out = []
     for r in rows:
-        item = {"msg_id": r["msg_id"], "text": r["text"], "created_at": r["created_at"], "reply_to": r["reply_to"]}
+        item: dict[str, Any] = {"msg_id": r["msg_id"], "text": r["text"], "created_at": r["created_at"],
+                                "reply_to": r["reply_to"]}
         conv = r["conv"] or "agent:main"
         if conv.startswith("group:"):
             item.update(conv=conv, group=names.get(conv, conv[6:]), from_=r["sender"], author=who(r))
             item["from"] = item.pop("from_")
             if r["sender"] == "agent":
                 item["agent_id"] = r["agent_id"]
+        elif conv.startswith("bots:"):
+            item.update(conv=conv, author=who(r) if r["sender"] == "agent" else "user", agent_id=r["agent_id"])
+        if r["attachments"]:
+            item["attachments"] = json.loads(r["attachments"])
+        if r["options"]:
+            item["options"] = json.loads(r["options"])
         out.append(item)
     if json_out:
         _emit_json({"replies": out})
@@ -487,8 +621,14 @@ def replies(
         typer.echo("No new replies." if undelivered_only else "No replies.")
         return
     for r in out:
-        prefix = f"[{r['group']}] {r['author']}: " if "group" in r else ""
-        typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}")
+        if "group" in r:
+            prefix = f"[{r['group']}] {r['author']}: "
+        elif r.get("conv", "").startswith("bots:"):
+            prefix = f"[{r['author']} → you] "
+        else:
+            prefix = ""
+        files = "".join(f" [{a['mime'].split('/')[0]}: {a['file_id']}]" for a in r.get("attachments", []))
+        typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}{files}")
 
 
 @app.command()
@@ -934,6 +1074,30 @@ def mcp_http(
     run_http(cfg)
 
 
+def with_personas(base: Any, home: Any) -> Any:
+    """Hivepal: when the user calls a specific agent, the voice AI speaks as that agent. Its persona
+    comes from `personas/<agent_id>.md` in the agentring home (if there is one), on top of the usual
+    instructions; without the file, a short default says who it is."""
+    from pathlib import Path
+
+    async def instructions(info: Any) -> str:
+        text = base(info) if callable(base) else base
+        if inspect.isawaitable(text):
+            text = await text
+        aid = getattr(info, "agent_id", None)
+        if not aid or aid == "main":
+            return text
+        name = getattr(info, "agent_name", None) or aid
+        f = Path(home) / "personas" / f"{aid}.md"
+        persona = f.read_text(encoding="utf-8").strip() if f.is_file() else (
+            f"En esta llamada eres {name}, uno de los agentes del usuario, y hablas como {name}. "
+            f"Si hay que apuntar o hacer algo, déjaselo como nota a {name} con su herramienta."
+        )
+        return f"{persona}\n\n{text}"
+
+    return instructions
+
+
 def _describe(event: dict[str, Any]) -> str | None:
     t = event.get("type")
     if t == "msg.new":
@@ -1002,6 +1166,7 @@ def serve(
         if ai:
             built = await _build_ai(instructions, mcp, tools, model, voice, agents_file, provider)
             voice_agent = built.agent
+            voice_agent.instructions = with_personas(voice_agent.instructions, home_dir())
             log.info("answering calls with %d tools", len(voice_agent.tools))
         log.info("agentring %s serving; relay %s", __version__, s.relay_url)
         try:

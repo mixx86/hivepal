@@ -46,7 +46,8 @@ def apply_event(store: Store, event: dict[str, Any]) -> None:
     try:
         if t == "msg.new":
             store.upsert_message(event["msg_id"], event["from"], _clean(event["text"]), event["ts"],
-                                 _clean(event.get("reply_to")), event.get("conv"), event.get("agent_id"))
+                                 _clean(event.get("reply_to")), event.get("conv"), event.get("agent_id"),
+                                 event.get("options"), event.get("attachments"))
         elif t == "msg.read":
             store.mark_read(event["msg_id"], event["ts"])
     except (ValueError, KeyError, TypeError) as e:

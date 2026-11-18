@@ -31,4 +31,10 @@ def accept_incoming(client: Any, event: dict[str, Any]) -> tuple[Any, dict[str, 
         log.warning("could not accept call %s: %s", event["call_id"], e)
         return None
     call = res.get("call") or {}
-    return CallInfo(event["call_id"], event.get("reason") or call.get("reason") or "", "user_to_agent"), res["join"]
+    return CallInfo(
+        event["call_id"],
+        event.get("reason") or call.get("reason") or "",
+        "user_to_agent",
+        agent_id=event.get("agent_id") or call.get("agent_id"),
+        agent_name=event.get("agent_name") or call.get("agent_name"),
+    ), res["join"]

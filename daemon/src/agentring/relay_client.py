@@ -131,11 +131,17 @@ class RelayClient:
 
     # messages
     def post_message(self, text: str, *, reply_to: str | None = None, client_msg_id: str | None = None,
-                     conv: str | None = None) -> dict:
-        """`conv`: `group:<id>` to write in a group (multi-agent fork); default the agent's own conversation."""
+                     conv: str | None = None, options: list[str] | None = None,
+                     attachments: list[str] | None = None) -> dict:
+        """`conv`: `group:<id>` or `bots:<a>.<b>` (Hivepal); default the agent's own conversation.
+        `options`: quick replies shown as buttons. `attachments`: ids from upload_file."""
         body: dict[str, Any] = {"text": text}
         if conv:
             body["conv"] = conv
+        if options:
+            body["options"] = options
+        if attachments:
+            body["attachments"] = attachments
         if reply_to:
             body["reply_to"] = reply_to
         if client_msg_id:
@@ -147,6 +153,34 @@ class RelayClient:
 
     def mark_read(self, msg_id: str) -> None:
         self._request("POST", f"/v1/messages/{msg_id}/read")
+
+    # files and reminders (Hivepal)
+    def upload_file(self, data: bytes, mime: str, duration_ms: int | None = None) -> dict:
+        params = {"duration_ms": duration_ms} if duration_ms else None
+        return self._request("POST", "/v1/files", content=data, headers={"content-type": mime}, params=params)
+
+    def download_file(self, file_id: str) -> tuple[bytes, str]:
+        try:
+            r = self._http.get(f"/v1/files/{file_id}")
+        except httpx.HTTPError as e:
+            raise RelayError(0, "unreachable", f"cannot reach relay at {self.relay_url}: {e}") from e
+        if r.status_code >= 400:
+            raise RelayError(r.status_code, "not_found" if r.status_code == 404 else "error", r.text[:300])
+        return r.content, r.headers.get("content-type", "application/octet-stream")
+
+    def create_reminder(self, text: str, at_ms: int, *, conv: str | None = None, options: list[str] | None = None) -> dict:
+        body: dict[str, Any] = {"text": text, "at": at_ms}
+        if conv:
+            body["conv"] = conv
+        if options:
+            body["options"] = options
+        return self._request("POST", "/v1/reminders", json=body)
+
+    def list_reminders(self) -> list[dict]:
+        return self._request("GET", "/v1/reminders")["reminders"]
+
+    def cancel_reminder(self, rem_id: str) -> None:
+        self._request("DELETE", f"/v1/reminders/{rem_id}")
 
     # agents and groups (multi-agent fork)
     def list_agents(self) -> list[dict]:

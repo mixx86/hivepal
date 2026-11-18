@@ -74,6 +74,8 @@ class CallInfo:
     reason: str = ""
     direction: str = "agent_to_user"  # or user_to_agent (the user called the agent)
     device_ids: list[str] | None = None  # a targeted call: private to these phones (messages reach every phone)
+    agent_id: str | None = None  # Hivepal: which agent the user called (None/main = the main agent)
+    agent_name: str | None = None
 
     @property
     def inbound(self) -> bool:
