@@ -742,6 +742,60 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/files/{file_id}/transcript:
+    parameters:
+      - name: file_id
+        in: path
+        required: true
+        schema: { type: string, pattern: "^file_[0-9A-HJKMNP-TV-Z]{26}$" }
+    get:
+      tags: [messages]
+      operationId: getTranscript
+      summary: A voice note as text (Gemini, made on first request and kept). Same access as the file.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: The transcript.
+          content:
+            application/json:
+              schema: { type: object, required: [text], properties: { text: { type: string } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503":
+          description: "`calls_unavailable`: no GEMINI_API_KEY on this relay."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/tts:
+    post:
+      tags: [messages]
+      operationId: textToSpeech
+      summary: Turn text into a voice note (audio/wav, Gemini TTS) to attach to a message.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+                voice: { type: string, maxLength: 40, description: "A Gemini prebuilt voice (default Kore)." }
+      responses:
+        "201":
+          description: The file.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attachment" }
+        "503":
+          description: "`calls_unavailable`: no GEMINI_API_KEY on this relay."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /v1/reminders:
     post:
       tags: [messages]
@@ -1007,8 +1061,16 @@ components:
           $ref: "#/components/schemas/ConvId"
         options:
           type: array
-          maxItems: 6
+          maxItems: 10
           items: { type: string, minLength: 1, maxLength: 40 }
+        insist_s:
+          description: |
+            If the user hasn't written in the conversation this many seconds after it went out, the
+            relay sends it again (prefixed ⏰); with `call`, after as long again it rings the phone.
+          type: integer
+          minimum: 60
+          maximum: 21600
+        call: { type: boolean }
     Agent:
       type: object
       required: [agent_id, name, created_at]
@@ -1315,7 +1377,7 @@ components:
         options:
           description: Quick replies the app shows as buttons under the message (agent only). Tapping one sends it as a reply.
           type: array
-          maxItems: 6
+          maxItems: 10
           items: { type: string, minLength: 1, maxLength: 40 }
         attachments:
           description: Files from `POST /v1/files` (at most 4). With attachments, `text` may be empty.

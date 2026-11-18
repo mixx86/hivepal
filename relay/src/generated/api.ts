@@ -557,6 +557,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/files/{file_id}/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        /** A voice note as text (Gemini, made on first request and kept). Same access as the file. */
+        get: operations["getTranscript"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn text into a voice note (audio/wav, Gemini TTS) to attach to a message. */
+        post: operations["textToSpeech"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reminders": {
         parameters: {
             query?: never;
@@ -690,6 +726,12 @@ export interface components {
             /** @description Default the agent's own conversation. */
             conv?: components["schemas"]["ConvId"];
             options?: string[];
+            /**
+             * @description If the user hasn't written in the conversation this many seconds after it went out, the
+             *     relay sends it again (prefixed ⏰); with `call`, after as long again it rings the phone.
+             */
+            insist_s?: number;
+            call?: boolean;
         };
         Agent: {
             agent_id: components["schemas"]["AgentId"];
@@ -2143,6 +2185,78 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTranscript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The transcript. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        text: string;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description `calls_unavailable`: no GEMINI_API_KEY on this relay. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    textToSpeech: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    text: string;
+                    /** @description A Gemini prebuilt voice (default Kore). */
+                    voice?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The file. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description `calls_unavailable`: no GEMINI_API_KEY on this relay. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listReminders: {

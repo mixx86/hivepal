@@ -176,3 +176,74 @@ describe("deleting messages", () => {
     expect((await del(bearer(nubi), theirs)).statusCode).toBe(204);
   });
 });
+
+describe("reminders that insist", () => {
+  it("follow up, then call, until the user writes in that conversation", async () => {
+    b = await setup();
+    const rutina = await addAgent("rutina", "Rutina");
+    const dev = await pairDevice(b);
+    const at = Date.now() + 1000;
+    await b.app.inject({
+      method: "POST", url: "/v1/reminders", headers: bearer(rutina),
+      payload: { text: "Gym a las 18:00", at, options: ["Voy", "Hoy no"], insist_s: 600, call: true },
+    });
+    b.ctx.reminders!.tick(at + 10);
+    expect(await texts(dev.headers)).toEqual(["Gym a las 18:00"]);
+    b.ctx.reminders!.tick(at + 599_000);
+    expect(await texts(dev.headers)).toHaveLength(1);
+    b.ctx.reminders!.tick(at + 601_000);
+    expect(await texts(dev.headers)).toEqual(["Gym a las 18:00", "⏰ Gym a las 18:00"]);
+    b.ctx.reminders!.tick(at + 1_201_000);
+    const calls = (await b.app.inject({ method: "GET", url: "/v1/calls", headers: dev.headers })).json().calls;
+    expect(calls[0]).toMatchObject({ agent_id: "rutina", reason: "Gym a las 18:00", priority: "urgent" });
+    b.ctx.reminders!.tick(at + 3_000_000);
+    expect((await b.app.inject({ method: "GET", url: "/v1/calls", headers: dev.headers })).json().calls).toHaveLength(1);
+  });
+
+  it("stop as soon as the user answers", async () => {
+    b = await setup();
+    const rutina = await addAgent("rutina", "Rutina");
+    const dev = await pairDevice(b);
+    const at = Date.now() + 1000;
+    await b.app.inject({
+      method: "POST", url: "/v1/reminders", headers: bearer(rutina),
+      payload: { text: "A dormir", at, insist_s: 600, call: true },
+    });
+    b.ctx.reminders!.tick(at + 10);
+    await post(dev.headers, { text: "Ya voy", conv: "agent:rutina" });
+    b.ctx.reminders!.tick(at + 2_000_000);
+    expect(await texts(dev.headers)).toEqual(["A dormir", "Ya voy"]);
+    expect((await b.app.inject({ method: "GET", url: "/v1/calls", headers: dev.headers })).json().calls).toEqual([]);
+  });
+});
+
+describe("speech", () => {
+  it("transcribes a voice note once and keeps it; makes voice notes from text", async () => {
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const dev = await pairDevice(b);
+    let calls = 0;
+    b.ctx.speech = {
+      transcribe: async () => { calls++; return "voy a las seis"; },
+      tts: async (text) => ({ data: (await import("../src/gemini.js")).wav(Buffer.alloc(48000), 24000), mime: "audio/wav" + (text ? "" : "") }),
+    };
+    const up = await b.app.inject({ method: "POST", url: "/v1/files", headers: { ...dev.headers, "content-type": "audio/mp4" }, payload: Buffer.alloc(100, 1) });
+    const id = up.json().file_id as string;
+    await post(dev.headers, { text: "", conv: "agent:nubi", attachments: [id] });
+    for (let i = 0; i < 2; i++) {
+      const t = await b.app.inject({ method: "GET", url: `/v1/files/${id}/transcript`, headers: bearer(nubi) });
+      expect(t.json()).toEqual({ text: "voy a las seis" });
+    }
+    expect(calls).toBe(1);
+    const v = await b.app.inject({ method: "POST", url: "/v1/tts", headers: bearer(nubi), payload: { text: "Buenos días" } });
+    expect(v.statusCode).toBe(201);
+    expect(v.json()).toMatchObject({ mime: "audio/wav", duration_ms: 1000 });
+    expect((await post(bearer(nubi), { text: "", attachments: [v.json().file_id] })).statusCode).toBe(201);
+  });
+
+  it("says so when it isn't configured", async () => {
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    expect((await b.app.inject({ method: "POST", url: "/v1/tts", headers: bearer(nubi), payload: { text: "x" } })).statusCode).toBe(503);
+  });
+});

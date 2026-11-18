@@ -59,7 +59,7 @@ export const CONV_SCHEMA = {
   type: "string",
   pattern: "^((agent|group):[a-z0-9][a-z0-9_-]{0,31}|bots:[a-z0-9][a-z0-9_-]{0,31}\\.[a-z0-9][a-z0-9_-]{0,31})$",
 } as const;
-export const OPTIONS_SCHEMA = { type: "array", maxItems: 6, items: { type: "string", minLength: 1, maxLength: 40 } } as const;
+export const OPTIONS_SCHEMA = { type: "array", maxItems: 10, items: { type: "string", minLength: 1, maxLength: 40 } } as const;
 
 export interface NewMessage {
   text: string;

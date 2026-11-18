@@ -135,6 +135,15 @@ const MIGRATIONS: string[] = [
   -- Hivepal: when each agent last used its key (is its routine still running?).
   CREATE TABLE agent_seen (agent_id TEXT PRIMARY KEY, at INTEGER NOT NULL);
   `,
+  `
+  -- Hivepal: voice-note transcripts; reminders that insist (follow up, then call) until answered.
+  ALTER TABLE files ADD COLUMN transcript TEXT;
+  ALTER TABLE reminders ADD COLUMN insist_s INTEGER;
+  ALTER TABLE reminders ADD COLUMN call INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE reminders ADD COLUMN msg_id TEXT;
+  ALTER TABLE reminders ADD COLUMN followups INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE reminders ADD COLUMN done_at INTEGER;
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

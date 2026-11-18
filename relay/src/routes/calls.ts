@@ -98,7 +98,7 @@ const QUOTA_CHECK_MS = 60_000;
 /** How soon a timer that failed (e.g. a database error) tries again. */
 const TIMER_RETRY_MS = 5_000;
 /** How long an empty room outlives the ring window. */
-const ROOM_GRACE_S = 30;
+export const ROOM_GRACE_S = 30;
 export class Calls {
   private readonly timers = new Map<string, NodeJS.Timeout>();
   /** Devices that already reported `ringing`, so the event is emitted once per device. */

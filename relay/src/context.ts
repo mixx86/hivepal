@@ -25,6 +25,8 @@ export interface Ctx {
   /** Undefined when LiveKit isn't configured: calls are then unavailable. */
   livekit?: LiveKitService;
   calls?: Calls;
+  /** Hivepal: transcription and text-to-speech; undefined without GEMINI_API_KEY. */
+  speech?: import("./gemini.js").Speech;
   /** Scheduled messages (Hivepal). */
   reminders?: import("./routes/reminders.js").Reminders;
   /** The tenant's current limits (hub mode); unlimited on a self-hosted relay. */
