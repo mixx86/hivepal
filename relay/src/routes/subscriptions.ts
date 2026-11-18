@@ -1,10 +1,10 @@
 /**
- * Hivepal: the user's subscriptions and when each renews or ends. The user's scraper reads every
- * service's own billing page and PUTs what it found with the relay API key; the phone lists them.
+ * Hivepal: the user's subscriptions and when each renews or ends. The phone reads every service's own
+ * billing page (in the app, with the user's login there) and PUTs what it found; the relay API key may too.
  */
-import type { FastifyInstance } from "fastify";
-import { type Ctx, requireAgentKey, requireAuth } from "../context.js";
-import { notFound } from "../errors.js";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { type Ctx, requireAuth } from "../context.js";
+import { forbidden, notFound } from "../errors.js";
 import type { Schemas } from "../protocol.js";
 
 type Subscription = Schemas["Subscription"];
@@ -39,6 +39,13 @@ const STATUS = ["active", "ending", "ended", "unknown", "error"];
 
 export function subscriptionRoutes(app: FastifyInstance, ctx: Ctx): void {
   const { db } = ctx;
+  const anyone = requireAuth(ctx, "agent", "device");
+  /** The user's phone, or the relay API key: not the other agents. */
+  const userOrMain = async (req: FastifyRequest) => {
+    await anyone(req);
+    const p = req.principal!;
+    if (p.kind === "agent" && p.agentId !== "main") throw forbidden("Only the user's phone or the relay API key");
+  };
   const get = (id: string) => db.prepare("SELECT * FROM subscriptions WHERE sub_id = ?").get(id) as unknown as Row | undefined;
 
   app.get("/v1/subscriptions", { preHandler: requireAuth(ctx, "agent", "device") }, async (req) => {
@@ -52,7 +59,7 @@ export function subscriptionRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.put<{ Params: { sub_id: string }; Body: Put }>(
     "/v1/subscriptions/:sub_id",
     {
-      preHandler: requireAgentKey(ctx),
+      preHandler: userOrMain,
       schema: {
         params: ID,
         body: {
@@ -99,7 +106,7 @@ export function subscriptionRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   app.delete<{ Params: { sub_id: string } }>(
     "/v1/subscriptions/:sub_id",
-    { preHandler: requireAgentKey(ctx), schema: { params: ID } },
+    { preHandler: userOrMain, schema: { params: ID } },
     async (req, reply) => {
       const r = db.prepare("DELETE FROM subscriptions WHERE sub_id = ?").run(req.params.sub_id);
       if (r.changes === 0) throw notFound("Subscription");

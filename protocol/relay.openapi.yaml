@@ -877,7 +877,7 @@ paths:
       operationId: listSubscriptions
       summary: >-
         Hivepal: the user's subscriptions (Claude, Grok, the server…) and when each renews or ends, as last
-        read from each service's own billing page by the user's scraper. For the phone and the relay API key.
+        read from each service's own billing page by the user's phone. For the phone and the relay API key.
       security: [{ agentKey: [] }, { deviceJwt: [] }]
       responses:
         "200":
@@ -903,8 +903,8 @@ paths:
     put:
       tags: [hivepal]
       operationId: putSubscription
-      summary: "Hivepal: record what the scraper read for one subscription (relay API key only)."
-      security: [{ agentKey: [] }]
+      summary: "Hivepal: record what the phone read from a service's billing page (the user's phone or the relay API key)."
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
       requestBody:
         required: true
         content:
@@ -922,8 +922,8 @@ paths:
     delete:
       tags: [hivepal]
       operationId: deleteSubscription
-      summary: "Hivepal: forget a subscription (relay API key only)."
-      security: [{ agentKey: [] }]
+      summary: "Hivepal: forget a subscription (the user's phone or the relay API key)."
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
       responses:
         "204": { description: Removed. }
         "401": { $ref: "#/components/responses/Unauthorized" }

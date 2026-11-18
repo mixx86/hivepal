@@ -123,6 +123,14 @@ class RelayApi(
     fun listSubscriptions(): List<Subscription> =
         call("GET", "/v1/subscriptions", null, SubscriptionList.serializer()).subscriptions
 
+    /** Hivepal: what the phone read from a service's billing page. */
+    fun putSubscription(subId: String, sub: PutSubscription): Subscription =
+        call("PUT", "/v1/subscriptions/$subId", body(PutSubscription.serializer(), sub), Subscription.serializer())
+
+    fun deleteSubscription(subId: String) {
+        call<Unit>("DELETE", "/v1/subscriptions/$subId", null, null)
+    }
+
     fun cancelReminder(remId: String) {
         call<Unit>("DELETE", "/v1/reminders/$remId", null, null)
     }

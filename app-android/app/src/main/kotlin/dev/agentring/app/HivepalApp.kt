@@ -15,6 +15,7 @@ class HivepalApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLanguage.ensureDefault(this)
+        dev.agentring.app.subs.Subs.schedule(this)
         Graph.init(this)
         Notifications.createChannels(this)
         CallNotifications.createChannels(this)

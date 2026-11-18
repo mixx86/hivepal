@@ -244,8 +244,8 @@
     <string name="last_seen">visto %1$s</string>
     <string name="copied">Copiado</string>
     <string name="nav_subs">Suscripciones</string>
-    <string name="subs_body">Se leen cada día de la página de facturación de cada servicio.</string>
-    <string name="subs_empty">Aún no hay suscripciones: ejecuta el lector en tu ordenador.</string>
+    <string name="subs_body">La app los lee cada día de la página de facturación de cada servicio. Conecta cada servicio una vez.</string>
+    <string name="subs_empty">Conecta un servicio abajo para verlo aquí.</string>
     <string name="subs_days">días</string>
     <string name="subs_renews">Renueva el %1$s</string>
     <string name="subs_ends">Termina el %1$s</string>
@@ -253,4 +253,18 @@
     <string name="subs_checked">Comprobado %1$s</string>
     <string name="subs_error">No se pudo leer (%1$s) · última lectura buena %2$s</string>
     <string name="settings_language">Idioma</string>
+    <string name="subs_refresh">Actualizar ahora</string>
+    <string name="subs_reading">Leyendo…</string>
+    <string name="subs_services">Servicios</string>
+    <string name="subs_connect">Conectar</string>
+    <string name="subs_change">Cambiar página</string>
+    <string name="subs_remove">Quitar</string>
+    <string name="subs_not_connected">Sin conectar</string>
+    <string name="subs_use_page">Usar esta página</string>
+    <string name="subs_connect_hint">Inicia sesión y abre la página donde sale la fecha de renovación; luego pulsa Usar esta página.</string>
+    <string name="subs_err_login">Sesión cerrada en %1$s: vuelve a conectarlo</string>
+    <string name="subs_err_challenge">La web pidió una verificación: ábrela con Cambiar página</string>
+    <string name="subs_err_load">No se pudo cargar la página</string>
+    <string name="subs_warn_renews">%1$s se renueva en %2$d días</string>
+    <string name="subs_warn_ends">%1$s termina en %2$d días</string>
 </resources>

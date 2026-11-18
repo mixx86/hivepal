@@ -252,8 +252,8 @@
     <string name="last_seen">seen %1$s</string>
     <string name="copied">Copied</string>
     <string name="nav_subs">Subscriptions</string>
-    <string name="subs_body">Read every day from each service\'s billing page.</string>
-    <string name="subs_empty">No subscriptions yet: run the scraper on your computer.</string>
+    <string name="subs_body">Read every day by the app from each service\'s billing page. Connect each service once.</string>
+    <string name="subs_empty">Connect a service below to see it here.</string>
     <string name="subs_days">days</string>
     <string name="subs_renews">Renews %1$s</string>
     <string name="subs_ends">Ends %1$s</string>
@@ -261,4 +261,18 @@
     <string name="subs_checked">Checked %1$s</string>
     <string name="subs_error">Couldn\'t read it (%1$s) · last good read %2$s</string>
     <string name="settings_language">Language</string>
+    <string name="subs_refresh">Update now</string>
+    <string name="subs_reading">Reading…</string>
+    <string name="subs_services">Services</string>
+    <string name="subs_connect">Connect</string>
+    <string name="subs_change">Change page</string>
+    <string name="subs_remove">Remove</string>
+    <string name="subs_not_connected">Not connected</string>
+    <string name="subs_use_page">Use this page</string>
+    <string name="subs_connect_hint">Log in and open the page that shows your renewal date, then tap Use this page.</string>
+    <string name="subs_err_login">Logged out of %1$s: connect it again</string>
+    <string name="subs_err_challenge">The site asked for a security check: open it with Change page</string>
+    <string name="subs_err_load">Couldn\'t load the page</string>
+    <string name="subs_warn_renews">%1$s renews in %2$d days</string>
+    <string name="subs_warn_ends">%1$s ends in %2$d days</string>
 </resources>

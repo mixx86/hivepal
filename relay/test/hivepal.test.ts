@@ -360,5 +360,8 @@ describe("subscriptions", () => {
     expect(r).toMatchObject({ status: "error", until, plan: "Pro", error: "login expired" });
     expect((await b.app.inject({ method: "DELETE", url: "/v1/subscriptions/grok", headers: AGENT })).statusCode).toBe(204);
     expect((await list(AGENT)).length).toBe(2);
+    // The phone reads the billing pages itself, so it writes too.
+    expect((await put(dev.headers, "webdock", { name: "Webdock", status: "active", until })).statusCode).toBe(200);
+    expect((await b.app.inject({ method: "DELETE", url: "/v1/subscriptions/webdock", headers: dev.headers })).statusCode).toBe(204);
   });
 });

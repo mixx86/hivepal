@@ -156,6 +156,17 @@ data class Subscription(
 data class SubscriptionList(val subscriptions: List<Subscription>)
 
 @Serializable
+data class PutSubscription(
+    val name: String,
+    val status: String,
+    val plan: String? = null,
+    val until: Long? = null,
+    val price: String? = null,
+    val url: String? = null,
+    val error: String? = null,
+)
+
+@Serializable
 data class Agent(
     @SerialName("agent_id") val agentId: String,
     val name: String,

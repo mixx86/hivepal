@@ -637,7 +637,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Hivepal: the user's subscriptions (Claude, Grok, the server…) and when each renews or ends, as last read from each service's own billing page by the user's scraper. For the phone and the relay API key. */
+        /** Hivepal: the user's subscriptions (Claude, Grok, the server…) and when each renews or ends, as last read from each service's own billing page by the user's phone. For the phone and the relay API key. */
         get: operations["listSubscriptions"];
         put?: never;
         post?: never;
@@ -657,10 +657,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Hivepal: record what the scraper read for one subscription (relay API key only). */
+        /** Hivepal: record what the phone read from a service's billing page (the user's phone or the relay API key). */
         put: operations["putSubscription"];
         post?: never;
-        /** Hivepal: forget a subscription (relay API key only). */
+        /** Hivepal: forget a subscription (the user's phone or the relay API key). */
         delete: operations["deleteSubscription"];
         options?: never;
         head?: never;

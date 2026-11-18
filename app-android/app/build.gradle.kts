@@ -121,6 +121,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
 
@@ -145,6 +146,7 @@ dependencies {
     if (androidAuto) releaseImplementation(project(":auto"))
 
     androidTestImplementation(platform(libs.compose.bom))
+    testImplementation(libs.junit)
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
