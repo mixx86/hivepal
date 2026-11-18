@@ -677,6 +677,8 @@ export interface components {
             name: string;
             created_at: components["schemas"]["Timestamp"];
             online?: boolean;
+            /** @description When the agent last used its key (to the minute). Tells whether its routines run. */
+            last_seen_at?: components["schemas"]["Timestamp"];
         };
         CreateAgentRequest: {
             agent_id: components["schemas"]["AgentId"];

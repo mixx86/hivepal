@@ -1004,6 +1004,9 @@ components:
         name: { type: string }
         created_at: { $ref: "#/components/schemas/Timestamp" }
         online: { type: boolean }
+        last_seen_at:
+          description: When the agent last used its key (to the minute). Tells whether its routines run.
+          $ref: "#/components/schemas/Timestamp"
     CreateAgentRequest:
       type: object
       additionalProperties: false

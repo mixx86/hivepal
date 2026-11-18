@@ -40,6 +40,8 @@ describe("multi-agent: agents with their own keys", () => {
 
     const st = await b.app.inject({ method: "GET", url: "/v1/status", headers: bearer(nubi) });
     expect(st.statusCode).toBe(200);
+    const seen = (await b.app.inject({ method: "GET", url: "/v1/agents", headers: AGENT })).json().agents;
+    expect(seen.find((a: { agent_id: string }) => a.agent_id === "nubi").last_seen_at).toBeGreaterThan(0);
     expect(st.json().self).toEqual({ agent_id: "nubi", name: "Nubi" });
     expect(st.json().agent_name).toBe("Nubi");
 

@@ -131,6 +131,10 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX reminders_due ON reminders(at) WHERE sent_at IS NULL AND canceled_at IS NULL;
   `,
+  `
+  -- Hivepal: when each agent last used its key (is its routine still running?).
+  CREATE TABLE agent_seen (agent_id TEXT PRIMARY KEY, at INTEGER NOT NULL);
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

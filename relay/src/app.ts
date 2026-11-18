@@ -116,7 +116,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     cfg,
     log: app.log,
     db,
-    auth: new Auth(db, apiKeyHash, jwtSecret, relayId, opts.tenant?.agentToken, (h) => agents.byKeyHash(h)),
+    auth: new Auth(db, apiKeyHash, jwtSecret, relayId, opts.tenant?.agentToken, (h) => agents.byKeyHash(h), (id) => agents.seen(id)),
     agents,
     events,
     relayId,

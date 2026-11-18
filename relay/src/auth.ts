@@ -26,6 +26,8 @@ export class Auth {
     private readonly agentToken?: (hash: Buffer) => number | undefined,
     /** Multi-agent fork: the agent a per-agent API key (by its SHA-256) belongs to. */
     private readonly agentKey: (hash: Buffer) => string | undefined = () => undefined,
+    /** Hivepal: called on every authenticated agent request. */
+    private readonly agentSeen: (agentId: string) => void = () => undefined,
   ) {
     this.jwtKey = Buffer.from(jwtSecret, "base64url");
   }
@@ -48,9 +50,15 @@ export class Auth {
 
     if (token.startsWith("ak_")) {
       const hash = sha256(token);
-      if (timingSafeEqual(hash, this.apiKeyHash())) return { kind: "agent", agentId: "main" };
+      if (timingSafeEqual(hash, this.apiKeyHash())) {
+        this.agentSeen("main");
+        return { kind: "agent", agentId: "main" };
+      }
       const agentId = this.agentKey(hash);
-      if (agentId !== undefined) return { kind: "agent", agentId };
+      if (agentId !== undefined) {
+        this.agentSeen(agentId);
+        return { kind: "agent", agentId };
+      }
       throw unauthorized();
     }
 

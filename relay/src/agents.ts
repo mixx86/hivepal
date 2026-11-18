@@ -65,12 +65,32 @@ export class Agents {
   }
 
   private view(r: AgentRow): Agent {
-    return { agent_id: r.agent_id, name: r.name, created_at: r.created_at };
+    const seen = this.lastSeen(r.agent_id);
+    return { agent_id: r.agent_id, name: r.name, created_at: r.created_at, ...(seen ? { last_seen_at: seen } : {}) };
+  }
+
+  private seenCache = new Map<string, number>();
+
+  /** Records an agent's request, at most once a minute per agent (it's on every request). */
+  seen(agentId: string, now = Date.now()): void {
+    const last = this.seenCache.get(agentId) ?? 0;
+    if (now - last < 60_000) return;
+    this.seenCache.set(agentId, now);
+    this.db
+      .prepare("INSERT INTO agent_seen (agent_id, at) VALUES (?, ?) ON CONFLICT(agent_id) DO UPDATE SET at = excluded.at")
+      .run(agentId, now);
+  }
+
+  lastSeen(agentId: string): number | undefined {
+    const r = this.db.prepare("SELECT at FROM agent_seen WHERE agent_id = ?").get(agentId) as { at: number } | undefined;
+    return r?.at;
   }
 
   private mainAgent(): Agent {
     const r = this.row(MAIN);
-    return r ? this.view(r) : { agent_id: MAIN, name: this.cfg.agentName, created_at: 0 };
+    if (r) return this.view(r);
+    const seen = this.lastSeen(MAIN);
+    return { agent_id: MAIN, name: this.cfg.agentName, created_at: 0, ...(seen ? { last_seen_at: seen } : {}) };
   }
 
   exists(id: string): boolean {
