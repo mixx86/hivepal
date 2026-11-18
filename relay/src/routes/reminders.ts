@@ -167,7 +167,8 @@ export function reminderRoutes(app: FastifyInstance, ctx: Ctx, reminders: Remind
       const p = principal(req);
       if (p.kind !== "agent") throw new Error("unreachable");
       const conv = req.body.conv ?? dmOf(p.agentId);
-      if (!ctx.agents.canSee(p.agentId, conv) && !conv.startsWith("bots:")) {
+      // Its own conversation, its groups, and bots: conversations it is part of (canSee covers all three).
+      if (!ctx.agents.canSee(p.agentId, conv)) {
         throw new ApiError(403, "forbidden", "An agent can only schedule in its own conversations");
       }
       const now = Date.now();

@@ -276,11 +276,16 @@ export class Agents {
     return c.kind === "agent" ? c.id === agentId : this.isMember(c.id, agentId);
   }
 
-  /** Every conversation an agent takes part in (for SQL filters). Its bots: ones are matched by pattern. */
+  /**
+   * Every conversation an agent takes part in (for SQL filters). Its bots: ones are matched by pattern:
+   * use them with `LIKE ? ESCAPE '\\'`. Agent ids may contain `_`, a LIKE wildcard, so it is escaped
+   * (otherwise `c_ach` would match `coach` and read its conversations).
+   */
   convsOf(agentId: string): { exact: string[]; botsLike: [string, string] } {
+    const id = agentId.replace(/[\\%_]/g, "\\$&");
     return {
       exact: [dmOf(agentId), ...this.groupsOf(agentId).map((g) => `group:${g}`)],
-      botsLike: [`bots:${agentId}.%`, `bots:%.${agentId}`],
+      botsLike: [`bots:${id}.%`, `bots:%.${id}`],
     };
   }
 

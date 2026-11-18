@@ -211,7 +211,7 @@ export function messageRoutes(app: FastifyInstance, ctx: Ctx): void {
       if (p.kind === "agent") {
         const mine = ctx.agents.convsOf(p.agentId);
         where.push(
-          `(COALESCE(conv, 'agent:main') IN (${mine.exact.map(() => "?").join(",")}) OR conv LIKE ? OR conv LIKE ?)`,
+          `(COALESCE(conv, 'agent:main') IN (${mine.exact.map(() => "?").join(",")}) OR conv LIKE ? ESCAPE '\\' OR conv LIKE ? ESCAPE '\\')`,
         );
         args.push(...mine.exact, ...mine.botsLike);
       }

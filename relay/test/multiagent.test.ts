@@ -220,3 +220,37 @@ describe("multi-agent: upgrade", () => {
     expect(r.json().messages[0]).toMatchObject({ text: "viejo", conv: "agent:main", agent_id: "main" });
   });
 });
+
+describe("multi-agent: isolation", () => {
+  it("an id with `_` doesn't read other agents' bots: conversations (LIKE wildcards)", async () => {
+    b = await setup();
+    const coach = await addAgent(b.app, "coach", "Coach");
+    await addAgent(b.app, "nubi", "Nubi");
+    const sneaky = await addAgent(b.app, "c_ach", "Sneaky"); // `_` matches any one character in LIKE
+    const sent = await b.app.inject({
+      method: "POST", url: "/v1/messages", headers: bearer(coach), payload: { text: "private plan", conv: "bots:coach.nubi" },
+    });
+    expect(sent.statusCode).toBe(201);
+    const seen = await b.app.inject({ method: "GET", url: "/v1/messages", headers: bearer(sneaky) });
+    expect(seen.statusCode).toBe(200);
+    expect(seen.json().messages.map((m: { text: string }) => m.text)).not.toContain("private plan");
+    const one = await b.app.inject({ method: "GET", url: `/v1/messages/${sent.json().msg_id}`, headers: bearer(sneaky) });
+    expect(one.statusCode).toBe(404);
+  });
+
+  it("an agent can't schedule a reminder in another pair's bots: conversation", async () => {
+    b = await setup();
+    await addAgent(b.app, "coach", "Coach");
+    await addAgent(b.app, "nubi", "Nubi");
+    const evil = await addAgent(b.app, "evil", "Evil");
+    const at = Date.now() + 60_000;
+    const r = await b.app.inject({
+      method: "POST", url: "/v1/reminders", headers: bearer(evil), payload: { text: "x", at, conv: "bots:coach.nubi" },
+    });
+    expect(r.statusCode).toBe(403);
+    const own = await b.app.inject({
+      method: "POST", url: "/v1/reminders", headers: bearer(evil), payload: { text: "x", at, conv: "bots:coach.evil" },
+    });
+    expect(own.statusCode).toBe(201);
+  });
+});
