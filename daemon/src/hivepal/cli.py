@@ -205,7 +205,7 @@ def init(
     except (RelayError, InsecureRelayError) as e:
         raise _fail(str(e)) from None
     if not isinstance(st, dict) or not st.get("relay_id"):
-        raise _fail(f"{relay} did not answer like an hivepal relay; nothing was saved")
+        raise _fail(f"{relay} did not answer like a Hivepal relay; nothing was saved")
     home = write_settings(relay, api_key)
     typer.echo(f"Connected to relay {st['relay_id']} (agent name: {st.get('agent_name')}). Config saved in {home}")
 
@@ -491,7 +491,7 @@ def remind(
     in_: Annotated[Optional[str], typer.Option("--in", help="From now: 30m, 2h, 1d.")] = None,
     group: Annotated[Optional[str], typer.Option("--group", "-g", help="Send it in this group.")] = None,
     option: Annotated[Optional[list[str]], typer.Option("--option", "-o", help="Quick reply (repeatable).")] = None,
-    insist: Annotated[Optional[str], typer.Option("--insist", help="If he hasn't answered after this long (e.g. 15m), "
+    insist: Annotated[Optional[str], typer.Option("--insist", help="If the user hasn't answered after this long (e.g. 15m), "
                                                   "send it again.")] = None,
     call: Annotated[bool, typer.Option("--call", help="--insist: and if still no answer after as long again, ring "
                                        "the phone.")] = False,

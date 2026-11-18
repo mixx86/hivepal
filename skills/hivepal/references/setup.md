@@ -26,7 +26,7 @@ Ask which one they want:
 - **hivepal cloud** (https://agentring.io): nothing to run. Sign in, pair the phone from
   the dashboard, copy the API key. The voice AI runs on hivepal's servers. Plans have
   limits; a `quota_exceeded` error tells you where to upgrade. Go to **3a**.
-- **Self-hosted**: they already run an hivepal relay (docker compose; setup in
+- **Self-hosted**: they already run a Hivepal relay (docker compose; setup in
   https://github.com/mutonby/agentring/blob/main/docs/setup.md) and have its URL and API
   key. Go to **3b**. Don't deploy a server on your own initiative.
 

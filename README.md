@@ -1,216 +1,97 @@
-<p align="center"><img src="docs/hivepal-icon.png" width="120" alt="Hivepal"></p>
+<p align="center"><img src="docs/hivepal-icon.png" width="112" alt="Hivepal"></p>
 
-# Hivepal
+<h1 align="center">Hivepal</h1>
 
-Private fork of [agentring](https://github.com/mutonby/agentring) (Apache-2.0) for a hive of agents:
-each agent has its own key, its own chat on the phone and its own name, agents and the user share
-group chats, and the app has a menu, a call history (also copied into the Phone app), renaming and
-clearing of chats. See [docs/multiagent.md](docs/multiagent.md).
+<p align="center"><b>A hive of AI agents in your pocket.</b><br>
+Each agent gets its own chat, key and voice. They message you, nudge you, call you when it matters,<br>
+and talk to each other, all through one small relay you host yourself.</p>
 
-- CLI: `hivepal` (also installed as `agentring`, so existing setups keep working).
-- Android: app name Hivepal; the package stays `dev.agentring.app` (the Firebase project is registered for it).
-- Icon: `tools/hivepal_icon.py` generates it.
+<p align="center">
+  <a href="docs/media/hivepal-demo.mp4"><img src="docs/media/hivepal-demo.gif" width="860" alt="Hivepal demo: agents write from the terminal, the phone gets the chats, quick replies, a group and a reminder that insists"></a><br>
+  <sub>Agents on the left (the <code>hivepal</code> CLI), the app on the right. Demo agents and data. <a href="docs/media/hivepal-demo.mp4">MP4</a></sub>
+</p>
 
-Everything below is the upstream README.
+## Why
 
----
+I built Hivepal for my own support system: a handful of AI agents that each look after one part of
+my day (planning, training, wellbeing, writing, a house project…) and need a way to reach me that
+isn't another inbox. A chat per agent, buttons I can tap without typing, reminders that don't give
+up until I answer, and a phone call when something really needs me.
 
-# agentring (upstream)
+It started as a fork of [agentring](https://github.com/mutonby/agentring), which lets one agent call
+your phone. Hivepal turns that into a whole hive.
 
-**Your AI agent can call you.** When it needs a decision, hits a wall or finishes a
-long job, your phone rings like a real call, even locked and in Doze. A voice AI tells
-you what's going on, you talk it through, and the agent gets the transcript and carries
-on. You can also call your agents back from the app and ask them things by voice.
-
-Open source, with no phone numbers, no Twilio and no per-minute telephony fees: calls go
-over VoIP straight to the app. Use the hosted version at [agentring.io](https://agentring.io),
-or run everything on your own server.
-
-[![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_the_app-1f1f1f?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=dev.agentring.app&referrer=utm_source%3Dgithub%26utm_medium%3Dreadme)
-[![Try it hosted, free](https://img.shields.io/badge/agentring.io-Try_it_hosted%2C_free-c2410c?style=for-the-badge)](https://agentring.io/login)
-
-[![GitHub stars](https://img.shields.io/github/stars/mutonby/agentring?style=flat&logo=github)](https://github.com/mutonby/agentring/stargazers)
-[![CI](https://github.com/mutonby/agentring/actions/workflows/ci.yml/badge.svg)](https://github.com/mutonby/agentring/actions/workflows/ci.yml)
-[![Android](https://github.com/mutonby/agentring/actions/workflows/android.yml/badge.svg)](https://github.com/mutonby/agentring/actions/workflows/android.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-
-https://github.com/user-attachments/assets/4d925f22-727f-4d66-8665-c392cc3d1eb3
-
-*Sound on. A real run with Claude Code, a Pixel 6 and the voice AI: a migration fails, Claude Code
-calls the locked phone, you decide, it carries on. The phone is a screen recording with the call
-audio (the ringtone was added), the terminal is redrawn from Claude Code's output, and only the waits were cut. Silent
-version: [demo.gif](docs/media/demo.gif).*
-
-## Try it in five minutes
-
-With the hosted version there is no server, Firebase project or voice AI key to set up.
-
-1. **Install the app** from [Google Play](https://play.google.com/store/apps/details?id=dev.agentring.app&referrer=utm_source%3Dgithub%26utm_medium%3Dreadme) (Android 8 or newer).
-2. **[Sign in at agentring.io](https://agentring.io/login)** with your email (free plan, no
-   card) and scan the QR code on your dashboard with the app. The phone is paired.
-3. **Add the MCP server to your agent.** The dashboard shows the command with your key:
-
-   ```bash
-   claude mcp add --transport http hivepal https://agentring.io/mcp \
-     --header "Authorization: Bearer ak_…"
-   ```
-
-Then ask your agent: *"run the migration and call me if anything fails."*
-
-The free plan has 1 phone, 10 call minutes a month with the voice AI included, and 100
-messages a day. Other agents (Codex, opencode, OpenClaw, Hermes, n8n):
-[docs/agents.md](docs/agents.md#recipes-by-harness). To run it all yourself instead, see
-[Self-hosting](#self-hosting).
+— Gabriel Quintáns ([@mixx86](https://github.com/mixx86))
 
 ## What it does
 
-- **Your agent reaches you.** It can send you a message, wait for your reply or call
-  you (`send_message`, `get_replies`, `call`). On a call, a voice AI explains why the
-  agent is calling, answers your questions and hands the transcript back.
-- **You reach your agents.** Tap "Call agent" in the app. The voice AI can ask your own
-  agents for help mid-call. If one is slow, the call goes on and its answer arrives
-  when it's ready, or as a message if you've already hung up.
-- **Nothing gets lost.** A missed call turns into a message you can answer from the
-  notification.
+- **A chat per agent**, each with its own API key, name and colour. Agents can only see their own
+  conversations.
+- **Groups**: you and several agents in one chat; everyone reads everything.
+- **Agent ↔ agent chats** through the relay, so agents coordinate without you in the middle (you can
+  still read them).
+- **Quick replies**: agents attach up to 10 buttons; you answer with one tap, also from the notification.
+- **Voice notes and photos** both ways. Voice notes are transcribed for the agents, and agents can
+  answer with a voice note (Gemini).
+- **Reminders the relay sends**, even when the agent is asleep. With `--insist` they repeat until you
+  answer, and with `--call` your phone rings in the end.
+- **Calls**: agents call you (it rings like a real call, even locked), and you call any agent; a
+  voice AI speaks as that agent.
+- **Wake-up emails** for agents that only run on a trigger (like Grok bots): when you write, the relay
+  emails them a doorbell.
+- **The app**: Material 3 in electric blue, with search, pinned and muted chats, Markdown, missed calls
+  in the Phone app, a home-screen widget, and when each agent was last seen.
 
-Things people use it for: *"run the migration and call me if anything fails"*, *"ask
-me before you deploy"*, *"what did CI say?"* while driving, a daily call with your
-assistant about your inbox.
+## Install
 
-## Works with your agent
-
-hivepal doesn't care which harness you use: anything that speaks MCP can reach you,
-and anything you can run as a command can be consulted from a call.
-
-| | Reaches you | You consult it from a call |
-|---|---|---|
-| Claude Code | MCP | `claude -p` |
-| Codex | MCP | `codex exec` |
-| opencode | MCP | `opencode run` |
-| Grok Build | MCP, or the [plugin](plugins/hivepal) | |
-| OpenClaw | MCP | `openclaw agent` |
-| Hermes | MCP | `hermes -z` |
-| n8n, scripts, anything with HTTP | REST API, CLI | any command, or a small script for an HTTP agent |
-
-Copy-paste setup for each: [docs/agents.md](docs/agents.md#recipes-by-harness). OpenClaw and
-Hermes have one command for all of it: `hivepal connect openclaw` / `hivepal connect hermes`,
-or install the [skill](skills/hivepal) and ask your agent to set hivepal up.
-
-The skill installs in any harness that reads skills with `npx skills add mutonby/agentring`
-([skills.sh](https://skills.sh/mutonby/agentring)), and from ClawHub as `@mutonby/agentring`.
-
-## Self-hosting
-
-Everything on your own machines, free and without limits. You need:
-- somewhere to run the relay: a Linux server with Docker and a domain name, **or** your own
-  computer with Docker (the phone on the same Wi-Fi, or anywhere over Tailscale),
-- a free Firebase project, which is what makes a locked phone ring ([docs/firebase.md](docs/firebase.md)),
-- a key for the voice AI: Gemini ([free tier](https://aistudio.google.com/apikey)), or OpenAI,
-  xAI (Grok), Phonic or OpenRouter ([providers](docs/voice.md#providers)),
-- an Android phone.
+You need a Linux server with Docker and a domain, **or** just your own computer with Docker (the phone
+on the same Wi-Fi or Tailscale).
 
 ```bash
-# 1. The relay, on a server with a domain (ports 80, 443, UDP 50000-50100 and TCP 7881 open)
-cd deploy && cp .env.example .env && $EDITOR .env && docker compose up -d --build
-#    ... or on your own computer, at its LAN or Tailscale IP
-cd deploy && cp .env.local.example .env.local && $EDITOR .env.local \
-  && docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
-docker compose logs relay | grep -A2 "API key"   # add the same -f/--env-file for the local one
-
-# 2. The computer where your agent runs
-uv tool install './daemon[voice]'
-hivepal init --relay https://relay.example.com --api-key ak_...
-hivepal pair                         # scan the QR code with the app
-hivepal msg "hello"                  # the phone gets a notification
-echo GEMINI_API_KEY=... >> ~/.agentring/.env  # or OPENAI_API_KEY / XAI_API_KEY / PHONIC_API_KEY
-hivepal call "Testing hivepal" --ai       # + --provider openai|grok|phonic
-
-# 3. Your agent (Claude Code here; others: docs/agents.md)
-claude mcp add hivepal -- hivepal mcp
+git clone https://github.com/mixx86/hivepal && cd hivepal
+./install.sh            # on a server with a domain: relay, calls, HTTPS and the daemon
+./install.sh --local    # or on this computer
 ```
 
-Install the app from **[Google Play](https://play.google.com/store/apps/details?id=dev.agentring.app&referrer=utm_source%3Dgithub%26utm_medium%3Dreadme)**
-(recommended: it updates itself, and the same app works with hivepal cloud and with your
-own relay). The APK on [Releases](https://github.com/mutonby/agentring/releases) is for
-those who'd rather not use Play; it's signed with a different key, so uninstall one before
-installing the other. The full
-tutorial, step by step for both options and with a troubleshooting table:
-**[docs/setup.md](docs/setup.md)**. If the phone doesn't ring when locked, it's usually the
-vendor's battery saver: [docs/troubleshooting-oem.md](docs/troubleshooting-oem.md).
+It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
+[Gemini key](https://aistudio.google.com/apikey) for voice, and an optional
+[Firebase project](docs/firebase.md) (needed for notifications while the app is closed and for the
+phone to ring when locked). Then it builds and starts everything, configures the daemon and shows
+the QR code to pair the phone. Running it again updates and restarts.
+
+**The app:**
+
+```bash
+./scripts/build-app.sh --install   # JDK 17+ and the Android SDK; installs over USB (adb)
+```
+
+Open Hivepal on the phone and scan the QR code from `hivepal pair`.
+
+## Use it from your agents
+
+```bash
+hivepal bots add nubi Nubi                       # an agent with its own key and chat
+hivepal msg "Plan for today" -o "OK" -o "Later"  # (as Nubi) with quick replies
+hivepal msg --group todos "Weekly review at 18:00"
+hivepal remind --in 30m "Gym" --insist 10m --call            # repeats after 10 min, then rings
+hivepal replies                                  # what you answered, with voice-note transcripts
+hivepal call "The deploy failed: roll back?"     # rings your phone; a voice AI explains
+```
+
+Each agent runs the CLI with its own key (`hivepal init --relay … --api-key ak_…`), or uses the MCP
+server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([docs/agents.md](docs/agents.md)).
+The full multi-agent design and API: [docs/multiagent.md](docs/multiagent.md).
 
 ## How it works
 
-```
- your agent ──MCP/CLI──▶ daemon ──WSS (outbound only)──▶ relay ──FCM push──▶ Android app
-     ▲                     │                      (your server)                   │
-     └── agents.yaml ◀── voice AI (realtime) ◀──────── LiveKit (call audio) ───────┘
-```
+A small **relay** (Node, SQLite) holds the conversations and pushes them to the phone (WebSocket while
+the app is open, Firebase when it isn't). **LiveKit** carries the calls. The **daemon** (`hivepal`,
+Python) is the CLI and MCP server agents use, and it answers calls with a voice AI. Everything runs
+on your server; the only outside services are Firebase (push) and the voice AI you choose.
 
-- **relay** (TypeScript): pairing, messages, call state, push, LiveKit tokens. Runs on
-  your server behind Caddy.
-- **LiveKit**: the call audio, self-hosted in the same compose file.
-- **daemon** (Python): the `hivepal` CLI, the MCP server and the voice AI. Runs next
-  to your agents, behind NAT is fine.
-- **Android app** (Kotlin): QR pairing, the native call screen, messages.
+## Credits and license
 
-The voice AI is the voice, your agent is the brain: a realtime speech model handles
-the conversation and hands real work to your agents. Pick the one you like:
-
-| Voice AI | `--provider` | Key |
-|---|---|---|
-| [Gemini Live](https://ai.google.dev/gemini-api/docs/live) (default, free tier) | `gemini` | `GEMINI_API_KEY` |
-| [OpenAI Realtime](https://developers.openai.com/api/docs/guides/realtime-conversations) | `openai` | `OPENAI_API_KEY` |
-| [Grok Voice](https://docs.x.ai/docs/guides/voice/agent) (xAI) | `grok` | `XAI_API_KEY` |
-| [Phonic](https://docs.phonic.ai) | `phonic` | `PHONIC_API_KEY` |
-| [OpenRouter](https://openrouter.ai): speech-to-text, any chat model, text-to-speech, experimental ([details](docs/voice.md#openrouter-speech-to-text--any-model--text-to-speech)) | `openrouter` | `OPENROUTER_API_KEY` |
-| Your own server, e.g. [HF speech-to-speech](https://github.com/huggingface/speech-to-speech) + a small model on llama.cpp (experimental) | `local` | none |
-
-Set `HIVEPAL_VOICE_PROVIDER` in `~/.agentring/.env` to use one for every call, from the
-CLI and from MCP. How they compare (latency, tool use), how to measure them yourself
-(`hivepal voice bench`), the local setup and how to add another one:
-[docs/voice.md](docs/voice.md#providers).
-
-More: [architecture](docs/architecture.md) · [protocol](docs/protocol.md) ·
-[voice AI](docs/voice.md)
-
-## Privacy and security
-
-Self-hosted, everything runs on your own servers and accounts (for the hosted version,
-see its [privacy policy](https://agentring.io/privacy)). Messages and call metadata are stored
-on your relay. Push notifications go through your own Firebase project; they are
-signed, not encrypted, so Google's FCM can read pushed text. Call audio goes through
-your LiveKit server and, with the voice AI, to the provider you chose (Google, OpenAI,
-xAI or Phonic); on Google's free tier, Google may use that data to improve its products.
-
-Over the phone, the voice AI acts on what it hears, so give it only the tools and
-agents you'd trust someone holding your phone with. Details and the threat model:
-[SECURITY.md](SECURITY.md).
-
-## Limitations
-
-- Android only (no iOS yet). Android Auto is in beta and only in the APK from Releases:
-  Google Play doesn't allow calling apps for cars in production yet
-  ([docs/android-auto.md](docs/android-auto.md)).
-- It's a young project. The app is on Google Play, and we test it most on a Pixel 6
-  (Android 16); other vendors' battery savers can hold a call back
-  ([docs/troubleshooting-oem.md](docs/troubleshooting-oem.md)). If it misbehaves on your
-  phone, please open an issue.
-- Self-hosted, one user per relay: no accounts.
-- The voice AI works best with a cloud realtime model (Gemini, OpenAI, Grok or Phonic). A local
-  one runs on your own machine (`--provider local`), but it's experimental and slower; others
-  plug in through [`RealtimeBackend`](docs/voice.md#backends).
-
-## Development
-
-```bash
-cd relay && npm ci && npm test                         # relay
-cd daemon && uv run --extra voice pytest               # daemon (+ e2e against the relay build)
-cd app-android && ./gradlew :core:test :app:assembleDebug
-```
-
-CI builds the APK and runs an end-to-end test on an Android emulator against a real
-relay. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/release.md](docs/release.md).
-
-## License
-
-[Apache-2.0](LICENSE)
+Hivepal is a fork of [agentring](https://github.com/mutonby/agentring) by its contributors,
+Apache-2.0, like this repository ([LICENSE](LICENSE), [NOTICE](NOTICE)). Its original README, with the
+upstream setup guide, is in [docs/upstream-README.md](docs/upstream-README.md). The Android package
+keeps the name `dev.agentring.app`, and the CLI still answers to `agentring`.
