@@ -82,6 +82,9 @@ data class Message(
     /** Multi-agent fork: `agent:<id>` or `group:<id>`; absent (older relays) = `agent:main`. */
     val conv: String? = null,
     @SerialName("agent_id") val agentId: String? = null,
+    /** Hivepal: quick replies the agent offers (buttons under the message). */
+    val options: List<String>? = null,
+    val attachments: List<Attachment>? = null,
 ) {
     val fromAgent: Boolean get() = from == FROM_AGENT
 
@@ -104,8 +107,36 @@ object Conv {
     fun ofAgent(agentId: String) = "agent:$agentId"
     fun ofGroup(groupId: String) = "group:$groupId"
     fun isGroup(conv: String) = conv.startsWith("group:")
+    /** Hivepal: a conversation between two agents, `bots:<a>.<b>` (ids sorted). */
+    fun isBots(conv: String) = conv.startsWith("bots:")
+    fun pair(conv: String): List<String> = conv.removePrefix("bots:").split('.')
     fun id(conv: String) = conv.substringAfter(':')
 }
+
+@Serializable
+data class Attachment(
+    @SerialName("file_id") val fileId: String,
+    val mime: String,
+    val size: Long = 0,
+    @SerialName("duration_ms") val durationMs: Long? = null,
+) {
+    val isImage: Boolean get() = mime.startsWith("image/")
+    val isAudio: Boolean get() = mime.startsWith("audio/")
+}
+
+@Serializable
+data class Reminder(
+    @SerialName("rem_id") val remId: String,
+    @SerialName("agent_id") val agentId: String,
+    val conv: String,
+    val text: String,
+    val options: List<String>? = null,
+    val at: Long,
+    @SerialName("created_at") val createdAt: Long = 0,
+)
+
+@Serializable
+data class ReminderList(val reminders: List<Reminder>)
 
 @Serializable
 data class Agent(
@@ -248,8 +279,13 @@ sealed interface Event {
         val truncated: Boolean? = null,
         val conv: String? = null,
         @SerialName("agent_id") val agentId: String? = null,
+        val options: List<String>? = null,
+        val attachments: List<Attachment>? = null,
     ) : Event {
-        fun toMessage() = Message(msgId = msgId, from = from, text = text, replyTo = replyTo, createdAt = ts, conv = conv, agentId = agentId)
+        fun toMessage() = Message(
+            msgId = msgId, from = from, text = text, replyTo = replyTo, createdAt = ts, conv = conv, agentId = agentId,
+            options = options, attachments = attachments,
+        )
     }
 
     @Serializable

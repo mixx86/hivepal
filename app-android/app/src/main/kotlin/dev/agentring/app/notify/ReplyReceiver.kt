@@ -16,7 +16,9 @@ import java.util.UUID
 /** Inline reply from the message notification. */
 class ReplyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifications.KEY_REPLY)?.toString()?.trim()
+        val option = intent.getStringExtra(Notifications.EXTRA_OPTION)
+        val replyTo = intent.getStringExtra(Notifications.EXTRA_REPLY_TO)
+        val text = option ?: RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifications.KEY_REPLY)?.toString()?.trim()
         if (text.isNullOrEmpty()) return
         val conv = intent.getStringExtra(Notifications.EXTRA_CONV) ?: Conv.MAIN
         val appContext = context.applicationContext
@@ -26,7 +28,10 @@ class ReplyReceiver : BroadcastReceiver() {
                 val generation = Graph.messages.generation
                 val api = Graph.api() ?: error("not paired")
                 val shown = Graph.messages.unreadFromAgent(conv)
-                Graph.messages.upsert(api.postMessage(text, clientMsgId = UUID.randomUUID().toString(), conv = conv), generation = generation)
+                Graph.messages.upsert(
+                    api.postMessage(text, replyTo = replyTo, clientMsgId = UUID.randomUUID().toString(), conv = conv),
+                    generation = generation,
+                )
                 // Replying implies the user read what the agent said.
                 Graph.messages.markAgentMessagesRead(api, conv)
                 Notifications.showMessages(appContext, conv, shown, sentReply = text)

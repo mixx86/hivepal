@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -125,6 +126,8 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
     val agents by Graph.directory.agents.collectAsStateWithLifecycle()
     val groups by Graph.directory.groups.collectAsStateWithLifecycle()
     val online by Graph.directory.online.collectAsStateWithLifecycle()
+    val pinned by Graph.chatPrefs.pinned.collectAsStateWithLifecycle()
+    val muted by Graph.chatPrefs.muted.collectAsStateWithLifecycle()
     val main = pairing.agentName
     var creating by remember { mutableStateOf(false) }
 
@@ -146,16 +149,32 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                     members = if (Conv.isGroup(c)) Graph.directory.group(Conv.id(c))?.members?.size else null,
                 )
             }
-            .sortedByDescending { it.last?.createdAt ?: 0L }
+            // Pinned first, then the most recent.
+            .sortedWith(compareBy<ConvRow>({ it.conv !in pinned }, { -(it.last?.createdAt ?: 0L) }))
     }
+    val (botRows, userRows) = rows.partition { Conv.isBots(it.conv) }
 
     Box(Modifier.fillMaxSize()) {
         if (rows.isEmpty()) {
             EmptyState(stringResource(R.string.chats_empty), stringResource(R.string.chats_empty_body))
         } else {
             LazyColumn(Modifier.fillMaxSize().testTag("chat_list"), contentPadding = PaddingValues(bottom = 96.dp)) {
-                items(rows, key = { it.conv }) { r ->
-                    ChatRow(r, online = !Conv.isGroup(r.conv) && Conv.id(r.conv) in online, main = main) { onOpen(r.conv) }
+                items(userRows, key = { it.conv }) { r ->
+                    ChatRow(r, online = !Conv.isGroup(r.conv) && Conv.id(r.conv) in online, main = main,
+                        pinned = r.conv in pinned, muted = r.conv in muted) { onOpen(r.conv) }
+                }
+                if (botRows.isNotEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.bots_section).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
+                        )
+                    }
+                    items(botRows, key = { it.conv }) { r ->
+                        ChatRow(r, online = false, main = main, pinned = r.conv in pinned, muted = true) { onOpen(r.conv) }
+                    }
                 }
             }
         }
@@ -174,7 +193,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Unit) {
+private fun ChatRow(r: ConvRow, online: Boolean, main: String, pinned: Boolean = false, muted: Boolean = false, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp).testTag("chat_${r.conv}"),
@@ -202,6 +221,15 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Un
                         )
                     }
                 }
+                if (muted && !Conv.isBots(r.conv)) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(painterResource(R.drawable.ic_notif_off), stringResource(R.string.muted),
+                        Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
+                }
+                if (pinned) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(painterResource(R.drawable.ic_pin), null, Modifier.size(16.dp), tint = scheme.onSurfaceVariant)
+                }
                 r.last?.let {
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -217,7 +245,8 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Un
                 val preview = when {
                     last == null -> ""
                     !last.fromAgent -> stringResource(R.string.you_prefix).trim() + " " + last.text
-                    Conv.isGroup(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + last.text
+                    Conv.isGroup(r.conv) || Conv.isBots(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + last.text.ifBlank { attachmentLabel(last) }
+                    last.text.isBlank() -> attachmentLabel(last)
                     else -> last.text
                 }
                 Text(
@@ -229,7 +258,7 @@ private fun ChatRow(r: ConvRow, online: Boolean, main: String, onClick: () -> Un
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                if (r.unread > 0) {
+                if (r.unread > 0 && !Conv.isBots(r.conv)) {
                     Spacer(Modifier.width(8.dp))
                     Box(
                         contentAlignment = Alignment.Center,
@@ -340,4 +369,10 @@ private fun groupIdFor(name: String): String {
     var n = 2
     while ("$base-$n" in taken) n++
     return "$base-$n"
+}
+
+@Composable
+private fun attachmentLabel(m: Message): String {
+    val a = m.attachments?.firstOrNull() ?: return ""
+    return if (a.isImage) "📷 " + stringResource(R.string.photo) else "🎤 " + stringResource(R.string.voice_note)
 }

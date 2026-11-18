@@ -44,6 +44,7 @@ class RelayApi(
         @SerialName("reply_to") val replyTo: String? = null,
         @SerialName("client_msg_id") val clientMsgId: String? = null,
         val conv: String? = null,
+        val attachments: List<String>? = null,
     )
 
     @Serializable
@@ -57,7 +58,7 @@ class RelayApi(
     )
 
     @Serializable
-    private data class CreateCallBody(val reason: String? = null)
+    private data class CreateCallBody(val reason: String? = null, @SerialName("agent_id") val agentId: String? = null)
 
     fun pair(req: PairRequest): PairResponse =
         call("POST", "/v1/pair", body(PairRequest.serializer(), req), PairResponse.serializer(), auth = false)
@@ -79,12 +80,43 @@ class RelayApi(
     fun getMessage(msgId: String): Message = call("GET", "/v1/messages/$msgId", null, Message.serializer())
 
     /** `conv` = the conversation to write in (multi-agent fork); null = `agent:main`. */
-    fun postMessage(text: String, replyTo: String? = null, clientMsgId: String? = null, conv: String? = null): Message =
+    fun postMessage(
+        text: String,
+        replyTo: String? = null,
+        clientMsgId: String? = null,
+        conv: String? = null,
+        attachments: List<String>? = null,
+    ): Message =
         call(
             "POST", "/v1/messages",
-            body(PostMessageBody.serializer(), PostMessageBody(text, replyTo, clientMsgId, conv?.takeIf { it != Conv.MAIN })),
+            body(
+                PostMessageBody.serializer(),
+                PostMessageBody(text, replyTo, clientMsgId, conv?.takeIf { it != Conv.MAIN }, attachments?.takeIf { it.isNotEmpty() }),
+            ),
             Message.serializer(),
         )
+
+    /** Hivepal: uploads a photo or voice clip; attach the returned id to a message. */
+    fun uploadFile(bytes: ByteArray, mime: String, durationMs: Long? = null): Attachment {
+        val q = if (durationMs != null) "?duration_ms=$durationMs" else ""
+        return call("POST", "/v1/files$q", bytes.toRequestBody(mime.toMediaType()), Attachment.serializer())
+    }
+
+    /** Hivepal: a file's bytes. Blocking. */
+    fun downloadFile(fileId: String): ByteArray {
+        val rb = Request.Builder().url(baseUrl.trimEnd('/') + "/v1/files/$fileId").get().header("User-Agent", userAgent)
+            .header("Authorization", "Bearer ${requireNotNull(deviceJwt) { "not paired" }}")
+        http.newCall(rb.build()).execute().use { res ->
+            if (!res.isSuccessful) throw RelayException(res.code, "http_${res.code}", "HTTP ${res.code}")
+            return res.body!!.bytes()
+        }
+    }
+
+    fun listReminders(): List<Reminder> = call("GET", "/v1/reminders", null, ReminderList.serializer()).reminders
+
+    fun cancelReminder(remId: String) {
+        call<Unit>("DELETE", "/v1/reminders/$remId", null, null)
+    }
 
     // ---------- agents and groups (multi-agent fork; 404 on an upstream relay) ----------
 
@@ -116,8 +148,12 @@ class RelayApi(
      * phone's LiveKit join info right away; the call rings until the agent accepts.
      * Fails with 503 `agent_offline` / `calls_unavailable` or 409 `busy`.
      */
-    fun createCall(reason: String? = null): CallWithJoin =
-        call("POST", "/v1/calls", body(CreateCallBody.serializer(), CreateCallBody(reason)), CallWithJoin.serializer())
+    fun createCall(reason: String? = null, agentId: String? = null): CallWithJoin =
+        call(
+            "POST", "/v1/calls",
+            body(CreateCallBody.serializer(), CreateCallBody(reason, agentId?.takeIf { it != Conv.MAIN_AGENT })),
+            CallWithJoin.serializer(),
+        )
 
     fun getCall(callId: String): Call = call("GET", "/v1/calls/$callId", null, Call.serializer())
 

@@ -218,4 +218,27 @@
     <string name="group_badge">Grupo</string>
     <string name="missed_calls_n">%1$d perdidas</string>
     <string name="call_back">Llamar</string>
+    <!-- Hivepal -->
+    <string name="tomorrow">Mañana</string>
+    <string name="pin_chat">Fijar chat</string>
+    <string name="unpin_chat">Dejar de fijar</string>
+    <string name="mute_chat">Silenciar notificaciones</string>
+    <string name="unmute_chat">Activar notificaciones</string>
+    <string name="attach_photo">Enviar una foto</string>
+    <string name="record_voice">Grabar nota de voz</string>
+    <string name="recording">Grabando %1$s</string>
+    <string name="search">Buscar</string>
+    <string name="search_hint">Buscar en los mensajes</string>
+    <string name="search_empty">No hay resultados</string>
+    <string name="reminders">Recordatorios</string>
+    <string name="reminders_empty">No hay recordatorios pendientes</string>
+    <string name="reminders_body">Mensajes que han programado tus agentes. El relay los envía a su hora.</string>
+    <string name="cancel_reminder">Cancelar recordatorio</string>
+    <string name="bots_section">Entre agentes</string>
+    <string name="muted">Silenciado</string>
+    <string name="widget_desc">Último mensaje y botón para llamar</string>
+    <string name="widget_empty">Aún no hay mensajes</string>
+    <string name="photo">Foto</string>
+    <string name="voice_note">Nota de voz</string>
+    <string name="quick_reply_sent">Enviado</string>
 </resources>

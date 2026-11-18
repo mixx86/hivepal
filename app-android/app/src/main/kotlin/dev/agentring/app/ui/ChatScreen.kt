@@ -1,8 +1,38 @@
 package dev.agentring.app.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.media.MediaPlayer
 import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.core.content.ContextCompat
+import dev.agentring.app.media.Attachments
+import dev.agentring.app.media.VoiceRecorder
+import dev.agentring.core.Attachment
+import kotlinx.coroutines.delay
 import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,6 +134,22 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
     var editingGroup by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val pinned by Graph.chatPrefs.pinned.collectAsStateWithLifecycle()
+    val muted by Graph.chatPrefs.muted.collectAsStateWithLifecycle()
+    val isBots = Conv.isBots(conv)
+    val agentId = if (!isGroup && !isBots) Conv.id(conv) else null
+    val recorder = remember { VoiceRecorder(ctx.applicationContext) }
+    var recording by remember { mutableStateOf(false) }
+    var recordMs by remember { mutableStateOf(0L) }
+    var uploading by remember { mutableStateOf(false) }
+    var calling by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { recorder.cancel() } }
+    LaunchedEffect(recording) {
+        while (recording) {
+            recordMs = recorder.elapsedMs
+            delay(200)
+        }
+    }
 
     // While this conversation is on screen (and the app in front), its pushes don't notify.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -131,9 +177,9 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(0)
     }
 
-    fun send() {
-        val text = input.trim()
-        if (text.isEmpty() || sending) return
+    /** Sends text (a typed message or a tapped quick reply) and/or an uploaded file. */
+    fun post(text: String, replyTo: String? = null, upload: (suspend () -> Attachment)? = null, clearInput: Boolean = false) {
+        if (sending) return
         scope.launch {
             sending = true
             sendError = null
@@ -141,15 +187,75 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
             try {
                 val generation = Graph.messages.generation
                 val api = Graph.api() ?: error("not paired")
-                val m = withContext(Dispatchers.IO) { api.postMessage(text, clientMsgId = UUID.randomUUID().toString(), conv = conv) }
+                val files = upload?.let {
+                    uploading = true
+                    listOf(it().fileId)
+                }
+                val m = withContext(Dispatchers.IO) {
+                    api.postMessage(text, replyTo = replyTo, clientMsgId = UUID.randomUUID().toString(), conv = conv, attachments = files)
+                }
                 Graph.messages.upsert(m, generation = generation)
-                input = ""
+                if (clearInput) input = ""
             } catch (e: Exception) {
                 sendError = e.message ?: e.javaClass.simpleName
                 overQuota = e is RelayException && e.code == "quota_exceeded"
             } finally {
                 sending = false
+                uploading = false
             }
+        }
+    }
+
+    fun send() {
+        val text = input.trim()
+        if (text.isNotEmpty()) post(text, clearInput = true)
+    }
+
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val caption = input.trim()
+        post(caption, clearInput = true, upload = {
+            withContext(Dispatchers.IO) {
+                val bytes = Attachments.compressPhoto(ctx, uri)
+                Graph.api()!!.uploadFile(bytes, "image/jpeg").also { Attachments.keep(ctx, it.fileId, bytes) }
+            }
+        })
+    }
+
+    fun stopAndSendVoice() {
+        recording = false
+        val (file, ms) = recorder.stop() ?: return
+        post("", upload = {
+            withContext(Dispatchers.IO) {
+                val bytes = file.readBytes()
+                Graph.api()!!.uploadFile(bytes, "audio/mp4", durationMs = ms).also {
+                    Attachments.keep(ctx, it.fileId, bytes)
+                    file.delete()
+                }
+            }
+        })
+    }
+
+    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) runCatching { recorder.start(); recording = true }
+    }
+
+    fun startVoice() {
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            askMic.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        runCatching { recorder.start(); recording = true }.onFailure { sendError = it.message }
+    }
+
+    fun callThisAgent() {
+        val id = agentId ?: return
+        if (calling) return
+        calling = true
+        Graph.appScope.launch(Dispatchers.Main.immediate) {
+            val failure = Graph.calls.callAgent(id)
+            calling = false
+            if (failure == null) ctx.startActivity(CallActivity.outgoingIntent(ctx)) else sendError = ctx.getString(failure)
         }
     }
 
@@ -190,6 +296,11 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    if (agentId != null) {
+                        IconButton(onClick = { callThisAgent() }, enabled = !calling, modifier = Modifier.testTag("chat_call")) {
+                            Icon(Icons.Filled.Call, stringResource(R.string.call_back))
+                        }
+                    }
                     Box {
                         IconButton(onClick = { menu = true }, modifier = Modifier.testTag("chat_menu")) {
                             Icon(Icons.Filled.MoreVert, stringResource(R.string.more_options))
@@ -207,6 +318,15 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                                     modifier = Modifier.testTag("menu_rename"),
                                 )
                             }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(if (conv in pinned) R.string.unpin_chat else R.string.pin_chat)) },
+                                onClick = { menu = false; Graph.chatPrefs.togglePinned(conv) },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(if (conv in muted) R.string.unmute_chat else R.string.mute_chat)) },
+                                onClick = { menu = false; Graph.chatPrefs.toggleMuted(conv) },
+                                modifier = Modifier.testTag("menu_mute"),
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_chat)) },
                                 onClick = { menu = false; confirmClear = true },
@@ -232,6 +352,8 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                 }
             } else {
                 val lastReadByAgent = messages.lastOrNull { !it.fromAgent && it.readAt != null }?.msgId
+                // Quick replies disappear once the user answered that message.
+                val answered = remember(messages) { messages.filter { !it.fromAgent && it.replyTo != null }.associateBy { it.replyTo!! } }
                 val reversed = messages.asReversed()
                 LazyColumn(
                     state = listState,
@@ -251,11 +373,16 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                             if (older == null || !sameDay(older, m)) DayLabel(m.createdAt)
                             Bubble(
                                 m,
-                                author = if (isGroup && m.fromAgent && firstOfRun) Graph.directory.nameOf(m.author, main) else null,
+                                author = if ((isGroup || isBots) && m.fromAgent && firstOfRun) Graph.directory.nameOf(m.author, main) else null,
                                 showTime = lastOfRun,
                                 showRead = m.msgId == lastReadByAgent,
                                 topGap = if (firstOfRun) 10.dp else 2.dp,
+                                mineSide = if (isBots) m.author == Conv.pair(conv).first() else !m.fromAgent,
                             )
+                            val options = m.options
+                            if (m.fromAgent && !options.isNullOrEmpty() && answered[m.msgId] == null) {
+                                QuickReplies(options, enabled = !sending) { post(it, replyTo = m.msgId) }
+                            }
                         }
                     }
                 }
@@ -271,11 +398,18 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                 if (overQuota) PlanDashboardButton(pairing)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(
+            if (recording) {
+                RecordingBar(recordMs, onCancel = { recording = false; recorder.cancel() }, onSend = { stopAndSendVoice() })
+            } else Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                IconButton(
+                    onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = !sending,
+                    modifier = Modifier.size(48.dp).testTag("attach_photo"),
+                ) { Icon(Icons.Filled.Add, stringResource(R.string.attach_photo)) }
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
@@ -292,12 +426,15 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     modifier = Modifier.weight(1f).testTag("message_input"),
                 )
                 FilledIconButton(
-                    onClick = { send() },
-                    enabled = input.isNotBlank() && !sending,
+                    onClick = { if (input.isNotBlank()) send() else startVoice() },
+                    enabled = !sending,
                     modifier = Modifier.size(54.dp).testTag("send_button"),
                 ) {
-                    if (sending) CircularProgressIndicator(Modifier.padding(12.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send))
+                    when {
+                        sending -> CircularProgressIndicator(Modifier.padding(12.dp), strokeWidth = 2.dp)
+                        input.isNotBlank() -> Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send))
+                        else -> Icon(painterResource(R.drawable.ic_mic), stringResource(R.string.record_voice))
+                    }
                 }
             }
         }
@@ -421,8 +558,8 @@ private fun DayLabel(ms: Long) {
 }
 
 @Composable
-private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boolean, topGap: Dp) {
-    val mine = !m.fromAgent
+private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boolean, topGap: Dp, mineSide: Boolean = !m.fromAgent) {
+    val mine = mineSide
     val ctx = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -448,7 +585,15 @@ private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boo
             border = if (mine) null else BorderStroke(1.dp, scheme.outlineVariant),
             modifier = Modifier.widthIn(max = 310.dp),
         ) {
-            Text(m.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge)
+            Column {
+                m.attachments?.forEach { a -> AttachmentView(a, mine) }
+                if (m.text.isNotBlank()) {
+                    val link = if (mine) scheme.onPrimary else scheme.primary
+                    val codeBg = if (mine) scheme.onPrimary.copy(alpha = 0.15f) else scheme.surfaceContainerHighest
+                    val styled = remember(m.text, link, codeBg) { Markdown.render(m.text, link, codeBg) }
+                    Text(styled, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
         if (showTime || showRead) {
             val time = DateFormat.getTimeFormat(ctx).format(m.createdAt)
@@ -458,6 +603,124 @@ private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boo
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun QuickReplies(options: List<String>, enabled: Boolean, onPick: (String) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEach { o ->
+            SuggestionChip(
+                onClick = { onPick(o) },
+                enabled = enabled,
+                label = { Text(o, style = MaterialTheme.typography.labelLarge) },
+                colors = SuggestionChipDefaults.suggestionChipColors(labelColor = MaterialTheme.colorScheme.primary),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                modifier = Modifier.testTag("quick_reply"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecordingBar(ms: Long, onCancel: () -> Unit, onSend: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        IconButton(onClick = onCancel, modifier = Modifier.testTag("voice_cancel")) {
+            Icon(Icons.Filled.Close, stringResource(R.string.cancel))
+        }
+        Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.error))
+        Text(
+            stringResource(R.string.recording, "%d:%02d".format(ms / 60000, (ms / 1000) % 60)),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        FilledIconButton(onClick = onSend, modifier = Modifier.size(54.dp).testTag("voice_send")) {
+            Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send))
+        }
+    }
+}
+
+/** A photo (tap: full screen) or a voice clip (play/pause) inside a bubble. */
+@Composable
+private fun AttachmentView(a: Attachment, mine: Boolean) {
+    val ctx = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    if (a.isImage) {
+        var bmp by remember(a.fileId) { mutableStateOf<Bitmap?>(null) }
+        var full by remember { mutableStateOf(false) }
+        LaunchedEffect(a.fileId) { bmp = withContext(Dispatchers.IO) { runCatching { Attachments.thumbnail(ctx, a) }.getOrNull() } }
+        val b = bmp
+        if (b == null) {
+            Box(Modifier.size(220.dp, 160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+        } else {
+            Image(
+                b.asImageBitmap(), null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.widthIn(max = 280.dp).heightIn(max = 320.dp).clickable { full = true }.testTag("photo"),
+            )
+            if (full) {
+                androidx.compose.ui.window.Dialog(onDismissRequest = { full = false }) {
+                    Image(b.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().clickable { full = false })
+                }
+            }
+        }
+    } else if (a.isAudio) {
+        var playing by remember { mutableStateOf(false) }
+        var player by remember { mutableStateOf<MediaPlayer?>(null) }
+        var position by remember { mutableStateOf(0L) }
+        DisposableEffect(a.fileId) { onDispose { player?.release() } }
+        LaunchedEffect(playing) {
+            while (playing) {
+                position = player?.currentPosition?.toLong() ?: 0L
+                delay(200)
+            }
+        }
+        val total = a.durationMs ?: player?.duration?.toLong() ?: 0L
+        Row(
+            Modifier.padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp).width(220.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = {
+                    val p = player
+                    if (p != null && playing) {
+                        p.pause(); playing = false
+                    } else if (p != null) {
+                        p.start(); playing = true
+                    } else {
+                        Graph.appScope.launch(Dispatchers.IO) {
+                            val f = runCatching { Attachments.local(ctx, a) }.getOrNull() ?: return@launch
+                            val mp = MediaPlayer().apply {
+                                setDataSource(f.path)
+                                prepare()
+                                setOnCompletionListener { playing = false; position = 0; it.seekTo(0) }
+                            }
+                            withContext(Dispatchers.Main) { player = mp; mp.start(); playing = true }
+                        }
+                    }
+                },
+                modifier = Modifier.testTag("play_voice"),
+            ) {
+                if (playing) Icon(painterResource(R.drawable.ic_pause), null) else Icon(Icons.Filled.PlayArrow, null)
+            }
+            val frac = if (total > 0) (position.toFloat() / total).coerceIn(0f, 1f) else 0f
+            Box(Modifier.weight(1f).size(height = 4.dp, width = 0.dp).clip(RoundedCornerShape(2.dp))
+                .background((if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.25f))) {
+                Box(Modifier.fillMaxWidth(frac).size(height = 4.dp, width = 0.dp).background(if (mine) scheme.onPrimary else scheme.primary))
+            }
+            Spacer(Modifier.width(10.dp))
+            val shown = if (playing || position > 0) position else total
+            Text("%d:%02d".format(shown / 60000, (shown / 1000) % 60), style = MaterialTheme.typography.labelMedium)
         }
     }
 }

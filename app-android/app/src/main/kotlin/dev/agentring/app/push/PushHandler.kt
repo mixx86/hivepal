@@ -38,7 +38,7 @@ object PushHandler {
                     }
                 }
                 Graph.messages.upsert(msg, truncated = truncated, generation = generation)
-                if (msg.fromAgent && AppVisibility.openConv != msg.convId) {
+                if (msg.fromAgent && AppVisibility.openConv != msg.convId && !Graph.chatPrefs.isMuted(msg.convId)) {
                     Notifications.showMessages(context, msg.convId)
                     Outcome.Notified(msg.msgId)
                 } else {

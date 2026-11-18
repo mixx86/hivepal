@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.agentring.app.Graph
+import kotlinx.coroutines.launch
 
 /** Which conversation is on screen, so a push for the conversation the user is reading doesn't notify. */
 object AppVisibility {
@@ -37,13 +38,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.getStringExtra(EXTRA_OPEN) == OPEN_MESSAGES) openRequest.value = OpenRequest(intent.getStringExtra(EXTRA_CONV))
+        when (intent?.getStringExtra(EXTRA_OPEN)) {
+            OPEN_MESSAGES -> openRequest.value = OpenRequest(intent.getStringExtra(EXTRA_CONV))
+            // The widget's call button: call the main agent.
+            OPEN_CALL -> {
+                intent.removeExtra(EXTRA_OPEN)
+                Graph.appScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                    if (Graph.calls.callAgent() == null) startActivity(CallActivity.outgoingIntent(this@MainActivity))
+                }
+            }
+        }
     }
 
     companion object {
         const val EXTRA_OPEN = "open"
         const val OPEN_MESSAGES = "messages"
         const val EXTRA_CONV = "conv"
+        const val OPEN_CALL = "call"
     }
 }
 

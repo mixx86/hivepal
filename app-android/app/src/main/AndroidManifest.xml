@@ -82,5 +82,17 @@
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode_ui" />
+        <!-- Hivepal: home-screen widget with the latest message and a call button. -->
+        <receiver
+            android:name=".widget.HivepalWidget"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_hivepal_info" />
+        </receiver>
     </application>
 </manifest>

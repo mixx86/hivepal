@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
@@ -56,7 +58,7 @@ import kotlinx.coroutines.launch
 /** What a notification (or the launcher) asked to open. `conv` null = the chat list. */
 data class OpenRequest(val conv: String?)
 
-enum class Dest { CHATS, CALLS, AGENTS, STATUS, SETTINGS }
+enum class Dest { CHATS, CALLS, AGENTS, REMINDERS, STATUS, SETTINGS, SEARCH }
 
 /** The app once paired: a menu (drawer) with Chats, Calls, Agents, Status and Settings. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,6 +107,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                     Icon(Icons.Filled.Call, null)
                 }
                 DrawerItem(stringResource(R.string.nav_agents), Icons.Filled.Face, dest == Dest.AGENTS, 0, "nav_agents", { go(Dest.AGENTS) })
+                DrawerItem(stringResource(R.string.reminders), Icons.Filled.DateRange, dest == Dest.REMINDERS, 0, "nav_reminders", { go(Dest.REMINDERS) })
                 DrawerItem(stringResource(R.string.nav_status), Icons.Filled.Info, dest == Dest.STATUS, 0, "nav_status", { go(Dest.STATUS) })
                 DrawerItem(stringResource(R.string.tab_settings), Icons.Filled.Settings, dest == Dest.SETTINGS, 0, "nav_settings", { go(Dest.SETTINGS) })
             }
@@ -128,6 +131,8 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                                     Dest.AGENTS -> R.string.nav_agents
                                     Dest.STATUS -> R.string.nav_status
                                     Dest.SETTINGS -> R.string.tab_settings
+                                    Dest.REMINDERS -> R.string.reminders
+                                    Dest.SEARCH -> R.string.search
                                 },
                             ),
                             style = MaterialTheme.typography.titleLarge,
@@ -143,6 +148,13 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                             }
                         }
                     },
+                    actions = {
+                        if (dest == Dest.CHATS) {
+                            IconButton(onClick = { dest = Dest.SEARCH }, modifier = Modifier.testTag("open_search")) {
+                                Icon(Icons.Filled.Search, stringResource(R.string.search))
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 )
             },
@@ -154,6 +166,8 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                     Dest.AGENTS -> AgentsScreen(pairing, onOpenChat = { conv = it })
                     Dest.STATUS -> HomeScreen(pairing)
                     Dest.SETTINGS -> SettingsScreen(pairing)
+                    Dest.REMINDERS -> RemindersScreen(pairing)
+                    Dest.SEARCH -> SearchScreen(pairing, onOpen = { conv = it })
                 }
             }
         }

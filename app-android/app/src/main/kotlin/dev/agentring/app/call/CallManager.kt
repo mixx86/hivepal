@@ -326,11 +326,12 @@ class CallManager(private val context: Context) : TelecomBridge.Listener {
      * microphone foreground service). Returns null once the call is ringing (open
      * [CallActivity]), or a message to show when it could not be placed.
      */
-    suspend fun callAgent(): Int? {
+    /** Calls an agent (Hivepal: `agentId` picks which; the voice daemon answers as it). */
+    suspend fun callAgent(agentId: String? = null): Int? {
         val cur = _state.value
         if (cur != null && cur !is CallUi.Ended) return if (cur is CallUi.Outgoing || cur is CallUi.Active) null else R.string.call_agent_busy
         val created = try {
-            withContext(Dispatchers.IO) { Graph.api()!!.createCall() }
+            withContext(Dispatchers.IO) { Graph.api()!!.createCall(agentId = agentId) }
         } catch (e: RelayException) {
             Log.w(TAG, "create call failed: ${e.status} ${e.code}")
             return when (e.code) {

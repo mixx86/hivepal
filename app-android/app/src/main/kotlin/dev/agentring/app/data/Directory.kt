@@ -52,8 +52,11 @@ class Directory(context: Context) {
         return agent(id)?.name ?: if (id == Conv.MAIN_AGENT) mainName else id.replaceFirstChar { it.uppercase() }
     }
 
-    fun convName(conv: String, mainName: String): String =
-        if (Conv.isGroup(conv)) group(Conv.id(conv))?.name ?: Conv.id(conv) else nameOf(Conv.id(conv), mainName)
+    fun convName(conv: String, mainName: String): String = when {
+        Conv.isGroup(conv) -> group(Conv.id(conv))?.name ?: Conv.id(conv)
+        Conv.isBots(conv) -> Conv.pair(conv).joinToString(" ↔ ") { nameOf(it, mainName) }
+        else -> nameOf(Conv.id(conv), mainName)
+    }
 
     /** Blocking. An upstream relay answers 404: keep just `main`. */
     fun refresh(api: RelayApi) {

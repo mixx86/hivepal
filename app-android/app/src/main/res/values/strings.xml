@@ -226,4 +226,27 @@
     <string name="group_badge">Group</string>
     <string name="missed_calls_n">%1$d missed</string>
     <string name="call_back">Call</string>
+    <!-- Hivepal -->
+    <string name="tomorrow">Tomorrow</string>
+    <string name="pin_chat">Pin chat</string>
+    <string name="unpin_chat">Unpin chat</string>
+    <string name="mute_chat">Mute notifications</string>
+    <string name="unmute_chat">Unmute notifications</string>
+    <string name="attach_photo">Send a photo</string>
+    <string name="record_voice">Record a voice note</string>
+    <string name="recording">Recording %1$s</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Search messages</string>
+    <string name="search_empty">Nothing found</string>
+    <string name="reminders">Reminders</string>
+    <string name="reminders_empty">No reminders pending</string>
+    <string name="reminders_body">Messages your agents scheduled. The relay sends them on time.</string>
+    <string name="cancel_reminder">Cancel reminder</string>
+    <string name="bots_section">Between agents</string>
+    <string name="muted">Muted</string>
+    <string name="widget_desc">Latest message and a call button</string>
+    <string name="widget_empty">No messages yet</string>
+    <string name="photo">Photo</string>
+    <string name="voice_note">Voice note</string>
+    <string name="quick_reply_sent">Sent</string>
 </resources>

@@ -34,6 +34,7 @@ object Graph {
     val settings: AppSettings by lazy { AppSettings(app) }
     val calls: CallManager by lazy { CallManager(app) }
     val directory: Directory by lazy { Directory(app) }
+    val chatPrefs: dev.agentring.app.data.ChatPrefs by lazy { dev.agentring.app.data.ChatPrefs(app) }
     val callHistory: CallHistory by lazy { CallHistory(app) }
 
     /** Name of the agent behind the relay's own key, as the pairing knows it. */

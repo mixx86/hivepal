@@ -27,6 +27,8 @@ object Notifications {
     const val ID_REPLY_FAILED = 1003
     const val KEY_REPLY = "reply_text"
     const val EXTRA_CONV = "conv"
+    const val EXTRA_OPTION = "option"
+    const val EXTRA_REPLY_TO = "reply_to"
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -67,6 +69,18 @@ object Notifications {
             .build()
     }
 
+    /** A quick reply the agent offered, as a notification button: it sends that text as a reply. */
+    private fun optionAction(context: Context, conv: String, replyTo: String, option: String, index: Int): NotificationCompat.Action {
+        val intent = Intent(context, ReplyReceiver::class.java)
+            .putExtra(EXTRA_CONV, conv)
+            .putExtra(EXTRA_OPTION, option)
+            .putExtra(EXTRA_REPLY_TO, replyTo)
+        val pi = PendingIntent.getBroadcast(
+            context, requestCode(conv) * 8 + index + 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        return NotificationCompat.Action.Builder(R.drawable.ic_send, option, pi).setShowsUserInterface(false).build()
+    }
+
     private fun agentPerson(name: String, key: String = "agent") = Person.Builder().setName(name).setKey(key).build()
 
     /**
@@ -105,6 +119,13 @@ object Notifications {
             .setAutoCancel(true)
             .setOnlyAlertOnce(sentReply != null)
             .addAction(replyAction(context, conv))
+            .apply {
+                // The newest message's quick replies (if any) as buttons; at most 3 fit next to "Reply".
+                val last = unread.lastOrNull()
+                if (sentReply == null && last != null) {
+                    last.options.orEmpty().take(3).forEachIndexed { i, o -> addAction(optionAction(context, conv, last.msgId, o, i)) }
+                }
+            }
             .build()
         NotificationManagerCompat.from(context).notify(notificationId(conv), n)
     }
