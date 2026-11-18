@@ -134,7 +134,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   events.setVisibility((e, p) => {
     if (!calls.eventVisibleTo(e, p)) return false;
     if (p.kind !== "agent") return true;
-    if (e.type === "msg.new" || e.type === "msg.read") return agents.canSee(p.agentId, convOf(e.conv));
+    if (e.type === "msg.new" || e.type === "msg.read" || e.type === "msg.deleted") return agents.canSee(p.agentId, convOf(e.conv));
     return true;
   });
 

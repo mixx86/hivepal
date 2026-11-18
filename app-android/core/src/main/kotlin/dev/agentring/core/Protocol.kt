@@ -306,6 +306,14 @@ sealed interface Event {
         @SerialName("agent_id") val agentId: String? = null,
     ) : Event
 
+    /** Hivepal: its author deleted a message. */
+    @Serializable
+    data class MsgDeleted(
+        override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
+        @SerialName("msg_id") val msgId: String,
+        val conv: String? = null,
+    ) : Event
+
     /** An agent was added, renamed or removed (multi-agent fork). */
     @Serializable
     data class AgentUpdated(
@@ -356,6 +364,7 @@ sealed interface Event {
                 "ws.hello" -> j.decodeFromJsonElement(WsHello.serializer(), obj)
                 "agent.updated" -> j.decodeFromJsonElement(AgentUpdated.serializer(), obj)
                 "group.updated" -> j.decodeFromJsonElement(GroupUpdated.serializer(), obj)
+                "msg.deleted" -> j.decodeFromJsonElement(MsgDeleted.serializer(), obj)
                 else -> Unknown(
                     type = type,
                     id = obj["id"]?.jsonPrimitive?.content ?: "",

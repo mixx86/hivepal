@@ -50,6 +50,8 @@ def apply_event(store: Store, event: dict[str, Any]) -> None:
                                  event.get("options"), event.get("attachments"))
         elif t == "msg.read":
             store.mark_read(event["msg_id"], event["ts"])
+        elif t == "msg.deleted":
+            store.delete_message(event["msg_id"])
     except (ValueError, KeyError, TypeError) as e:
         log.warning("skipping event seq=%s (%s): %s", event.get("seq"), t, type(e).__name__)
     seq = event.get("seq")

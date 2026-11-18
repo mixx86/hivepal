@@ -376,6 +376,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/messages/{msg_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                msg_id: components["parameters"]["MsgId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete one of your own messages (Hivepal). Emits `msg.deleted`. */
+        post: operations["deleteMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/messages/{msg_id}/read": {
         parameters: {
             query?: never;
@@ -934,7 +953,7 @@ export interface components {
             /** @description Position in the relay event log. Absent on ephemeral events. */
             seq?: number;
         };
-        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"];
+        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"] | components["schemas"]["MsgDeletedEvent"];
         /**
          * @example {
          *       "type": "call.invite",
@@ -1142,6 +1161,19 @@ export interface components {
              * @enum {string}
              */
             type: "group.updated";
+        };
+        /** @description Its author deleted a message. */
+        MsgDeletedEvent: components["schemas"]["EventBase"] & {
+            /** @constant */
+            type: "msg.deleted";
+            msg_id: components["schemas"]["MsgId"];
+            conv?: components["schemas"]["ConvId"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "msg.deleted";
         };
         /**
          * @description The FCM `data` map (all values are strings). `event` is the compact JSON
@@ -1764,6 +1796,28 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Message"];
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                msg_id: components["parameters"]["MsgId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];

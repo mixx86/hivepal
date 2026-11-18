@@ -104,12 +104,18 @@ object Notifications {
             style.conversationTitle = Graph.directory.convName(conv, main)
             style.isGroupConversation = true
         }
+        val title = Graph.directory.convName(conv, main)
+        val shortcut = Avatars.conversationShortcut(
+            context, conv, title,
+            if (Conv.isGroup(conv)) Avatars.person(conv, title) else Avatars.person(Conv.ofAgent(Conv.id(conv)), title),
+        )
         unread.forEach {
             val author = it.author ?: Conv.MAIN_AGENT
             val shown = dev.agentring.app.ui.Markdown.plain(it.text).ifBlank {
                 if (it.attachments?.firstOrNull()?.isImage == true) "📷" else "🎤"
             }
-            style.addMessage(shown, it.createdAt, agentPerson(Graph.directory.nameOf(author, main), author))
+            val who = Graph.directory.nameOf(author, main)
+            style.addMessage(shown, it.createdAt, Avatars.person(Conv.ofAgent(author), who))
         }
         if (sentReply != null) style.addMessage(sentReply, System.currentTimeMillis(), null as Person?)
 
@@ -121,6 +127,7 @@ object Notifications {
             .setContentIntent(openMessagesIntent(context, conv))
             .setAutoCancel(true)
             .setOnlyAlertOnce(sentReply != null)
+            .setShortcutId(shortcut)
             .addAction(replyAction(context, conv))
             .apply {
                 // The newest message's quick replies (if any) as buttons; at most 3 fit next to "Reply".

@@ -139,6 +139,11 @@ class RelayApi(
 
     fun listCalls(limit: Int = 100): List<Call> = call("GET", "/v1/calls?limit=$limit", null, CallList.serializer()).calls
 
+    /** Hivepal: deletes one of the user's own messages. */
+    fun deleteMessage(msgId: String) {
+        call<Unit>("POST", "/v1/messages/$msgId/delete", "".toRequestBody(null), null)
+    }
+
     fun markRead(msgId: String) {
         call<Unit>("POST", "/v1/messages/$msgId/read", "".toRequestBody(null), null)
     }

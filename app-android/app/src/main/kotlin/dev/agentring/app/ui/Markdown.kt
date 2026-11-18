@@ -44,6 +44,25 @@ object Markdown {
                 }
                 continue
             }
+            if (line.trimStart().startsWith("|")) {
+                // A table: its rows in monospace, cells padded to line up; the |---| line goes.
+                val rows = mutableListOf<List<String>>()
+                while (i < lines.size && lines[i].trimStart().startsWith("|")) {
+                    val cells = lines[i].trim().trim('|').split('|').map { plain(it.trim()) }
+                    if (!cells.all { it.matches(Regex(":?-{2,}:?")) }) rows += cells
+                    i++
+                }
+                val widths = (0 until (rows.maxOfOrNull { it.size } ?: 0)).map { c -> rows.maxOf { it.getOrNull(c)?.length ?: 0 } }
+                newline()
+                withStyle(SpanStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp)) {
+                    rows.forEachIndexed { r, cells ->
+                        if (r > 0) append('\n')
+                        val text = cells.mapIndexed { c, v -> v.padEnd(widths[c]) }.joinToString("  ").trimEnd()
+                        if (r == 0) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(text) } else append(text)
+                    }
+                }
+                continue
+            }
             newline()
             val heading = Regex("^(#{1,6})\\s+(.*)$").find(line)
             val bullet = Regex("^(\\s*)[-*+]\\s+(.*)$").find(line)

@@ -158,3 +158,21 @@ describe("calling a specific agent", () => {
     expect((await b.app.inject({ method: "POST", url: "/v1/calls", headers: dev.headers, payload: { agent_id: "nadie" } })).statusCode).toBe(400);
   });
 });
+
+describe("deleting messages", () => {
+  it("only the author deletes; everyone who saw it gets msg.deleted", async () => {
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const dev = await pairDevice(b);
+    const mine = (await post(dev.headers, { text: "typo", conv: "agent:nubi" })).json().msg_id;
+    const theirs = (await post(bearer(nubi), { text: "hola" })).json().msg_id;
+    const del = (h: Record<string, string>, id: string) => b!.app.inject({ method: "POST", url: `/v1/messages/${id}/delete`, headers: h });
+    expect((await del(bearer(nubi), mine)).statusCode).toBe(404);
+    expect((await del(dev.headers, theirs)).statusCode).toBe(404);
+    expect((await del(dev.headers, mine)).statusCode).toBe(204);
+    expect(await texts(bearer(nubi))).toEqual(["hola"]);
+    const evs = (await b.app.inject({ method: "GET", url: "/v1/events?after_seq=0", headers: bearer(nubi) })).json().events;
+    expect(evs.at(-1)).toMatchObject({ type: "msg.deleted", msg_id: mine, conv: "agent:nubi" });
+    expect((await del(bearer(nubi), theirs)).statusCode).toBe(204);
+  });
+});

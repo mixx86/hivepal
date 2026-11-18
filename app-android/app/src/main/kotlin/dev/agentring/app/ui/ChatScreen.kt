@@ -576,6 +576,7 @@ private fun Bubble(
     val mine = mineSide
     val ctx = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var menu by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth().padding(top = topGap),
@@ -598,13 +599,25 @@ private fun Bubble(
             color = if (mine) scheme.primary else scheme.surfaceContainerHigh,
             contentColor = if (mine) scheme.onPrimary else scheme.onSurface,
             border = if (mine) null else BorderStroke(1.dp, scheme.outlineVariant),
-            modifier = Modifier.widthIn(max = 310.dp).combinedClickable(onClick = {}, onLongClick = {
-                if (m.text.isNotBlank()) {
-                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text))
-                    android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }),
+            modifier = Modifier.widthIn(max = 310.dp).combinedClickable(onClick = {}, onLongClick = { menu = true }),
         ) {
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                if (m.text.isNotBlank()) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.copy)) }, onClick = {
+                        menu = false
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text))
+                        android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
+                    })
+                }
+                if (!m.fromAgent) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.delete), color = scheme.error) }, onClick = {
+                        menu = false
+                        Graph.appScope.launch(Dispatchers.IO) {
+                            runCatching { Graph.api()!!.deleteMessage(m.msgId) }.onSuccess { Graph.messages.remove(m.msgId) }
+                        }
+                    }, modifier = Modifier.testTag("delete_message"))
+                }
+            }
             Column {
                 if (!quote.isNullOrBlank()) {
                     Text(

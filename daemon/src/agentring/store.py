@@ -142,6 +142,9 @@ class Store:
         args.append(limit)
         return [dict(r) for r in self.db.execute(q, args).fetchall()]
 
+    def delete_message(self, msg_id: str) -> None:
+        self.db.execute("DELETE FROM messages WHERE msg_id = ?", (msg_id,))
+
     def message(self, msg_id: str) -> dict[str, Any] | None:
         row = self.db.execute("SELECT * FROM messages WHERE msg_id = ?", (msg_id,)).fetchone()
         return dict(row) if row else None

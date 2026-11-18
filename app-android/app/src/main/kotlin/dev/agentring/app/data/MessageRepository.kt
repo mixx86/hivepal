@@ -79,6 +79,7 @@ class MessageRepository(context: Context) {
     fun apply(event: Event, advanceSeq: Boolean, generation: Long = this.generation) {
         when (event) {
             is Event.MsgNew -> upsert(event.toMessage(), truncated = event.truncated == true, generation = generation)
+            is Event.MsgDeleted -> remove(event.msgId, generation)
             is Event.MsgRead -> mutate(generation) { list ->
                 list.map { if (it.msgId == event.msgId && it.readAt == null) it.copy(readAt = event.ts) else it }
             }
@@ -120,6 +121,8 @@ class MessageRepository(context: Context) {
 
     fun unreadFromAgent(conv: String? = null): List<Message> =
         _messages.value.filter { it.fromAgent && it.readAt == null && (conv == null || it.convId == conv) }
+
+    fun remove(msgId: String, generation: Long = this.generation) = mutate(generation) { list -> list.filter { it.msgId != msgId } }
 
     /** Hides a conversation's messages on this phone (the relay keeps them). */
     fun clearConversation(conv: String) = synchronized(this) {

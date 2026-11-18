@@ -486,6 +486,19 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/messages/{msg_id}/delete:
+    parameters:
+      - $ref: "#/components/parameters/MsgId"
+    post:
+      tags: [messages]
+      operationId: deleteMessage
+      summary: Delete one of your own messages (Hivepal). Emits `msg.deleted`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/messages/{msg_id}/read:
     parameters:
       - $ref: "#/components/parameters/MsgId"
@@ -1361,6 +1374,7 @@ components:
         - $ref: "#/components/schemas/WsHelloEvent"
         - $ref: "#/components/schemas/AgentUpdatedEvent"
         - $ref: "#/components/schemas/GroupUpdatedEvent"
+        - $ref: "#/components/schemas/MsgDeletedEvent"
       discriminator:
         propertyName: type
         mapping:
@@ -1376,6 +1390,7 @@ components:
           ws.hello: "#/components/schemas/WsHelloEvent"
           agent.updated: "#/components/schemas/AgentUpdatedEvent"
           group.updated: "#/components/schemas/GroupUpdatedEvent"
+          msg.deleted: "#/components/schemas/MsgDeletedEvent"
 
     CallInviteEvent:
       allOf:
@@ -1563,6 +1578,17 @@ components:
               type: array
               items: { $ref: "#/components/schemas/AgentId" }
             removed: { type: boolean }
+
+    MsgDeletedEvent:
+      description: Its author deleted a message.
+      allOf:
+        - $ref: "#/components/schemas/EventBase"
+        - type: object
+          required: [type, msg_id]
+          properties:
+            type: { const: msg.deleted }
+            msg_id: { $ref: "#/components/schemas/MsgId" }
+            conv: { $ref: "#/components/schemas/ConvId" }
 
     # ---------- push ----------
     PushData:

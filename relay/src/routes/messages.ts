@@ -246,6 +246,19 @@ export function messageRoutes(app: FastifyInstance, ctx: Ctx): void {
     return fromRow(row);
   });
 
+  app.post<{ Params: { msg_id: string } }>("/v1/messages/:msg_id/delete", { preHandler: auth }, async (req, reply) => {
+    const p = principal(req);
+    const row = get(req.params.msg_id);
+    // Only the author: the user (any of its phones) or that very agent.
+    const mine =
+      row !== undefined &&
+      (p.kind === "device" ? row.sender === "user" : row.sender === "agent" && (row.agent_id ?? MAIN) === p.agentId);
+    if (!mine) throw notFound("Message");
+    db.prepare("DELETE FROM messages WHERE msg_id = ?").run(row.msg_id);
+    events.emit({ type: "msg.deleted", msg_id: row.msg_id, conv: convOf(row.conv) });
+    return reply.code(204).send();
+  });
+
   app.post<{ Params: { msg_id: string } }>("/v1/messages/:msg_id/read", { preHandler: auth }, async (req, reply) => {
     const p = principal(req);
     const by = partyOf(p);
