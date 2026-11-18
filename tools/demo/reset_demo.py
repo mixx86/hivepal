@@ -7,7 +7,7 @@ R = os.path.expanduser("~/Docs/dev/hivepal")
 subprocess.run(["docker", "compose", "--project-directory", f"{R}/deploy", "-f", f"{R}/deploy/docker-compose.local.yml",
                 "--env-file", f"{R}/deploy/.env.local", "down", "-v"], capture_output=True)
 for d in S.glob("demo-*"):
-    if d.name not in ("demo-bin", "demo-uv"):
+    if d.is_dir() and d.name not in ("demo-bin", "demo-uv"):
         shutil.rmtree(d)
 (S / "demo-home").mkdir()
 env = {**os.environ, "HIVEPAL_HOME": str(S / "demo-home"), "UV_TOOL_DIR": str(S / "demo-uv"), "UV_TOOL_BIN_DIR": str(S / "demo-bin")}

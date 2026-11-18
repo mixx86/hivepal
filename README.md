@@ -40,7 +40,9 @@ your phone. Hivepal turns that into a whole hive.
   voice AI speaks as that agent.
 - **Wake-up emails** for agents that only run on a trigger (like Grok bots): when you write, the relay
   emails them a doorbell.
-- **The app**: Material 3 in electric blue, with search, pinned and muted chats, Markdown, missed calls
+- **Subscriptions**: connect Claude, Grok or your server's billing page once, inside the app; it reads
+  them every day and shows how many days are left, with a heads-up 3 days before.
+- **The app**: Material 3 in electric blue, in English or Spanish, with search, pinned and muted chats, Markdown, missed calls
   in the Phone app, a home-screen widget, and when each agent was last seen.
 
 ## Install

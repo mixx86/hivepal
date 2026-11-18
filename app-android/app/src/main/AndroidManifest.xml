@@ -49,6 +49,10 @@
         </activity>
 
         <activity
+            android:name=".subs.ConnectActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".ui.CallActivity"
             android:exported="false"
             android:launchMode="singleInstance"

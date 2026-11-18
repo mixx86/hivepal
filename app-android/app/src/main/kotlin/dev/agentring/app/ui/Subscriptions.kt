@@ -77,7 +77,6 @@ fun SubscriptionsScreen() {
     var list by remember { mutableStateOf<List<Subscription>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var connecting by remember { mutableStateOf<dev.agentring.app.subs.Service?>(null) }
     var version by remember { mutableStateOf(0) }  // bumps when a service is connected or removed
     suspend fun load() {
         val r = withContext(Dispatchers.IO) { runCatching { Graph.api()!!.listSubscriptions() } }
@@ -92,6 +91,14 @@ fun SubscriptionsScreen() {
         }
     }
     LaunchedEffect(Unit) { load() }
+    // Connecting happens in its own screen (ConnectActivity): log in there and pick the billing page.
+    val connect = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { res ->
+        version++
+        val id = res.data?.getStringExtra(dev.agentring.app.subs.ConnectActivity.EXTRA_ID)
+        dev.agentring.app.subs.BillingParser.SERVICES.firstOrNull { it.id == id }?.let { refresh(it) }
+    }
     LazyColumn(
         Modifier.fillMaxSize().testTag("subscriptions_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
@@ -121,7 +128,7 @@ fun SubscriptionsScreen() {
                     Text(page?.removePrefix("https://")?.take(42) ?: stringResource(R.string.subs_not_connected),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
-                androidx.compose.material3.OutlinedButton(onClick = { connecting = svc }, modifier = Modifier.testTag("connect_${svc.id}")) {
+                androidx.compose.material3.OutlinedButton(onClick = { connect.launch(dev.agentring.app.subs.ConnectActivity.intent(ctx, svc)) }, modifier = Modifier.testTag("connect_${svc.id}")) {
                     Text(stringResource(if (page == null) R.string.subs_connect else R.string.subs_change))
                 }
                 if (page != null) {
@@ -134,65 +141,6 @@ fun SubscriptionsScreen() {
                         }
                     }) { Text(stringResource(R.string.subs_remove)) }
                 }
-            }
-        }
-    }
-    connecting?.let { svc ->
-        ConnectDialog(svc, onDismiss = { connecting = null }) { url ->
-            dev.agentring.app.subs.Subs.connect(ctx, svc.id, url)
-            connecting = null
-            version++
-            refresh(svc)
-        }
-    }
-}
-
-/** The service's site inside the app: log in, open the billing page, "Use this page". */
-@android.annotation.SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun ConnectDialog(svc: dev.agentring.app.subs.Service, onDismiss: () -> Unit, onUse: (String) -> Unit) {
-    val ctx = LocalContext.current
-    var web by remember { mutableStateOf<android.webkit.WebView?>(null) }
-    var url by remember { mutableStateOf(dev.agentring.app.subs.Subs.page(ctx, svc.id) ?: svc.start) }
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.IconButton(onClick = {
-                        if (web?.canGoBack() == true) web?.goBack() else onDismiss()
-                    }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack, null) }
-                    Column(Modifier.weight(1f)) {
-                        Text(svc.name, style = MaterialTheme.typography.titleMedium)
-                        Text(url.removePrefix("https://"), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    }
-                    androidx.compose.material3.Button(onClick = { onUse(web?.url ?: url) }, modifier = Modifier.testTag("use_page")) {
-                        Text(stringResource(R.string.subs_use_page))
-                    }
-                }
-                Text(stringResource(R.string.subs_connect_hint), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                androidx.compose.ui.viewinterop.AndroidView(
-                    factory = { c ->
-                        android.webkit.WebView(c).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                            webViewClient = object : android.webkit.WebViewClient() {
-                                override fun onPageFinished(view: android.webkit.WebView, u: String?) {
-                                    u?.let { url = it }
-                                }
-                            }
-                            loadUrl(url)
-                            web = this
-                        }
-                    },
-                    onRelease = { it.destroy() },
-                    modifier = Modifier.fillMaxSize(),
-                )
             }
         }
     }
