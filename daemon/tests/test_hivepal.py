@@ -165,3 +165,36 @@ def test_config_from_before_the_rename(tmp_path, monkeypatch):
     assert s.api_key == "ak_old"
     assert s.db_path.name == "agentring.db"
     assert config.secret("HIVEPAL_SOMETHING") == "x"
+
+
+def test_subs_set_and_list(monkeypatch):
+    from typer.testing import CliRunner
+
+    from hivepal import cli
+
+    store = {}
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def put_subscription(self, sub_id, body):
+            store[sub_id] = {"sub_id": sub_id, "checked_at": 0, **body}
+            return store[sub_id]
+
+        def list_subscriptions(self):
+            return list(store.values())
+
+    monkeypatch.setattr(cli, "_settings", lambda: object())
+    monkeypatch.setattr(cli, "_client", lambda s: FakeClient())
+    r = CliRunner().invoke(cli.app, ["subs", "set", "claude", "--name", "Claude", "--plan", "Pro", "--until", "2026-12-05",
+                                      "--price", "21,78 €"])
+    assert r.exit_code == 0, r.output
+    assert store["claude"]["until"] > 0 and store["claude"]["plan"] == "Pro"
+    r = CliRunner().invoke(cli.app, ["subs"])
+    assert r.exit_code == 0 and "Claude" in r.output and "renews 2026-12-05" in r.output
+    r = CliRunner().invoke(cli.app, ["subs", "set", "x", "--name", "X", "--until", "mañana"])
+    assert r.exit_code != 0

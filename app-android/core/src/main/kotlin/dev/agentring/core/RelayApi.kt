@@ -120,6 +120,9 @@ class RelayApi(
 
     fun listReminders(): List<Reminder> = call("GET", "/v1/reminders", null, ReminderList.serializer()).reminders
 
+    fun listSubscriptions(): List<Subscription> =
+        call("GET", "/v1/subscriptions", null, SubscriptionList.serializer()).subscriptions
+
     fun cancelReminder(remId: String) {
         call<Unit>("DELETE", "/v1/reminders/$remId", null, null)
     }

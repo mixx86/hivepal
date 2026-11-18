@@ -251,4 +251,13 @@
     <string name="quick_reply_sent">Sent</string>
     <string name="last_seen">seen %1$s</string>
     <string name="copied">Copied</string>
+    <string name="nav_subs">Subscriptions</string>
+    <string name="subs_body">Read every day from each service\'s billing page.</string>
+    <string name="subs_empty">No subscriptions yet: run the scraper on your computer.</string>
+    <string name="subs_days">days</string>
+    <string name="subs_renews">Renews %1$s</string>
+    <string name="subs_ends">Ends %1$s</string>
+    <string name="subs_no_date">No date found</string>
+    <string name="subs_checked">Checked %1$s</string>
+    <string name="subs_error">Couldn\'t read it (%1$s) · last good read %2$s</string>
 </resources>

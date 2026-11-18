@@ -336,3 +336,29 @@ describe("rename", () => {
     expect(e.HIVEPAL_PUBLIC_URL).toBe("b");
   });
 });
+
+describe("subscriptions", () => {
+  it("the main key records them, the phone and main read them, other agents see none", async () => {
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const dev = await pairDevice(b);
+    const put = (headers: Record<string, string>, id: string, payload: Record<string, unknown>) =>
+      b!.app.inject({ method: "PUT", url: `/v1/subscriptions/${id}`, headers, payload });
+    const list = async (headers: Record<string, string>) =>
+      (await b!.app.inject({ method: "GET", url: "/v1/subscriptions", headers })).json().subscriptions;
+    const day = 86_400_000;
+    expect((await put(bearer(nubi), "claude", { name: "Claude", status: "active" })).statusCode).toBe(403);
+    expect((await put(AGENT, "claude", { name: "Claude", status: "nope" })).statusCode).toBe(400);
+    const until = Date.now() + 12 * day;
+    expect((await put(AGENT, "claude", { name: "Claude", plan: "Pro", status: "active", until, price: "21,78 €" })).statusCode).toBe(200);
+    await put(AGENT, "webdock", { name: "Webdock", status: "active", until: Date.now() + 3 * day });
+    await put(AGENT, "grok", { name: "Grok", status: "unknown" });
+    expect((await list(dev.headers)).map((s: { sub_id: string }) => s.sub_id)).toEqual(["webdock", "claude", "grok"]);
+    expect(await list(bearer(nubi))).toEqual([]);
+    // A failed read keeps the last known date and plan, and says why.
+    const r = (await put(AGENT, "claude", { name: "Claude", status: "error", error: "login expired" })).json();
+    expect(r).toMatchObject({ status: "error", until, plan: "Pro", error: "login expired" });
+    expect((await b.app.inject({ method: "DELETE", url: "/v1/subscriptions/grok", headers: AGENT })).statusCode).toBe(204);
+    expect((await list(AGENT)).length).toBe(2);
+  });
+});

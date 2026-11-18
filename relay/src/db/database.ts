@@ -148,6 +148,20 @@ const MIGRATIONS: string[] = [
   -- Hivepal: where to email an agent that only runs on a trigger when the user writes to it.
   CREATE TABLE agent_wake (agent_id TEXT PRIMARY KEY, email TEXT NOT NULL);
   `,
+  `
+  -- Hivepal: subscriptions and when each renews or ends (read by the user's scraper).
+  CREATE TABLE subscriptions (
+    sub_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    plan TEXT,
+    status TEXT NOT NULL,
+    until INTEGER,
+    price TEXT,
+    url TEXT,
+    error TEXT,
+    checked_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

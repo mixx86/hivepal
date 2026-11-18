@@ -39,6 +39,9 @@ bots_app = typer.Typer(help="Agents with their own key and conversation on the r
 app.add_typer(bots_app, name="bots")
 groups_app = typer.Typer(help="Group conversations: the user and several agents, who all read them.", no_args_is_help=False)
 app.add_typer(groups_app, name="groups")
+subs_app = typer.Typer(help="Your subscriptions and when each renews (read from each service's billing page).",
+                       no_args_is_help=False, invoke_without_command=True)
+app.add_typer(subs_app, name="subs")
 
 JsonOpt = Annotated[bool, typer.Option("--json", help="Machine-readable JSON output.")]
 AiOpt = Annotated[bool, typer.Option("--ai", help="A voice AI talks on the call (default Gemini Live; see --provider).")]
@@ -1291,3 +1294,71 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+@subs_app.callback()
+def subs_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
+    """List the subscriptions, soonest renewal first."""
+    if ctx.invoked_subcommand:
+        return
+    s = _settings()
+    with _client(s) as c:
+        try:
+            subs = c.list_subscriptions()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        typer.echo(json.dumps({"subscriptions": subs}))
+        return
+    if not subs:
+        typer.echo("No subscriptions yet.")
+    now = time.time() * 1000
+    for x in subs:
+        when = ""
+        if x.get("until"):
+            days = int((x["until"] - now) // 86_400_000)
+            when = f"{'ends' if x['status'] == 'ending' else 'renews'} {_fmt_ts(x['until'])[:10]} ({days} d)"
+        extra = f"  ! {x['error']}" if x.get("error") else ""
+        typer.echo(f"{x['sub_id']:<12} {x['name']:<14} {x.get('plan', ''):<14} {x['status']:<8} {when:<30} {x.get('price', '')}{extra}")
+
+
+@subs_app.command("set")
+def subs_set(
+    sub_id: Annotated[str, typer.Argument(help="Short id, e.g. claude.")],
+    name: Annotated[str, typer.Option("--name", help="Name shown on the phone.")],
+    status: Annotated[str, typer.Option("--status", help="active, ending, ended, unknown or error.")] = "active",
+    until: Annotated[Optional[str], typer.Option("--until", help="When it renews or ends: 2026-12-05 or 2026-12-05T10:00.")] = None,
+    plan: Annotated[Optional[str], typer.Option("--plan")] = None,
+    price: Annotated[Optional[str], typer.Option("--price", help="As the service shows it, e.g. '21,78 € / mes'.")] = None,
+    url: Annotated[Optional[str], typer.Option("--url", help="The billing page.")] = None,
+    error: Annotated[Optional[str], typer.Option("--error", help="With --status error: why the read failed.")] = None,
+) -> None:
+    """Record a subscription (relay API key only). Meant for the scraper that reads the billing pages."""
+    body: dict[str, Any] = {"name": name, "status": status}
+    if until:
+        try:
+            body["until"] = int(datetime.fromisoformat(until).timestamp() * 1000)
+        except ValueError:
+            raise _fail("--until must be a date like 2026-12-05") from None
+    for k, v in (("plan", plan), ("price", price), ("url", url), ("error", error)):
+        if v:
+            body[k] = v
+    s = _settings()
+    with _client(s) as c:
+        try:
+            r = c.put_subscription(sub_id, body)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"{r['sub_id']}: {r['status']}" + (f", until {_fmt_ts(r['until'])[:10]}" if r.get("until") else ""))
+
+
+@subs_app.command("rm")
+def subs_rm(sub_id: Annotated[str, typer.Argument()]) -> None:
+    """Forget a subscription."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.delete_subscription(sub_id)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"{sub_id} removed")

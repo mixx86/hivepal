@@ -22,6 +22,7 @@ import { agentRoutes } from "./routes/agents.js";
 import { fileRoutes } from "./routes/files.js";
 import { GeminiSpeech } from "./gemini.js";
 import { Wake, smtpMailer } from "./wake.js";
+import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
@@ -172,6 +173,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   messageRoutes(app, ctx);
   agentRoutes(app, ctx);
   fileRoutes(app, ctx);
+  subscriptionRoutes(app, ctx);
   if (process.env.GEMINI_API_KEY) ctx.speech = new GeminiSpeech(process.env.GEMINI_API_KEY);
   const reminders = new Reminders(ctx);
   ctx.reminders = reminders;

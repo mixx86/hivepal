@@ -205,6 +205,15 @@ class RelayClient:
     def remove_agent(self, agent_id: str) -> None:
         self._request("DELETE", f"/v1/agents/{agent_id}")
 
+    def list_subscriptions(self) -> list[dict]:
+        return self._request("GET", "/v1/subscriptions")["subscriptions"]
+
+    def put_subscription(self, sub_id: str, body: dict) -> dict:
+        return self._request("PUT", f"/v1/subscriptions/{sub_id}", json=body)
+
+    def delete_subscription(self, sub_id: str) -> None:
+        self._request("DELETE", f"/v1/subscriptions/{sub_id}")
+
     def set_agent_wake(self, agent_id: str, email: str | None) -> dict:
         return self._request("PUT", f"/v1/agents/{agent_id}/wake", json={"email": email})
 

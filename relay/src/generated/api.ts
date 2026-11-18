@@ -630,6 +630,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hivepal: the user's subscriptions (Claude, Grok, the server…) and when each renews or ends, as last read from each service's own billing page by the user's scraper. For the phone and the relay API key. */
+        get: operations["listSubscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subscriptions/{sub_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sub_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: record what the scraper read for one subscription (relay API key only). */
+        put: operations["putSubscription"];
+        post?: never;
+        /** Hivepal: forget a subscription (relay API key only). */
+        delete: operations["deleteSubscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reminders/{rem_id}": {
         parameters: {
             query?: never;
@@ -728,6 +765,37 @@ export interface components {
             size: number;
             /** @description Audio only, if the sender said. */
             duration_ms?: number;
+        };
+        Subscription: {
+            sub_id: components["schemas"]["AgentId"];
+            /** @description Claude, Grok, Webdock… */
+            name: string;
+            /** @description Pro, SuperGrok, the server's profile… */
+            plan?: string;
+            /**
+             * @description `ending`: active until `until` and won't renew; `error`: the last read failed (see `error`).
+             * @enum {string}
+             */
+            status: "active" | "ending" | "ended" | "unknown" | "error";
+            /** @description When it renews (or ends, if `status` is `ending`). */
+            until?: components["schemas"]["Timestamp"];
+            /** @description As the service shows it, e.g. 21,78 € / month. */
+            price?: string;
+            /** @description The billing page it was read from. */
+            url?: string;
+            error?: string;
+            /** @description When the scraper last read it successfully (or tried, for `error`). */
+            checked_at: components["schemas"]["Timestamp"];
+        };
+        PutSubscriptionRequest: {
+            name: string;
+            plan?: string;
+            /** @enum {string} */
+            status: "active" | "ending" | "ended" | "unknown" | "error";
+            until?: components["schemas"]["Timestamp"];
+            price?: string;
+            url?: string;
+            error?: string;
         };
         Reminder: {
             rem_id: string;
@@ -2360,6 +2428,82 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listSubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Soonest first; those without a date last. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subscriptions: components["schemas"]["Subscription"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sub_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    deleteSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sub_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     cancelReminder: {

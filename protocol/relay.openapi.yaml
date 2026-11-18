@@ -22,6 +22,7 @@ tags:
   - name: messages
   - name: events
   - name: system
+  - name: hivepal
 
 paths:
   /healthz:
@@ -870,6 +871,65 @@ paths:
                     items: { $ref: "#/components/schemas/Reminder" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /v1/subscriptions:
+    get:
+      tags: [hivepal]
+      operationId: listSubscriptions
+      summary: >-
+        Hivepal: the user's subscriptions (Claude, Grok, the server…) and when each renews or ends, as last
+        read from each service's own billing page by the user's scraper. For the phone and the relay API key.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: Soonest first; those without a date last.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscriptions]
+                properties:
+                  subscriptions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subscription" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/subscriptions/{sub_id}:
+    parameters:
+      - name: sub_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    put:
+      tags: [hivepal]
+      operationId: putSubscription
+      summary: "Hivepal: record what the scraper read for one subscription (relay API key only)."
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PutSubscriptionRequest" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [hivepal]
+      operationId: deleteSubscription
+      summary: "Hivepal: forget a subscription (relay API key only)."
+      security: [{ agentKey: [] }]
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/reminders/{rem_id}:
     parameters:
       - name: rem_id
@@ -1069,6 +1129,38 @@ components:
         mime: { type: string, examples: [image/jpeg, audio/mp4] }
         size: { type: integer, minimum: 0 }
         duration_ms: { type: integer, minimum: 0, description: "Audio only, if the sender said." }
+    Subscription:
+      type: object
+      required: [sub_id, name, status, checked_at]
+      properties:
+        sub_id: { $ref: "#/components/schemas/AgentId" }
+        name: { type: string, description: "Claude, Grok, Webdock…" }
+        plan: { type: string, description: "Pro, SuperGrok, the server's profile…" }
+        status:
+          type: string
+          enum: [active, ending, ended, unknown, error]
+          description: "`ending`: active until `until` and won't renew; `error`: the last read failed (see `error`)."
+        until:
+          description: When it renews (or ends, if `status` is `ending`).
+          $ref: "#/components/schemas/Timestamp"
+        price: { type: string, description: "As the service shows it, e.g. 21,78 € / month." }
+        url: { type: string, description: The billing page it was read from. }
+        error: { type: string }
+        checked_at:
+          description: When the scraper last read it successfully (or tried, for `error`).
+          $ref: "#/components/schemas/Timestamp"
+    PutSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [name, status]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        plan: { type: string, maxLength: 64 }
+        status: { type: string, enum: [active, ending, ended, unknown, error] }
+        until: { $ref: "#/components/schemas/Timestamp" }
+        price: { type: string, maxLength: 64 }
+        url: { type: string, maxLength: 512 }
+        error: { type: string, maxLength: 500 }
     Reminder:
       type: object
       required: [rem_id, agent_id, conv, text, at, created_at]

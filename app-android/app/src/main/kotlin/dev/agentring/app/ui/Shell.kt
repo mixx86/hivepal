@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -64,7 +65,7 @@ import kotlinx.coroutines.launch
 /** What a notification (or the launcher) asked to open. `conv` null = the chat list. */
 data class OpenRequest(val conv: String?)
 
-enum class Dest { CHATS, CALLS, AGENTS, REMINDERS, STATUS, SETTINGS, SEARCH }
+enum class Dest { CHATS, CALLS, AGENTS, REMINDERS, SUBS, STATUS, SETTINGS, SEARCH }
 
 /** The app once paired: a menu (drawer) with Chats, Calls, Agents, Status and Settings. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +115,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                 }
                 DrawerItem(stringResource(R.string.nav_agents), Icons.Filled.Face, dest == Dest.AGENTS, 0, "nav_agents", { go(Dest.AGENTS) })
                 DrawerItem(stringResource(R.string.reminders), Icons.Filled.DateRange, dest == Dest.REMINDERS, 0, "nav_reminders", { go(Dest.REMINDERS) })
+                DrawerItem(stringResource(R.string.nav_subs), Icons.Filled.ShoppingCart, dest == Dest.SUBS, 0, "nav_subs", { go(Dest.SUBS) })
                 DrawerItem(stringResource(R.string.nav_status), Icons.Filled.Info, dest == Dest.STATUS, 0, "nav_status", { go(Dest.STATUS) })
                 DrawerItem(stringResource(R.string.tab_settings), Icons.Filled.Settings, dest == Dest.SETTINGS, 0, "nav_settings", { go(Dest.SETTINGS) })
             }
@@ -148,6 +150,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                                     Dest.STATUS -> R.string.nav_status
                                     Dest.SETTINGS -> R.string.tab_settings
                                     Dest.REMINDERS -> R.string.reminders
+                                    Dest.SUBS -> R.string.nav_subs
                                     Dest.SEARCH -> R.string.search
                                 },
                             ),
@@ -198,6 +201,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                     Dest.STATUS -> HomeScreen(pairing)
                     Dest.SETTINGS -> SettingsScreen(pairing)
                     Dest.REMINDERS -> RemindersScreen(pairing)
+                    Dest.SUBS -> SubscriptionsScreen()
                     Dest.SEARCH -> SearchScreen(pairing, onOpen = { conv = it })
                 }
             }

@@ -243,4 +243,13 @@
     <string name="quick_reply_sent">Enviado</string>
     <string name="last_seen">visto %1$s</string>
     <string name="copied">Copiado</string>
+    <string name="nav_subs">Suscripciones</string>
+    <string name="subs_body">Se leen cada día de la página de facturación de cada servicio.</string>
+    <string name="subs_empty">Aún no hay suscripciones: ejecuta el lector en tu ordenador.</string>
+    <string name="subs_days">días</string>
+    <string name="subs_renews">Renueva el %1$s</string>
+    <string name="subs_ends">Termina el %1$s</string>
+    <string name="subs_no_date">Sin fecha</string>
+    <string name="subs_checked">Comprobado %1$s</string>
+    <string name="subs_error">No se pudo leer (%1$s) · última lectura buena %2$s</string>
 </resources>

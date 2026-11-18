@@ -138,6 +138,23 @@ data class Reminder(
 @Serializable
 data class ReminderList(val reminders: List<Reminder>)
 
+/** Hivepal: a subscription and when it renews (or ends), as the user's scraper read it from the service. */
+@Serializable
+data class Subscription(
+    @SerialName("sub_id") val subId: String,
+    val name: String,
+    val plan: String? = null,
+    val status: String,
+    val until: Long? = null,
+    val price: String? = null,
+    val url: String? = null,
+    val error: String? = null,
+    @SerialName("checked_at") val checkedAt: Long = 0,
+)
+
+@Serializable
+data class SubscriptionList(val subscriptions: List<Subscription>)
+
 @Serializable
 data class Agent(
     @SerialName("agent_id") val agentId: String,
