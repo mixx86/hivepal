@@ -854,7 +854,7 @@ def bots_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
         return
     for a in agents:
         seen = "online" if a.get("online") else (f"seen {_fmt_ts(a['last_seen_at'])}" if a.get("last_seen_at") else "")
-        typer.echo(f"{a['agent_id']:<16} {a['name']:<24} {seen}")
+        typer.echo(f"{a['agent_id']:<16} {a['name']:<24} {seen}" + ("  ✉" if a.get("wakes") else ""))
 
 
 def _bot_key_out(r: dict, json_out: bool) -> None:
@@ -895,6 +895,24 @@ def bots_rename(
         except RelayError as e:
             raise _fail(str(e)) from None
     typer.echo(f"{a['agent_id']} is now {a['name']}")
+
+
+@bots_app.command("wake")
+def bots_wake(
+    agent_id: Annotated[str, typer.Argument()],
+    email: Annotated[str, typer.Argument(help="Address to email when the user writes to this agent, or 'off'.")],
+) -> None:
+    """Wake an agent by email when the user writes to it (for agents that only run on a trigger).
+
+    The email never carries the message; the agent reads it from the relay as usual. At most one
+    a minute. Needs the relay's API key and HIVEPAL_SMTP_URL on the relay."""
+    s = _settings()
+    with _client(s) as c:
+        try:
+            a = c.set_agent_wake(agent_id, None if email.lower() == "off" else email)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo(f"{a['agent_id']}: " + ("woken by email" if a.get("wakes") else "no wake-up email"))
 
 
 @bots_app.command("key")

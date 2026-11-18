@@ -144,6 +144,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE reminders ADD COLUMN followups INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE reminders ADD COLUMN done_at INTEGER;
   `,
+  `
+  -- Hivepal: where to email an agent that only runs on a trigger when the user writes to it.
+  CREATE TABLE agent_wake (agent_id TEXT PRIMARY KEY, email TEXT NOT NULL);
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

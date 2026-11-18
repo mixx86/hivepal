@@ -247,3 +247,76 @@ describe("speech", () => {
     expect((await b.app.inject({ method: "POST", url: "/v1/tts", headers: bearer(nubi), payload: { text: "x" } })).statusCode).toBe(503);
   });
 });
+
+describe("wake-up emails", () => {
+  it("only the main key sets the address; it needs SMTP; views show `wakes`, never the address", async () => {
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const put = (headers: Record<string, string>, email: string | null) =>
+      b!.app.inject({ method: "PUT", url: "/v1/agents/nubi/wake", headers, payload: { email } });
+    const prev = process.env.HIVEPAL_SMTP_URL;
+    delete process.env.HIVEPAL_SMTP_URL;
+    expect((await put(AGENT, "x@mail.example.com")).statusCode).toBe(400);
+    process.env.HIVEPAL_SMTP_URL = "smtps://u:p@smtp.example.com";
+    try {
+      expect((await put(bearer(nubi), "x@mail.example.com")).statusCode).toBe(403);
+      expect((await put(AGENT, "not an address")).statusCode).toBe(400);
+      const r = await put(AGENT, "x@mail.example.com");
+      expect(r.statusCode).toBe(200);
+      expect(r.json().wakes).toBe(true);
+      const list = (await b.app.inject({ method: "GET", url: "/v1/agents", headers: bearer(nubi) })).body;
+      expect(list).not.toContain("mail.example.com");
+      expect((await put(AGENT, null)).json().wakes).toBeUndefined();
+    } finally {
+      if (prev === undefined) delete process.env.HIVEPAL_SMTP_URL;
+      else process.env.HIVEPAL_SMTP_URL = prev;
+    }
+  });
+
+  it("the user's messages ring the agent (and group members) once per gap, with a trailing ring", async () => {
+    const { Wake } = await import("../src/wake.js");
+    b = await setup();
+    await addAgent("nubi", "Nubi");
+    await addAgent("rutina", "Rutina");
+    await addAgent("casa", "Casa");
+    b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
+    b.ctx.agents.setWake("rutina", "rutina@mail.example.com");
+    let now = 1_000_000;
+    const sent: string[] = [];
+    const wake = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 60_000, () => now);
+    const ev = (conv: string, from: "user" | "agent" = "user") =>
+      ({ type: "msg.new", from, conv, msg_id: "m", text: "t", id: "e", ts: now }) as never;
+    wake.handle(ev("agent:nubi"));
+    wake.handle(ev("agent:casa")); // no address: nothing
+    wake.handle(ev("agent:nubi", "agent")); // agents don't ring
+    expect(sent).toEqual(["nubi@mail.example.com"]);
+    wake.handle(ev("agent:nubi")); // within the gap: one trailing ring is scheduled
+    wake.handle(ev("agent:nubi"));
+    expect(sent.length).toBe(1);
+    wake.stop();
+    // A group message rings every member that has an address.
+    b.ctx.agents.createGroup("g", "G", ["nubi", "rutina", "casa"]);
+    now += 61_000;
+    const w2 = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 60_000, () => now);
+    w2.handle(ev("group:g"));
+    expect(sent.slice(1).sort()).toEqual(["nubi@mail.example.com", "rutina@mail.example.com"]);
+    w2.stop();
+  });
+
+  it("a trailing ring goes out when the gap ends", async () => {
+    const { Wake } = await import("../src/wake.js");
+    b = await setup();
+    await addAgent("nubi", "Nubi");
+    b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
+    const sent: string[] = [];
+    const wake = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 50);
+    const ev = { type: "msg.new", from: "user", conv: "agent:nubi", msg_id: "m", text: "t", id: "e", ts: 0 } as never;
+    wake.handle(ev);
+    wake.handle(ev);
+    wake.handle(ev);
+    expect(sent.length).toBe(1);
+    await new Promise((r) => setTimeout(r, 120));
+    expect(sent.length).toBe(2);
+    wake.stop();
+  });
+});

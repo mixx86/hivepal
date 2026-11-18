@@ -456,6 +456,25 @@ export interface paths {
         patch: operations["updateAgent"];
         trace?: never;
     };
+    "/v1/agents/{agent_id}/wake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: the address the relay emails when the user writes to this agent (directly or in a group), so an agent that only runs on a trigger wakes up. One email a minute at most; it never carries the message. `email: null` turns it off. Relay API key only; needs HIVEPAL_SMTP_URL on the relay. */
+        put: operations["setAgentWake"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{agent_id}/key": {
         parameters: {
             query?: never;
@@ -740,6 +759,8 @@ export interface components {
             online?: boolean;
             /** @description When the agent last used its key (to the minute). Tells whether its routines run. */
             last_seen_at?: components["schemas"]["Timestamp"];
+            /** @description Hivepal: the relay emails the agent a wake-up call when the user writes to it (the address stays private). */
+            wakes?: boolean;
         };
         CreateAgentRequest: {
             agent_id: components["schemas"]["AgentId"];
@@ -1993,6 +2014,38 @@ export interface operations {
                     "application/json": components["schemas"]["Agent"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAgentWake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

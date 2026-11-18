@@ -21,6 +21,7 @@ import { Calls, callRoutes, targetsOf } from "./routes/calls.js";
 import { agentRoutes } from "./routes/agents.js";
 import { fileRoutes } from "./routes/files.js";
 import { GeminiSpeech } from "./gemini.js";
+import { Wake, smtpMailer } from "./wake.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
@@ -144,6 +145,9 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     return c && { direction: c.direction, device_ids: targetsOf(c) };
   });
   events.onEvent((e) => dispatcher.handle(e));
+  const smtp = process.env.HIVEPAL_SMTP_URL;
+  const wake = smtp ? new Wake(agents, smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM), app.log) : undefined;
+  if (wake) events.onEvent((e) => wake.handle(e));
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ApiError) {
@@ -182,6 +186,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   app.addHook("onClose", async () => {
     calls.stop();
     reminders.stop();
+    wake?.stop();
     ctx.hub.closeAll();
     db.close();
   });

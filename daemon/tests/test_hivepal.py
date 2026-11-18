@@ -106,3 +106,30 @@ def test_insisting_reminder_and_last_seen(hive):
     r = runner.invoke(app, ["remind", "x", "--in", "1h", "--call"], env={"AGENTRING_HOME": str(hive["rutina"])})
     assert r.exit_code != 0
     assert "seen" in cli(hive["admin"], "bots")
+
+
+def test_bots_wake_sets_and_clears(monkeypatch):
+    from typer.testing import CliRunner
+
+    from agentring import cli
+
+    calls = []
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def set_agent_wake(self, agent_id, email):
+            calls.append((agent_id, email))
+            return {"agent_id": agent_id, "name": "Casa", "wakes": email is not None}
+
+    monkeypatch.setattr(cli, "_settings", lambda: object())
+    monkeypatch.setattr(cli, "_client", lambda s: FakeClient())
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "x@mail.grokbot.com"])
+    assert r.exit_code == 0 and "woken by email" in r.output
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "OFF"])
+    assert r.exit_code == 0 and "no wake-up email" in r.output
+    assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None)]

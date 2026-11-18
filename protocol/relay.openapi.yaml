@@ -595,6 +595,41 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/agents/{agent_id}/wake:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    put:
+      tags: [agents]
+      operationId: setAgentWake
+      summary: >-
+        Hivepal: the address the relay emails when the user writes to this agent (directly or in a group), so an
+        agent that only runs on a trigger wakes up. One email a minute at most; it never carries the message.
+        `email: null` turns it off. Relay API key only; needs HIVEPAL_SMTP_URL on the relay.
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: [string, "null"], maxLength: 254 }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/agents/{agent_id}/key:
     parameters:
       - name: agent_id
@@ -1082,6 +1117,9 @@ components:
         last_seen_at:
           description: When the agent last used its key (to the minute). Tells whether its routines run.
           $ref: "#/components/schemas/Timestamp"
+        wakes:
+          type: boolean
+          description: "Hivepal: the relay emails the agent a wake-up call when the user writes to it (the address stays private)."
     CreateAgentRequest:
       type: object
       additionalProperties: false

@@ -66,7 +66,24 @@ export class Agents {
 
   private view(r: AgentRow): Agent {
     const seen = this.lastSeen(r.agent_id);
-    return { agent_id: r.agent_id, name: r.name, created_at: r.created_at, ...(seen ? { last_seen_at: seen } : {}) };
+    return {
+      agent_id: r.agent_id, name: r.name, created_at: r.created_at,
+      ...(seen ? { last_seen_at: seen } : {}), ...(this.wakeEmail(r.agent_id) ? { wakes: true } : {}),
+    };
+  }
+
+  /** Hivepal: the address the relay emails when the user writes to the agent (private: never in a view). */
+  wakeEmail(agentId: string): string | undefined {
+    const r = this.db.prepare("SELECT email FROM agent_wake WHERE agent_id = ?").get(agentId) as { email: string } | undefined;
+    return r?.email;
+  }
+
+  setWake(agentId: string, email: string | null): void {
+    if (email === null) this.db.prepare("DELETE FROM agent_wake WHERE agent_id = ?").run(agentId);
+    else
+      this.db
+        .prepare("INSERT INTO agent_wake (agent_id, email) VALUES (?, ?) ON CONFLICT(agent_id) DO UPDATE SET email = excluded.email")
+        .run(agentId, email);
   }
 
   private seenCache = new Map<string, number>();
@@ -90,7 +107,10 @@ export class Agents {
     const r = this.row(MAIN);
     if (r) return this.view(r);
     const seen = this.lastSeen(MAIN);
-    return { agent_id: MAIN, name: this.cfg.agentName, created_at: 0, ...(seen ? { last_seen_at: seen } : {}) };
+    return {
+      agent_id: MAIN, name: this.cfg.agentName, created_at: 0,
+      ...(seen ? { last_seen_at: seen } : {}), ...(this.wakeEmail(MAIN) ? { wakes: true } : {}),
+    };
   }
 
   exists(id: string): boolean {

@@ -95,6 +95,35 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
     },
   );
 
+  app.put<{ Params: { agent_id: string }; Body: { email: string | null } }>(
+    "/v1/agents/:agent_id/wake",
+    {
+      preHandler: mainKey,
+      schema: {
+        params: AGENT_PARAMS,
+        body: {
+          type: "object", additionalProperties: false, required: ["email"],
+          properties: { email: { type: ["string", "null"], maxLength: 254 } },
+        },
+      },
+    },
+    async (req) => {
+      const { agent_id } = req.params;
+      if (!agents.exists(agent_id)) throw notFound("Agent");
+      const email = req.body.email?.trim() || null;
+      if (email !== null && !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(email)) {
+        throw new ApiError(400, "invalid_request", "Not an email address");
+      }
+      if (email !== null && !process.env.HIVEPAL_SMTP_URL) {
+        throw new ApiError(400, "invalid_request", "This relay can't send email: set HIVEPAL_SMTP_URL");
+      }
+      agents.setWake(agent_id, email);
+      const a = agents.get(agent_id)!;
+      announceAgent(a);
+      return withOnline(a);
+    },
+  );
+
   app.post<{ Params: { agent_id: string } }>(
     "/v1/agents/:agent_id/key",
     { preHandler: mainKey, schema: { params: AGENT_PARAMS } },
