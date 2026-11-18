@@ -249,4 +249,6 @@
     <string name="photo">Photo</string>
     <string name="voice_note">Voice note</string>
     <string name="quick_reply_sent">Sent</string>
+    <string name="last_seen">seen %1$s</string>
+    <string name="copied">Copied</string>
 </resources>

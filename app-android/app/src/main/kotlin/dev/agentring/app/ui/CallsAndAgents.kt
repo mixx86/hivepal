@@ -163,10 +163,18 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
                 ConvAvatar(Conv.ofAgent(a.agentId), a.name, size = 46.dp, online = a.agentId in online)
                 Column(Modifier.weight(1f)) {
                     Text(a.name, style = MaterialTheme.typography.titleMedium)
+                    val seen = a.lastSeenAt
                     Text(
-                        stringResource(R.string.agent_id_label, a.agentId) + if (a.agentId in online) " · " + stringResource(R.string.agent_online) else "",
+                        stringResource(R.string.agent_id_label, a.agentId) + when {
+                            a.agentId in online -> " · " + stringResource(R.string.agent_online)
+                            seen != null -> " · " + stringResource(R.string.last_seen, android.text.format.DateUtils.getRelativeTimeSpanString(
+                                seen, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
+                            else -> ""
+                        },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // A bot not seen for over a day: its routines may have stopped.
+                        color = if (seen != null && a.agentId !in online && System.currentTimeMillis() - seen > 24 * 3600_000L)
+                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (agents.isNotEmpty()) {

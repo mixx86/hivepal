@@ -144,6 +144,8 @@ data class Agent(
     val name: String,
     @SerialName("created_at") val createdAt: Long = 0,
     val online: Boolean? = null,
+    /** Hivepal: when the agent last used its key. */
+    @SerialName("last_seen_at") val lastSeenAt: Long? = null,
 )
 
 @Serializable

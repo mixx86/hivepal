@@ -10,6 +10,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.FlowRow
@@ -560,6 +562,7 @@ private fun DayLabel(ms: Long) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Bubble(
     m: Message,
@@ -572,6 +575,7 @@ private fun Bubble(
 ) {
     val mine = mineSide
     val ctx = LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth().padding(top = topGap),
@@ -594,7 +598,12 @@ private fun Bubble(
             color = if (mine) scheme.primary else scheme.surfaceContainerHigh,
             contentColor = if (mine) scheme.onPrimary else scheme.onSurface,
             border = if (mine) null else BorderStroke(1.dp, scheme.outlineVariant),
-            modifier = Modifier.widthIn(max = 310.dp),
+            modifier = Modifier.widthIn(max = 310.dp).combinedClickable(onClick = {}, onLongClick = {
+                if (m.text.isNotBlank()) {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(m.text))
+                    android.widget.Toast.makeText(ctx, R.string.copied, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }),
         ) {
             Column {
                 if (!quote.isNullOrBlank()) {
