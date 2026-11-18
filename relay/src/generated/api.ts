@@ -497,6 +497,84 @@ export interface paths {
         patch: operations["updateGroup"];
         trace?: never;
     };
+    "/v1/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a photo or audio clip to attach to a message (raw body, at most 10 MB).
+         * @description The body is the file itself, with its media type as `Content-Type` (image/jpeg, image/png,
+         *     image/webp, audio/mp4, audio/aac, audio/ogg, audio/mpeg, audio/webm). Attach it with
+         *     `attachments` in `POST /v1/messages`.
+         */
+        post: operations["uploadFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        /** Download a file. An agent may get the files it uploaded or that are attached to a message it can see. */
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pending reminders (an agent sees its own; the user sees all). */
+        get: operations["listReminders"];
+        put?: never;
+        /** Schedule a message. At `at` the relay posts it as the agent (push included), even if the agent is not running then. */
+        post: operations["createReminder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reminders/{rem_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rem_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel a pending reminder (its agent, or the user). */
+        delete: operations["cancelReminder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/events": {
         parameters: {
             query?: never;
@@ -558,12 +636,42 @@ export interface components {
          */
         AgentId: string;
         /**
-         * @description A conversation: `agent:<agent_id>` (the user and one agent) or `group:<group_id>` (the user
-         *     and several agents, who all read it). Messages from before the multi-agent fork belong to `agent:main`.
+         * @description A conversation: `agent:<agent_id>` (the user and one agent), `group:<group_id>` (the user
+         *     and several agents, who all read it) or `bots:<a>.<b>` (two agents, ids sorted; the user can
+         *     read it but its messages don't wake the phone). Messages from before the multi-agent fork
+         *     belong to `agent:main`.
          * @example agent:main
          * @example group:todos
          */
         ConvId: string;
+        Attachment: {
+            file_id: string;
+            /**
+             * @example image/jpeg
+             * @example audio/mp4
+             */
+            mime: string;
+            size: number;
+            /** @description Audio only, if the sender said. */
+            duration_ms?: number;
+        };
+        Reminder: {
+            rem_id: string;
+            agent_id: components["schemas"]["AgentId"];
+            conv: components["schemas"]["ConvId"];
+            text: string;
+            options?: string[];
+            at: components["schemas"]["Timestamp"];
+            created_at: components["schemas"]["Timestamp"];
+        };
+        CreateReminderRequest: {
+            text: string;
+            /** @description When to send it (ms since epoch); at most a year ahead. */
+            at: components["schemas"]["Timestamp"];
+            /** @description Default the agent's own conversation. */
+            conv?: components["schemas"]["ConvId"];
+            options?: string[];
+        };
         Agent: {
             agent_id: components["schemas"]["AgentId"];
             name: string;
@@ -728,6 +836,11 @@ export interface components {
             /** @description Display name override for this call (agent only). */
             agent_name?: string;
             /**
+             * @description Device only: which agent to call (default `main`). The voice daemon (the `main` agent's
+             *     WebSocket) answers every call; it takes on that agent's persona.
+             */
+            agent_id?: components["schemas"]["AgentId"];
+            /**
              * @description Agent only: ring only these paired, non-revoked phones (a targeted
              *     call) instead of every paired phone. Only they get the invite, can
              *     answer, decline or join, and see the call at all. Duplicates are
@@ -787,9 +900,14 @@ export interface components {
             client_msg_id?: string;
             /**
              * @description Where to post. Default: the sender agent's own conversation; for the user, `agent:main`.
-             *     An agent may post to its own conversation or to a group it belongs to (403 otherwise).
+             *     An agent may post to its own conversation, to a group it belongs to, or to a `bots:`
+             *     conversation it is part of (403 otherwise).
              */
             conv?: components["schemas"]["ConvId"];
+            /** @description Quick replies the app shows as buttons under the message (agent only). Tapping one sends it as a reply. */
+            options?: string[];
+            /** @description Files from `POST /v1/files` (at most 4). With attachments, `text` may be empty. */
+            attachments?: string[];
         };
         Message: {
             msg_id: components["schemas"]["MsgId"];
@@ -802,6 +920,8 @@ export interface components {
             conv?: components["schemas"]["ConvId"];
             /** @description Sending agent when `from` = agent. */
             agent_id?: components["schemas"]["AgentId"];
+            options?: string[];
+            attachments?: components["schemas"]["Attachment"][];
             created_at: components["schemas"]["Timestamp"];
             read_at?: components["schemas"]["Timestamp"];
         };
@@ -940,6 +1060,8 @@ export interface components {
             conv?: components["schemas"]["ConvId"];
             /** @description Sending agent when `from` = agent. */
             agent_id?: components["schemas"]["AgentId"];
+            options?: string[];
+            attachments?: components["schemas"]["Attachment"][];
             /** @description Only in push payloads; fetch the full message via GET /v1/messages/{msg_id}. */
             truncated?: boolean;
         } & {
@@ -1912,6 +2034,130 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    uploadFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/*": string;
+                "audio/*": string;
+            };
+        };
+        responses: {
+            /** @description Stored. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file, with its media type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": string;
+                    "audio/*": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listReminders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending reminders, soonest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reminders: components["schemas"]["Reminder"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createReminder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReminderRequest"];
+            };
+        };
+        responses: {
+            /** @description Scheduled. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminder"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    cancelReminder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rem_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canceled. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

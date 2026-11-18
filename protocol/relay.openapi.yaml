@@ -685,6 +685,105 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/files:
+    post:
+      tags: [messages]
+      operationId: uploadFile
+      summary: Upload a photo or audio clip to attach to a message (raw body, at most 10 MB).
+      description: |
+        The body is the file itself, with its media type as `Content-Type` (image/jpeg, image/png,
+        image/webp, audio/mp4, audio/aac, audio/ogg, audio/mpeg, audio/webm). Attach it with
+        `attachments` in `POST /v1/messages`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          "image/*": { schema: { type: string, format: binary } }
+          "audio/*": { schema: { type: string, format: binary } }
+      responses:
+        "201":
+          description: Stored.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attachment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/files/{file_id}:
+    parameters:
+      - name: file_id
+        in: path
+        required: true
+        schema: { type: string, pattern: "^file_[0-9A-HJKMNP-TV-Z]{26}$" }
+    get:
+      tags: [messages]
+      operationId: getFile
+      summary: Download a file. An agent may get the files it uploaded or that are attached to a message it can see.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: The file, with its media type.
+          content:
+            "image/*": { schema: { type: string, format: binary } }
+            "audio/*": { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reminders:
+    post:
+      tags: [messages]
+      operationId: createReminder
+      summary: Schedule a message. At `at` the relay posts it as the agent (push included), even if the agent is not running then.
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateReminderRequest" }
+      responses:
+        "201":
+          description: Scheduled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reminder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    get:
+      tags: [messages]
+      operationId: listReminders
+      summary: Pending reminders (an agent sees its own; the user sees all).
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: Pending reminders, soonest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reminders]
+                properties:
+                  reminders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reminder" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/reminders/{rem_id}:
+    parameters:
+      - name: rem_id
+        in: path
+        required: true
+        schema: { type: string, pattern: "^rem_[0-9A-HJKMNP-TV-Z]{26}$" }
+    delete:
+      tags: [messages]
+      operationId: cancelReminder
+      summary: Cancel a pending reminder (its agent, or the user).
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "204": { description: Canceled. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/events:
     get:
       tags: [events]
@@ -853,11 +952,50 @@ components:
       examples: [main, nubi]
     ConvId:
       description: |
-        A conversation: `agent:<agent_id>` (the user and one agent) or `group:<group_id>` (the user
-        and several agents, who all read it). Messages from before the multi-agent fork belong to `agent:main`.
+        A conversation: `agent:<agent_id>` (the user and one agent), `group:<group_id>` (the user
+        and several agents, who all read it) or `bots:<a>.<b>` (two agents, ids sorted; the user can
+        read it but its messages don't wake the phone). Messages from before the multi-agent fork
+        belong to `agent:main`.
       type: string
-      pattern: "^(agent|group):[a-z0-9][a-z0-9_-]{0,31}$"
+      pattern: "^((agent|group):[a-z0-9][a-z0-9_-]{0,31}|bots:[a-z0-9][a-z0-9_-]{0,31}\\.[a-z0-9][a-z0-9_-]{0,31})$"
       examples: ["agent:main", "group:todos"]
+    Attachment:
+      type: object
+      required: [file_id, mime, size]
+      properties:
+        file_id: { type: string }
+        mime: { type: string, examples: [image/jpeg, audio/mp4] }
+        size: { type: integer, minimum: 0 }
+        duration_ms: { type: integer, minimum: 0, description: "Audio only, if the sender said." }
+    Reminder:
+      type: object
+      required: [rem_id, agent_id, conv, text, at, created_at]
+      properties:
+        rem_id: { type: string }
+        agent_id: { $ref: "#/components/schemas/AgentId" }
+        conv: { $ref: "#/components/schemas/ConvId" }
+        text: { type: string }
+        options:
+          type: array
+          items: { type: string }
+        at: { $ref: "#/components/schemas/Timestamp" }
+        created_at: { $ref: "#/components/schemas/Timestamp" }
+    CreateReminderRequest:
+      type: object
+      additionalProperties: false
+      required: [text, at]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 4000 }
+        at:
+          description: When to send it (ms since epoch); at most a year ahead.
+          $ref: "#/components/schemas/Timestamp"
+        conv:
+          description: Default the agent's own conversation.
+          $ref: "#/components/schemas/ConvId"
+        options:
+          type: array
+          maxItems: 6
+          items: { type: string, minLength: 1, maxLength: 40 }
     Agent:
       type: object
       required: [agent_id, name, created_at]
@@ -1071,6 +1209,11 @@ components:
           description: Display name override for this call (agent only).
           type: string
           maxLength: 64
+        agent_id:
+          description: |
+            Device only: which agent to call (default `main`). The voice daemon (the `main` agent's
+            WebSocket) answers every call; it takes on that agent's persona.
+          $ref: "#/components/schemas/AgentId"
         device_ids:
           description: |
             Agent only: ring only these paired, non-revoked phones (a targeted
@@ -1150,8 +1293,19 @@ components:
         conv:
           description: |
             Where to post. Default: the sender agent's own conversation; for the user, `agent:main`.
-            An agent may post to its own conversation or to a group it belongs to (403 otherwise).
+            An agent may post to its own conversation, to a group it belongs to, or to a `bots:`
+            conversation it is part of (403 otherwise).
           $ref: "#/components/schemas/ConvId"
+        options:
+          description: Quick replies the app shows as buttons under the message (agent only). Tapping one sends it as a reply.
+          type: array
+          maxItems: 6
+          items: { type: string, minLength: 1, maxLength: 40 }
+        attachments:
+          description: Files from `POST /v1/files` (at most 4). With attachments, `text` may be empty.
+          type: array
+          maxItems: 4
+          items: { type: string }
     Message:
       type: object
       required: [msg_id, from, text, created_at]
@@ -1168,6 +1322,12 @@ components:
         agent_id:
           description: Sending agent when `from` = agent.
           $ref: "#/components/schemas/AgentId"
+        options:
+          type: array
+          items: { type: string }
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/Attachment" }
         created_at: { $ref: "#/components/schemas/Timestamp" }
         read_at: { $ref: "#/components/schemas/Timestamp" }
 
@@ -1320,6 +1480,12 @@ components:
             agent_id:
               description: Sending agent when `from` = agent.
               $ref: "#/components/schemas/AgentId"
+            options:
+              type: array
+              items: { type: string }
+            attachments:
+              type: array
+              items: { $ref: "#/components/schemas/Attachment" }
             truncated:
               description: Only in push payloads; fetch the full message via GET /v1/messages/{msg_id}.
               type: boolean

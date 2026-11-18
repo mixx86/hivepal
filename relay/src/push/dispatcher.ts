@@ -43,7 +43,10 @@ interface PushRule {
 function ruleFor(event: Event, getCall: CallLookup): PushRule | undefined {
   switch (event.type) {
     case "msg.new":
-      return event.from === "agent" ? { ttlSeconds: MESSAGE_TTL_S, highPriority: true } : undefined;
+      // Conversations between two bots don't wake the phone; the user reads them in the app.
+      return event.from === "agent" && !(event.conv ?? "").startsWith("bots:")
+        ? { ttlSeconds: MESSAGE_TTL_S, highPriority: true }
+        : undefined;
     case "call.invite":
       // Never deliver an invite after it expired: TTL = time left to ring.
       return event.direction === "agent_to_user"

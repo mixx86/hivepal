@@ -25,6 +25,8 @@ export interface Ctx {
   /** Undefined when LiveKit isn't configured: calls are then unavailable. */
   livekit?: LiveKitService;
   calls?: Calls;
+  /** Scheduled messages (Hivepal). */
+  reminders?: import("./routes/reminders.js").Reminders;
   /** The tenant's current limits (hub mode); unlimited on a self-hosted relay. */
   limits: () => Limits;
   /** Prefix of LiveKit room names ("" self-hosted, "{tenant_id}." in hub mode: one LiveKit for all tenants). */

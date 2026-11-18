@@ -104,6 +104,33 @@ const MIGRATIONS: string[] = [
   CREATE INDEX messages_conv ON messages(conv, msg_id);
   ALTER TABLE calls ADD COLUMN agent_id TEXT;
   `,
+  `
+  -- Hivepal: quick replies and attachments on messages, uploaded files, scheduled reminders.
+  ALTER TABLE messages ADD COLUMN options TEXT;
+  ALTER TABLE messages ADD COLUMN attachments TEXT;
+  CREATE TABLE files (
+    file_id TEXT PRIMARY KEY,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    agent_id TEXT,
+    device_id TEXT,
+    duration_ms INTEGER,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE reminders (
+    rem_id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    conv TEXT NOT NULL,
+    text TEXT NOT NULL,
+    options TEXT,
+    at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    sent_at INTEGER,
+    canceled_at INTEGER
+  );
+  CREATE INDEX reminders_due ON reminders(at) WHERE sent_at IS NULL AND canceled_at IS NULL;
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

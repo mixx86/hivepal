@@ -12,14 +12,26 @@ export type Group = Schemas["Group"];
 
 export const AGENT_ID_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 const CONV_RE = /^(agent|group):([a-z0-9][a-z0-9_-]{0,31})$/;
+const BOTS_RE = /^bots:([a-z0-9][a-z0-9_-]{0,31})\.([a-z0-9][a-z0-9_-]{0,31})$/;
 
 /** `agent:<id>` or `group:<id>`; anything older than the multi-agent fork belongs to `agent:main`. */
 export const dmOf = (agentId: string): string => `agent:${agentId}`;
 export const convOf = (conv: string | null | undefined): string => conv ?? dmOf(MAIN);
 
-export function parseConv(conv: string): { kind: "agent" | "group"; id: string } | undefined {
+/** The conversation between two agents: `bots:<a>.<b>`, ids sorted. */
+export const botsOf = (a: string, b: string): string => (a < b ? `bots:${a}.${b}` : `bots:${b}.${a}`);
+
+export type ParsedConv =
+  | { kind: "agent" | "group"; id: string }
+  | { kind: "bots"; id: string; pair: [string, string] };
+
+export function parseConv(conv: string): ParsedConv | undefined {
   const m = CONV_RE.exec(conv);
-  return m ? { kind: m[1] as "agent" | "group", id: m[2]! } : undefined;
+  if (m) return { kind: m[1] as "agent" | "group", id: m[2]! };
+  const b = BOTS_RE.exec(conv);
+  // Only the canonical (sorted, two different agents) form is a conversation.
+  if (b && b[1]! < b[2]!) return { kind: "bots", id: `${b[1]}.${b[2]}`, pair: [b[1]!, b[2]!] };
+  return undefined;
 }
 
 interface AgentRow {
@@ -220,13 +232,23 @@ export class Agents {
   canSee(agentId: string, conv: string | null | undefined): boolean {
     const c = parseConv(convOf(conv));
     if (!c) return false;
+    if (c.kind === "bots") return c.pair.includes(agentId);
     return c.kind === "agent" ? c.id === agentId : this.isMember(c.id, agentId);
+  }
+
+  /** Every conversation an agent takes part in (for SQL filters). Its bots: ones are matched by pattern. */
+  convsOf(agentId: string): { exact: string[]; botsLike: [string, string] } {
+    return {
+      exact: [dmOf(agentId), ...this.groupsOf(agentId).map((g) => `group:${g}`)],
+      botsLike: [`bots:${agentId}.%`, `bots:%.${agentId}`],
+    };
   }
 
   /** Whether a conversation exists (an agent's, or a group). */
   convExists(conv: string): boolean {
     const c = parseConv(conv);
     if (!c) return false;
+    if (c.kind === "bots") return c.pair.every((a) => this.exists(a));
     return c.kind === "agent" ? this.exists(c.id) : this.group(c.id) !== undefined;
   }
 }

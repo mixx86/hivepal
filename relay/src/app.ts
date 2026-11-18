@@ -19,6 +19,8 @@ import { FcmProvider } from "./push/fcm.js";
 import type { PushProvider } from "./push/push-provider.js";
 import { Calls, callRoutes, targetsOf } from "./routes/calls.js";
 import { agentRoutes } from "./routes/agents.js";
+import { fileRoutes } from "./routes/files.js";
+import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
 import { systemRoutes } from "./routes/system.js";
@@ -164,6 +166,11 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   pairingRoutes(app, ctx);
   messageRoutes(app, ctx);
   agentRoutes(app, ctx);
+  fileRoutes(app, ctx);
+  const reminders = new Reminders(ctx);
+  ctx.reminders = reminders;
+  reminderRoutes(app, ctx, reminders);
+  reminders.start();
   callRoutes(app, ctx, calls);
   calls.resume();
   // Fetch the FCM access token now so the first call's push doesn't wait for it.
@@ -172,6 +179,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
 
   app.addHook("onClose", async () => {
     calls.stop();
+    reminders.stop();
     ctx.hub.closeAll();
     db.close();
   });

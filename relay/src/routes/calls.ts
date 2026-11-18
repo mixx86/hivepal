@@ -36,8 +36,11 @@ export function targetsOf(r: Pick<CallRow, "device_ids">): string[] | undefined 
 }
 
 /** Whether `p` may see this call at all: a targeted call is private to its phones, a call to its agent. */
-export function canSee(r: Pick<CallRow, "device_ids" | "agent_id">, p: Principal): boolean {
-  if (p.kind === "agent") return (r.agent_id ?? "main") === p.agentId;
+export function canSee(r: Pick<CallRow, "device_ids" | "agent_id"> & { direction?: string }, p: Principal): boolean {
+  if (p.kind === "agent") {
+    // The voice daemon (main) answers every call the user places, whichever agent it is for.
+    return (r.agent_id ?? "main") === p.agentId || (p.agentId === "main" && (r as { direction?: string }).direction === "user_to_agent");
+  }
   const targets = targetsOf(r);
   return targets === undefined || targets.includes(p.deviceId);
 }
@@ -65,7 +68,6 @@ export function callFromRow(r: CallRow): Call {
 /** LiveKit room of a call; hub mode prefixes it with the tenant (one LiveKit for every tenant). */
 export const roomName = (ctx: Pick<Ctx, "roomPrefix">, callId: string) => ctx.roomPrefix + callId;
 const identityOf = (p: Principal) => (p.kind === "agent" ? "agent" : `device_${p.deviceId}`);
-const agentOf = (p: Principal) => (p.kind === "agent" ? p.agentId : "main");
 /** Which side placed the call. */
 const callerKind = (d: Direction) => (d === "agent_to_user" ? "agent" : "device");
 const invalidState = (state: CallState) => new ApiError(409, "invalid_state", `Call is ${state}`);
@@ -209,10 +211,16 @@ export class Calls {
       if (n.n === 0) throw new ApiError(409, "no_devices", "No paired devices");
     } else if (body.device_ids !== undefined) {
       throw new ApiError(400, "invalid_request", "device_ids is only for calls placed by the agent");
+    } else if (body.agent_id !== undefined && !this.ctx.agents.exists(body.agent_id)) {
+      throw new ApiError(400, "invalid_request", `Unknown agent ${body.agent_id}`);
     } else if (!this.ctx.hub.isAgentOnline("main")) {
       throw new ApiError(503, "agent_offline", "The agent is not connected");
     }
+    if (p.kind === "agent" && body.agent_id !== undefined) {
+      throw new ApiError(400, "invalid_request", "agent_id is only for calls placed by the user");
+    }
     if (this.open()) throw new ApiError(409, "busy", "Another call is ringing or active");
+    const callee = p.kind === "agent" ? p.agentId : (body.agent_id ?? "main");
     checkCall(this.ctx.db, this.ctx.limits());
     checkCallRate(this.ctx.db, this.ctx.limits());
 
@@ -223,7 +231,7 @@ export class Calls {
       state: "ringing",
       reason: wellFormed(body.reason ?? ""),
       priority: body.priority ?? "normal",
-      agent_name: wellFormed((p.kind === "agent" ? body.agent_name : undefined) ?? this.ctx.agents.nameOf(agentOf(p))),
+      agent_name: wellFormed((p.kind === "agent" ? body.agent_name : undefined) ?? this.ctx.agents.nameOf(callee)),
       created_at: now,
       expires_at: now + this.ctx.cfg.ringTimeoutS * 1000,
       answered_at: null,
@@ -232,7 +240,7 @@ export class Calls {
       end_reason: null,
       device_id: p.kind === "device" ? p.deviceId : null,
       device_ids: targets ? JSON.stringify(targets) : null,
-      agent_id: agentOf(p),
+      agent_id: callee,
     };
     this.ctx.db
       .prepare(
@@ -583,6 +591,7 @@ export function callRoutes(app: FastifyInstance, ctx: Ctx, calls: Calls): void {
             reason: { type: "string", maxLength: 500 },
             priority: { type: "string", enum: ["normal", "urgent"] },
             agent_name: { type: "string", minLength: 1, maxLength: 64 },
+            agent_id: { type: "string", pattern: "^[a-z0-9][a-z0-9_-]{0,31}$" },
             device_ids: {
               type: "array",
               minItems: 1,
@@ -631,9 +640,9 @@ export function callRoutes(app: FastifyInstance, ctx: Ctx, calls: Calls): void {
         ...(before ? ["call_id < ?"] : []),
         ...(p.kind === "device" ? ["(device_ids IS NULL OR EXISTS (SELECT 1 FROM json_each(calls.device_ids) WHERE value = ?))"] : []),
         // An agent sees its own calls.
-        ...(p.kind === "agent" ? ["COALESCE(agent_id, 'main') = ?"] : []),
+        ...(p.kind === "agent" ? ["(COALESCE(agent_id, 'main') = ? OR (? = 'main' AND direction = 'user_to_agent'))"] : []),
       ];
-      const args = [...(before ? [before] : []), ...(p.kind === "device" ? [p.deviceId] : [p.agentId]), limit];
+      const args = [...(before ? [before] : []), ...(p.kind === "device" ? [p.deviceId] : [p.agentId, p.agentId]), limit];
       const rows = ctx.db
         .prepare(`SELECT * FROM calls ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY call_id DESC LIMIT ?`)
         .all(...args) as unknown as CallRow[];
