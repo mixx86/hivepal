@@ -1,6 +1,8 @@
 # Hivepal documentation
 
-Also published, with search, at the [Hivepal website](https://mixx86.github.io/hivepal-site/).
+> 📖 **Reading online?** The same pages, with search, diagrams and the app's theme, are on the
+> **[Hivepal website](https://mixx86.github.io/hivepal-site/)**. This folder is the source of truth;
+> the site is generated from it.
 
 ## Guides
 

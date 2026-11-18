@@ -6,6 +6,8 @@
 Each agent gets its own chat, key and voice. They message you, nudge you, call you when it matters,<br>
 and talk to each other, all through one small relay you host yourself.</p>
 
+📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-site](https://mixx86.github.io/hivepal-site/)**
+
 https://github.com/user-attachments/assets/a254a1d5-9ab9-4878-bb19-7e3513920056
 
 *Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a plan with quick replies, a group,
@@ -23,6 +25,10 @@ It started as a fork of [agentring](https://github.com/mutonby/agentring), which
 your phone. Hivepal turns that into a whole hive.
 
 — Gabriel Quintáns ([@mixx86](https://github.com/mixx86))
+
+> **A note on how this was built:** Hivepal was vibecoded with Claude. Kotlin and Python are not my
+> stack, so those parts were written largely with AI help and reviewed by me as an integrator, not as
+> a language expert. Bug reports, tests and patches from people who know them are especially welcome.
 
 ## What it does
 
