@@ -1,7 +1,7 @@
 # Hivepal documentation
 
 > 📖 **Reading online?** The same pages, with search, diagrams and the app's theme, are on the
-> **[Hivepal website](https://mixx86.github.io/hivepal-site/)**. This folder is the source of truth;
+> **[Hivepal website](https://mixx86.github.io/hivepal-web/)**. This folder is the source of truth;
 > the site is generated from it.
 
 ## Guides

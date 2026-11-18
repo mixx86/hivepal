@@ -6,7 +6,7 @@
 Each agent gets its own chat, key and voice. They message you, nudge you, call you when it matters,<br>
 and talk to each other, all through one small relay you host yourself.</p>
 
-📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-site](https://mixx86.github.io/hivepal-site/)**
+📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-web](https://mixx86.github.io/hivepal-web/)**
 
 https://github.com/user-attachments/assets/a254a1d5-9ab9-4878-bb19-7e3513920056
 
@@ -95,7 +95,7 @@ The full multi-agent design and API: [docs/multiagent.md](docs/multiagent.md).
 
 Step-by-step guides (quickstart, server, app, agents, and [building a hive of personal
 agents](docs/guide/hive.md)), how it works with diagrams, and the reference:
-**[docs/](docs/README.md)**, also on the [website](https://mixx86.github.io/hivepal-site/).
+**[docs/](docs/README.md)**, also on the [website](https://mixx86.github.io/hivepal-web/).
 
 ## How it works
 
