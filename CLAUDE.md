@@ -36,13 +36,15 @@ status for reference). When the two disagree, the fork's part wins.
 
 ### Status (as of 2026-11-19)
 
-- Public repo since 2026-11-18, secret scanning and push protection on. No rulesets, no releases
-  and no tags yet (agentring's `v0.2.0` and `android-preview` tags were removed on 2026-11-18).
-- **No release signing key and no Actions secrets** are set up: every APK is signed with the
-  committed debug key (see SECURITY.md, "Android signing key"). Not on Google Play, no hosted
-  service; the hub mode code (`relay/src/hub/`, `docs/cloud.md`) is inherited and unused here.
-- CI: the `CI` workflow (relay + daemon tests, compose smoke) passes; the **`Android` workflow fails
-  on `main`** (to investigate), so `android-preview` is not being published.
+- Public repo since 2026-11-18, secret scanning and push protection on. No rulesets, no tagged
+  release yet (agentring's `v0.2.0` and `android-preview` tags were removed on 2026-11-18; the
+  fork's own `android-preview` pre-release exists since 2026-11-19).
+- **Release signing key** created on 2026-11-19 (certificate fingerprint in SECURITY.md; the
+  maintainer keeps the keystore offline). `release.yml` reads it from the `HIVEPAL_KEYSTORE_*`
+  Actions secrets. `android-preview` stays signed with the committed debug key. Not on Google Play,
+  no hosted service; the hub mode code (`relay/src/hub/`, `docs/cloud.md`) is inherited and unused.
+- CI: `CI` (relay + daemon tests, compose smoke) and `Android` (APK + emulator e2e, which talks in
+  a `group:ci` because `main` has no chat in the app) pass on `main`.
 - Upstream: the `upstream` remote is `mutonby/agentring`, fetched with `--no-tags`. The fork's
   history was rewritten (rename) and **shares no commit with upstream**: bring upstream changes over
   by cherry-picking or porting, never by merging.

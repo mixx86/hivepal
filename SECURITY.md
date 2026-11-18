@@ -149,6 +149,15 @@ a real release key is set up: anyone can build an APK that installs as an update
 over a preview install and reads its stored credentials. Install the app only from
 a source you trust, and prefer a tagged release (signed with the release key).
 
+Tagged releases of Hivepal are signed with this certificate (SHA-256):
+
+```
+9d62f9cd23f22cc0e76e09267face2d1a5ee8a8c11615f1be2670c415f0a283b
+```
+
+Check a downloaded APK with `apksigner verify --print-certs hivepal-X.Y.Z.apk`
+(the "Signer #1 certificate SHA-256 digest" line must match).
+
 ### Out of scope
 
 - An attacker with root on the relay host, the daemon's machine or the phone.
