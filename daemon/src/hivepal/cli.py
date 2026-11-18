@@ -1316,7 +1316,7 @@ def subs_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
     for x in subs:
         when = ""
         if x.get("until"):
-            days = int((x["until"] - now) // 86_400_000)
+            days = max(0, -int(-(x["until"] - now) // 86_400_000))  # rounded up, like the app
             when = f"{'ends' if x['status'] == 'ending' else 'renews'} {_fmt_ts(x['until'])[:10]} ({days} d)"
         extra = f"  ! {x['error']}" if x.get("error") else ""
         typer.echo(f"{x['sub_id']:<12} {x['name']:<14} {x.get('plan', ''):<14} {x['status']:<8} {when:<30} {x.get('price', '')}{extra}")
