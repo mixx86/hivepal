@@ -10,5 +10,8 @@ How `docs/media/hivepal-demo.mp4` was made: demo agents and data only, never rea
    1920x1080 at 30 fps. For a player with controls on GitHub, the MP4 is uploaded as an attachment
    (drag it into any issue or comment box) and that link goes in the README.
 
+5. `audio.py` (numpy) builds the sound from the same log: key clicks, a chime per message, the ringtone, the
+   agent's voice once answered (relay TTS, `coach.wav`) and a quiet pad; ffmpeg muxes it in.
+
 `reset_demo.py` starts from scratch (demo relay, app paired, history). `demo.py` holds the helpers (demo agents, adb taps). Paths in the scripts point to the scratch folder
 they were run from: adjust `S` before running them again.
