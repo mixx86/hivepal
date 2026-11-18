@@ -222,7 +222,8 @@ private fun WelcomePage(onNext: () -> Unit) {
             textAlign = TextAlign.Center,
         )
     }) {
-        Spacer(Modifier.height(24.dp))
+        LanguageToggle()
+        Spacer(Modifier.height(8.dp))
         HeroBadge(painterResource(R.drawable.ic_call), pulse = true)
         Text(
             stringResource(R.string.welcome_title),
@@ -515,6 +516,38 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
         }
         OutlinedButton(onClick = { Notifications.showTest(ctx) }, modifier = Modifier.fillMaxWidth().testTag("test_notification")) {
             Text(stringResource(R.string.test_notification))
+        }
+    }
+}
+
+
+/** English · Español, for someone who hasn't paired yet (Settings has the same choice later). */
+@Composable
+private fun LanguageToggle() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val current = remember { dev.agentring.app.AppLanguage.current(ctx) }
+    androidx.compose.foundation.layout.Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    ) {
+        dev.agentring.app.AppLanguage.SUPPORTED.forEachIndexed { i, (tag, label) ->
+            if (i > 0) Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp))
+            androidx.compose.material3.TextButton(
+                onClick = {
+                    if (tag != current) {
+                        dev.agentring.app.AppLanguage.set(ctx, tag)
+                        if (android.os.Build.VERSION.SDK_INT < 33) (ctx as? android.app.Activity)?.recreate()
+                    }
+                },
+                modifier = Modifier.testTag("welcome_lang_$tag"),
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (tag == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (tag == current) androidx.compose.ui.text.font.FontWeight.Bold else null,
+                )
+            }
         }
     }
 }

@@ -2,8 +2,8 @@
 <resources>
     <string name="you">Tú</string>
 
-    <string name="welcome_title">Tu agente de IA te puede llamar</string>
-    <string name="welcome_body">Claude Code, Codex, OpenClaw, n8n o tus propios scripts te escriben y hacen sonar tu móvil como una llamada de verdad. Sin número de teléfono.</string>
+    <string name="welcome_title">Una colmena de agentes de IA en tu bolsillo</string>
+    <string name="welcome_body">Cada agente tiene su propio chat. Te escriben, te recuerdan cosas y te llaman cuando importa.</string>
     <string name="get_started">Empezar</string>
     <string name="pair_title">Empareja tu móvil</string>
     <string name="scan_qr">Escanear código QR</string>

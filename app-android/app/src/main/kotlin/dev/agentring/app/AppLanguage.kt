@@ -50,12 +50,16 @@ object AppLanguage {
         p.edit().putString(KEY, DEFAULT).apply()
     }
 
-    /** Before Android 13: a context in the chosen language (Application and every Activity use it). */
+    /**
+     * A context in the chosen language (the Application and every Activity use it). On Android 13+ the
+     * system does this too, but only after it applies a change: this covers the very first screen.
+     */
     fun wrap(base: Context): Context {
-        if (Build.VERSION.SDK_INT >= 33) return base
-        val locale = Locale.forLanguageTag(prefs(base).getString(KEY, null) ?: DEFAULT)
-        Locale.setDefault(locale)
-        val config = Configuration(base.resources.configuration).apply { setLocale(locale) }
+        val locale = Locale.forLanguageTag(current(base))
+        if (Build.VERSION.SDK_INT < 33) Locale.setDefault(locale)
+        val config = Configuration(base.resources.configuration)
+        if (config.locales[0]?.language == locale.language) return base
+        config.setLocale(locale)
         return base.createConfigurationContext(config)
     }
 }
