@@ -40,28 +40,71 @@ object Subs {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /** Ready-made services plus the ones the user added ("Other service"). */
+    fun all(ctx: Context): List<Service> = BillingParser.PRESETS + custom(ctx)
+
+    /** The services with a billing page chosen, in the order they were connected. */
+    fun connected(ctx: Context): List<Service> {
+        val order = prefs(ctx).getString("order", "")!!.split(',').filter { it.isNotBlank() }
+        val byId = all(ctx).associateBy { it.id }
+        val ordered = order.mapNotNull { byId[it] }
+        // Connected before the order was kept: still connected, after the others.
+        return (ordered + all(ctx).filter { it !in ordered }).filter { page(ctx, it.id) != null }
+    }
+
+    private fun custom(ctx: Context): List<Service> = runCatching {
+        val a = org.json.JSONArray(prefs(ctx).getString("custom", "[]"))
+        (0 until a.length()).map { a.getJSONObject(it).let { o -> Service(o.getString("id"), o.getString("name"), o.getString("start")) } }
+    }.getOrDefault(emptyList())
+
+    /** A service the app doesn't know: a name and the address of its billing page (or its login). */
+    fun addCustom(ctx: Context, name: String, start: String): Service {
+        val base = "c-" + name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').take(24).ifEmpty { "service" }
+        var id = base
+        var n = 2
+        while (all(ctx).any { it.id == id }) id = "$base-${n++}".take(32)
+        val url = if (start.startsWith("http")) start else "https://$start"
+        val s = Service(id, name.trim(), url)
+        val a = org.json.JSONArray(prefs(ctx).getString("custom", "[]"))
+        a.put(org.json.JSONObject().put("id", s.id).put("name", s.name).put("start", s.start))
+        prefs(ctx).edit().putString("custom", a.toString()).apply()
+        return s
+    }
+
+    // ---- last list seen, for when there's no connection ----
+
+    fun cache(ctx: Context, json: String) = prefs(ctx).edit().putString("cache", json).putLong("cache_at", System.currentTimeMillis()).apply()
+    fun cached(ctx: Context): String? = prefs(ctx).getString("cache", null)
+    fun cachedAt(ctx: Context): Long = prefs(ctx).getLong("cache_at", 0)
+    fun lastSync(ctx: Context): Long = prefs(ctx).getLong("last_sync", 0)
+
     /** The billing page chosen for a service, if it's connected. */
     fun page(ctx: Context, id: String): String? = prefs(ctx).getString("page:$id", null)
 
     fun connect(ctx: Context, id: String, url: String) {
-        prefs(ctx).edit().putString("page:$id", url).apply()
+        val order = prefs(ctx).getString("order", "")!!.split(',').filter { it.isNotBlank() && it != id } + id
+        prefs(ctx).edit().putString("page:$id", url).putString("order", order.joinToString(",")).apply()
         CookieManager.getInstance().flush()
     }
 
+    /** Forgets the service's page; a service added by hand is forgotten entirely. */
     fun disconnect(ctx: Context, id: String) {
-        prefs(ctx).edit().remove("page:$id").apply()
+        val e = prefs(ctx).edit().remove("page:$id")
+        if (id.startsWith("c-")) {
+            val a = org.json.JSONArray(prefs(ctx).getString("custom", "[]"))
+            val keep = org.json.JSONArray()
+            for (i in 0 until a.length()) if (a.getJSONObject(i).getString("id") != id) keep.put(a.getJSONObject(i))
+            e.putString("custom", keep.toString())
+        }
+        e.apply()
     }
 
     /** Reads every connected service and sends the result. Returns how many were read. */
     suspend fun syncAll(ctx: Context): Int {
-        var n = 0
-        for (s in BillingParser.SERVICES) {
-            if (page(ctx, s.id) != null) {
-                sync(ctx, s)
-                n++
-            }
-        }
-        return n
+        val list = connected(ctx)
+        for (s in list) sync(ctx, s)
+        prefs(ctx).edit().putLong("last_sync", System.currentTimeMillis()).apply()
+        return list.size
     }
 
     suspend fun sync(ctx: Context, s: Service) {

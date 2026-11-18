@@ -62,6 +62,13 @@ class ConnectActivity : ComponentActivity() {
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            // Like a phone browser: the page's own viewport, pinch to zoom, scrolling.
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            settings.setSupportZoom(true)
+            settings.builtInZoomControls = true
+            settings.displayZoomControls = false
+            isVerticalScrollBarEnabled = true
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             webViewClient = object : WebViewClient() {
@@ -69,7 +76,12 @@ class ConnectActivity : ComponentActivity() {
                     u?.let { this@ConnectActivity.url = it }
                 }
             }
+        }
+        // The page in a frame that takes the system bars' and keyboard's room (padding on a WebView itself
+        // shifts its content without giving it room, so it can't scroll to the end).
+        val frame = android.widget.FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+            addView(web, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
         val header = ComposeView(this).apply {
             setContent {
@@ -98,9 +110,9 @@ class ConnectActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(android.graphics.Color.parseColor("#000814"))
             addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            addView(web)
+            addView(frame)
         })
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
             val nav = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars() or
                 androidx.core.view.WindowInsetsCompat.Type.ime())
             v.setPadding(0, 0, 0, nav.bottom)

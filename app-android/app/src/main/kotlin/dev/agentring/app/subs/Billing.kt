@@ -20,10 +20,26 @@ data class Billing(
  * Deliberately generic: the date nearest to a word like "renews" / "se renueva" / "next invoice".
  */
 object BillingParser {
-    val SERVICES = listOf(
+    /**
+     * Ready-made services: the page to start from (ideally the billing one; the user can move on from
+     * there before "Use this page"). Anything else: "Other service" with its own name and address.
+     * Google accounts can't sign in inside an app's browser, so Google-only services aren't listed.
+     */
+    val PRESETS = listOf(
         Service("claude", "Claude", "https://claude.ai/settings/billing"),
+        Service("chatgpt", "ChatGPT", "https://chatgpt.com/#settings/Account"),
         Service("grok", "Grok", "https://grok.com/"),
+        Service("perplexity", "Perplexity", "https://www.perplexity.ai/settings/account"),
+        Service("cursor", "Cursor", "https://cursor.com/dashboard"),
+        Service("github", "GitHub", "https://github.com/settings/billing"),
+        Service("spotify", "Spotify", "https://www.spotify.com/account/overview/"),
+        Service("netflix", "Netflix", "https://www.netflix.com/account"),
+        Service("disney", "Disney+", "https://www.disneyplus.com/account"),
+        Service("prime", "Amazon Prime", "https://www.amazon.com/gp/primecentral"),
+        Service("proton", "Proton", "https://account.proton.me/dashboard"),
         Service("webdock", "Webdock", "https://app.webdock.io/en/login"),
+        Service("digitalocean", "DigitalOcean", "https://cloud.digitalocean.com/account/billing"),
+        Service("hetzner", "Hetzner", "https://accounts.hetzner.com/"),
     )
 
     private val MONTHS = mapOf(
@@ -39,10 +55,11 @@ object BillingParser {
     private val DATE_MDY = Regex("""\b($MON)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b""", RegexOption.IGNORE_CASE)
     private val DATE_DMY = Regex("""\b(\d{1,2})\s+(?:de\s+)?($MON)\.?,?\s+(?:de\s+)?(\d{4})\b""", RegexOption.IGNORE_CASE)
     private val DATE_ISO = Regex("""\b(\d{4})-(\d{2})-(\d{2})\b""")
-    private val DATE_SLASH = Regex("""\b(\d{1,2})/(\d{1,2})/(\d{4})\b""")  // day first, as in Spain
+    private val DATE_SLASH = Regex("""\b(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})\b""")  // day first, as in Spain
     private val RENEW = Regex(
-        """renew|next (?:billing|payment|invoice|charge)|billed on|se renueva|renueva|renovaci[oó]n|""" +
-            """pr[oó]xim[ao] (?:factura|cobro|pago)|facturaci[oó]n""",
+        """renew|next (?:bill|billing|payment|invoice|charge)|billed on|billing date|member since|""" +
+            """se renueva|renueva|renovaci[oó]n|pr[oó]xim[ao] (?:factura|cobro|pago|cargo)|siguiente (?:pago|cobro)|""" +
+            """facturaci[oó]n""",
         RegexOption.IGNORE_CASE,
     )
     private val ENDING = Regex(
@@ -54,8 +71,9 @@ object BillingParser {
         Regex("""[$€£][  ]?\d+(?:[.,]\d{2})?$PER""", RegexOption.IGNORE_CASE),
         Regex("""\b\d{1,4}[.,]\d{2}[  ]?(?:€|EUR|USD)$PER""", RegexOption.IGNORE_CASE),
     )
-    private val PLANS = listOf("Max 20x", "Max 5x", "Max", "Pro", "Team", "SuperGrok Heavy", "SuperGrok", "Premium+",
-        "Premium", "Free", "Gratis")
+    private val PLANS = listOf("Max 20x", "Max 5x", "SuperGrok Heavy", "SuperGrok", "Premium Individual", "Premium Family",
+        "Premium Duo", "Premium+", "Premium", "Plus", "Pro+", "Pro", "Max", "Team", "Business", "Ultra", "Standard",
+        "Basic", "Family", "Free", "Gratis")
     private val LOGIN = Regex("""\b(log ?in|sign ?in|iniciar sesi[oó]n|inicia sesi[oó]n|continue with google|continuar con google)\b""",
         RegexOption.IGNORE_CASE)
     private val CHALLENGE = Regex("""verificaci[oó]n de seguridad|verify(?:ing)? you are (?:a )?human|just a moment|un momento""",
@@ -69,7 +87,10 @@ object BillingParser {
         DATE_MDY.findAll(text).forEach { add(it.range.first, it.groupValues[3], MONTHS[it.groupValues[1].lowercase()], it.groupValues[2]) }
         DATE_DMY.findAll(text).forEach { add(it.range.first, it.groupValues[3], MONTHS[it.groupValues[2].lowercase()], it.groupValues[1]) }
         DATE_ISO.findAll(text).forEach { add(it.range.first, it.groupValues[1], it.groupValues[2].toIntOrNull(), it.groupValues[3]) }
-        DATE_SLASH.findAll(text).forEach { add(it.range.first, it.groupValues[3], it.groupValues[2].toIntOrNull(), it.groupValues[1]) }
+        DATE_SLASH.findAll(text).forEach {
+            val y = it.groupValues[3].let { y -> if (y.length == 2) "20$y" else y }
+            add(it.range.first, y, it.groupValues[2].toIntOrNull(), it.groupValues[1])
+        }
         return out.sortedBy { it.first }
     }
 

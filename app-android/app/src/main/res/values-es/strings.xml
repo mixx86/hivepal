@@ -244,8 +244,8 @@
     <string name="last_seen">visto %1$s</string>
     <string name="copied">Copiado</string>
     <string name="nav_subs">Suscripciones</string>
-    <string name="subs_body">La app los lee cada día de la página de facturación de cada servicio. Conecta cada servicio una vez.</string>
-    <string name="subs_empty">Conecta un servicio abajo para verlo aquí.</string>
+    <string name="subs_body">La app los lee de la página de facturación de cada servicio, cada día y al abrir esta pantalla.</string>
+    <string name="subs_empty">Añade un servicio para ver cuándo se renueva.</string>
     <string name="subs_days">días</string>
     <string name="subs_renews">Renueva el %1$s</string>
     <string name="subs_ends">Termina el %1$s</string>
@@ -267,4 +267,9 @@
     <string name="subs_err_load">No se pudo cargar la página</string>
     <string name="subs_warn_renews">%1$s se renueva en %2$d días</string>
     <string name="subs_warn_ends">%1$s termina en %2$d días</string>
+    <string name="subs_add">Añadir servicio</string>
+    <string name="subs_other">Otro servicio…</string>
+    <string name="subs_other_name">Nombre</string>
+    <string name="subs_other_url">Dirección de su página de facturación (o de su login)</string>
+    <string name="subs_offline">Sin conexión: se muestra lo leído %1$s</string>
 </resources>

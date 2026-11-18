@@ -50,4 +50,11 @@ class BillingParserTest {
     @Test fun pastDatesIgnored() {
         assertNull(BillingParser.parse("Renewed on March 1, 2025", today).until)
     }
+
+    @Test fun spotifyStyleTwoDigitYear() {
+        val b = BillingParser.parse("Premium Individual\nYour next bill is for 10,99 € on 5/12/26.", today)
+        assertEquals(LocalDate.of(2026, 12, 5), day(b))
+        assertEquals("Premium Individual", b.plan)
+        assertEquals("10,99 €", b.price)
+    }
 }

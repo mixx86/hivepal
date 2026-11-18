@@ -252,8 +252,8 @@
     <string name="last_seen">seen %1$s</string>
     <string name="copied">Copied</string>
     <string name="nav_subs">Subscriptions</string>
-    <string name="subs_body">Read every day by the app from each service\'s billing page. Connect each service once.</string>
-    <string name="subs_empty">Connect a service below to see it here.</string>
+    <string name="subs_body">Read by the app from each service\'s billing page, every day and when you open this screen.</string>
+    <string name="subs_empty">Add a service to see when it renews.</string>
     <string name="subs_days">days</string>
     <string name="subs_renews">Renews %1$s</string>
     <string name="subs_ends">Ends %1$s</string>
@@ -275,4 +275,9 @@
     <string name="subs_err_load">Couldn\'t load the page</string>
     <string name="subs_warn_renews">%1$s renews in %2$d days</string>
     <string name="subs_warn_ends">%1$s ends in %2$d days</string>
+    <string name="subs_add">Add a service</string>
+    <string name="subs_other">Other service…</string>
+    <string name="subs_other_name">Name</string>
+    <string name="subs_other_url">Address of its billing page (or its login)</string>
+    <string name="subs_offline">No connection: showing what was read %1$s</string>
 </resources>

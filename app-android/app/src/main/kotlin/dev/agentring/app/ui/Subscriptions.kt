@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -68,37 +69,54 @@ private fun urgency(s: Subscription, days: Int?): Color = when {
 
 /**
  * Subscriptions, read by the app itself from each service's billing page: connect a service once (log in
- * inside the app and pick the page), then it's read every day. A ring per service empties as the date comes.
+ * inside the app and pick the page), then it's read every day and whenever this screen opens. The last list
+ * is kept on the phone, so it shows without a connection. A ring per service empties as the date comes.
  */
 @Composable
 fun SubscriptionsScreen() {
     val ctx = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    var list by remember { mutableStateOf<List<Subscription>?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val subs = dev.agentring.app.subs.Subs
+    val json = dev.agentring.core.ProtocolJson
+    val listSer = kotlinx.serialization.builtins.ListSerializer(Subscription.serializer())
+    var list by remember {
+        mutableStateOf(subs.cached(ctx)?.let { runCatching { json.decodeFromString(listSer, it) }.getOrNull() })
+    }
+    var offline by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var version by remember { mutableStateOf(0) }  // bumps when a service is connected or removed
+    var picking by remember { mutableStateOf(false) }
+    var addingOther by remember { mutableStateOf(false) }
     suspend fun load() {
         val r = withContext(Dispatchers.IO) { runCatching { Graph.api()!!.listSubscriptions() } }
-        r.onSuccess { list = it; error = null }.onFailure { error = it.message }
+        r.onSuccess {
+            list = it
+            offline = false
+            subs.cache(ctx, json.encodeToString(listSer, it))
+        }.onFailure { offline = true }
     }
     fun refresh(only: dev.agentring.app.subs.Service? = null) {
         scope.launch {
             busy = true
-            if (only != null) dev.agentring.app.subs.Subs.sync(ctx, only) else dev.agentring.app.subs.Subs.syncAll(ctx)
+            if (only != null) subs.sync(ctx, only) else subs.syncAll(ctx)
             load()
             busy = false
         }
     }
-    LaunchedEffect(Unit) { load() }
+    // Opening the screen: what the relay has now, then a fresh read if the last one is over 10 minutes old.
+    LaunchedEffect(Unit) {
+        load()
+        if (!offline && System.currentTimeMillis() - subs.lastSync(ctx) > 10 * 60_000 && subs.connected(ctx).isNotEmpty()) refresh()
+    }
     // Connecting happens in its own screen (ConnectActivity): log in there and pick the billing page.
     val connect = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
     ) { res ->
         version++
         val id = res.data?.getStringExtra(dev.agentring.app.subs.ConnectActivity.EXTRA_ID)
-        dev.agentring.app.subs.BillingParser.SERVICES.firstOrNull { it.id == id }?.let { refresh(it) }
+        subs.all(ctx).firstOrNull { it.id == id }?.let { refresh(it) }
     }
+    val connected = remember(version) { subs.connected(ctx) }
     LazyColumn(
         Modifier.fillMaxSize().testTag("subscriptions_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
@@ -107,42 +125,112 @@ fun SubscriptionsScreen() {
         item {
             Text(stringResource(R.string.subs_body), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
-            error?.let { Text(stringResource(R.string.action_failed, it), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(8.dp)) }
-            androidx.compose.material3.FilledTonalButton(
-                onClick = { refresh() },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("subs_refresh"),
-            ) { Text(if (busy) stringResource(R.string.subs_reading) else stringResource(R.string.subs_refresh)) }
+            if (offline) {
+                val at = subs.cachedAt(ctx)
+                Text(
+                    stringResource(R.string.subs_offline,
+                        if (at == 0L) "—" else android.text.format.DateUtils.getRelativeTimeSpanString(at).toString()),
+                    style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFD60A), modifier = Modifier.padding(4.dp),
+                )
+            }
+            if (busy) {
+                androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 6.dp))
+            }
+            if (connected.isEmpty() && list.isNullOrEmpty()) {
+                Text(stringResource(R.string.subs_empty), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(8.dp))
+            }
         }
         itemsIndexed(list.orEmpty(), key = { _, s -> s.subId }) { i, s -> SubscriptionCard(s, i, Modifier.animateItem()) }
         item {
-            Text(stringResource(R.string.subs_services).uppercase(), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, top = 12.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.Button(onClick = { picking = true }, modifier = Modifier.weight(1f).testTag("subs_add")) {
+                    Text(stringResource(R.string.subs_add))
+                }
+                androidx.compose.material3.OutlinedButton(onClick = { refresh() }, enabled = !busy && connected.isNotEmpty(),
+                    modifier = Modifier.weight(1f).testTag("subs_refresh")) {
+                    Text(if (busy) stringResource(R.string.subs_reading) else stringResource(R.string.subs_refresh))
+                }
+            }
         }
-        items(dev.agentring.app.subs.BillingParser.SERVICES, key = { "svc:" + it.id + version }) { svc ->
-            val page = dev.agentring.app.subs.Subs.page(ctx, svc.id)
+        if (connected.isNotEmpty()) {
+            item {
+                Text(stringResource(R.string.subs_services).uppercase(), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, top = 12.dp))
+            }
+        }
+        items(connected, key = { "svc:" + it.id }) { svc ->
+            val page = subs.page(ctx, svc.id)
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text(svc.name, style = MaterialTheme.typography.titleMedium)
-                    Text(page?.removePrefix("https://")?.take(42) ?: stringResource(R.string.subs_not_connected),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    Text(page?.removePrefix("https://")?.take(42) ?: "", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
-                androidx.compose.material3.OutlinedButton(onClick = { connect.launch(dev.agentring.app.subs.ConnectActivity.intent(ctx, svc)) }, modifier = Modifier.testTag("connect_${svc.id}")) {
-                    Text(stringResource(if (page == null) R.string.subs_connect else R.string.subs_change))
-                }
-                if (page != null) {
-                    androidx.compose.material3.TextButton(onClick = {
-                        dev.agentring.app.subs.Subs.disconnect(ctx, svc.id)
-                        version++
-                        scope.launch {
-                            withContext(Dispatchers.IO) { runCatching { Graph.api()!!.deleteSubscription(svc.id) } }
-                            load()
-                        }
-                    }) { Text(stringResource(R.string.subs_remove)) }
-                }
+                androidx.compose.material3.OutlinedButton(onClick = { connect.launch(dev.agentring.app.subs.ConnectActivity.intent(ctx, svc)) },
+                    modifier = Modifier.testTag("connect_${svc.id}")) { Text(stringResource(R.string.subs_change)) }
+                androidx.compose.material3.TextButton(onClick = {
+                    subs.disconnect(ctx, svc.id)
+                    version++
+                    scope.launch {
+                        withContext(Dispatchers.IO) { runCatching { Graph.api()!!.deleteSubscription(svc.id) } }
+                        load()
+                    }
+                }) { Text(stringResource(R.string.subs_remove)) }
             }
         }
+    }
+
+    if (picking) {
+        val open = subs.all(ctx).filter { subs.page(ctx, it.id) == null && !it.id.startsWith("c-") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { picking = false },
+            title = { Text(stringResource(R.string.subs_add)) },
+            text = {
+                LazyColumn(Modifier.fillMaxWidth().height(380.dp)) {
+                    item {
+                        Text(stringResource(R.string.subs_other), style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().bouncyClick { picking = false; addingOther = true }
+                                .padding(vertical = 12.dp).testTag("pick_other"))
+                    }
+                    items(open, key = { it.id }) { svc ->
+                        Text(svc.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth()
+                            .bouncyClick {
+                                picking = false
+                                connect.launch(dev.agentring.app.subs.ConnectActivity.intent(ctx, svc))
+                            }
+                            .padding(vertical = 12.dp).testTag("pick_${svc.id}"))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { picking = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (addingOther) {
+        var name by remember { mutableStateOf("") }
+        var url by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { addingOther = false },
+            title = { Text(stringResource(R.string.subs_other)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(name, { name = it.take(40) }, singleLine = true,
+                        label = { Text(stringResource(R.string.subs_other_name)) }, modifier = Modifier.fillMaxWidth().testTag("other_name"))
+                    androidx.compose.material3.OutlinedTextField(url, { url = it.trim() }, singleLine = true,
+                        label = { Text(stringResource(R.string.subs_other_url)) }, modifier = Modifier.fillMaxWidth().testTag("other_url"))
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(enabled = name.isNotBlank() && url.contains('.'), onClick = {
+                    addingOther = false
+                    val svc = subs.addCustom(ctx, name, url)
+                    connect.launch(dev.agentring.app.subs.ConnectActivity.intent(ctx, svc))
+                }) { Text(stringResource(R.string.subs_connect)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { addingOther = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }
 
