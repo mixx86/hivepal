@@ -252,4 +252,5 @@
     <string name="subs_no_date">Sin fecha</string>
     <string name="subs_checked">Comprobado %1$s</string>
     <string name="subs_error">No se pudo leer (%1$s) · última lectura buena %2$s</string>
+    <string name="settings_language">Idioma</string>
 </resources>

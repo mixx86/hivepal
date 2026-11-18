@@ -88,6 +88,9 @@ class CallActivity : ComponentActivity() {
         if (Graph.calls.state.value == null) finishAndRemoveTask()
     }
 
+    override fun attachBaseContext(newBase: android.content.Context) =
+        super.attachBaseContext(dev.agentring.app.AppLanguage.wrap(newBase))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 27) {

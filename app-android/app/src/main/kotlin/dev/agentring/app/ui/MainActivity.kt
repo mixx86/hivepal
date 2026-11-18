@@ -21,6 +21,9 @@ object AppVisibility {
 class MainActivity : ComponentActivity() {
     private val openRequest = mutableStateOf<OpenRequest?>(null)
 
+    override fun attachBaseContext(newBase: android.content.Context) =
+        super.attachBaseContext(dev.agentring.app.AppLanguage.wrap(newBase))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Always dark: light status-bar icons whatever the system theme.

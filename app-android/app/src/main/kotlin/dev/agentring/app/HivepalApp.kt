@@ -10,8 +10,11 @@ import dev.agentring.app.notify.Notifications
 
 @OptIn(FlowPreview::class)
 class HivepalApp : Application() {
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(AppLanguage.wrap(base))
+
     override fun onCreate() {
         super.onCreate()
+        AppLanguage.ensureDefault(this)
         Graph.init(this)
         Notifications.createChannels(this)
         CallNotifications.createChannels(this)

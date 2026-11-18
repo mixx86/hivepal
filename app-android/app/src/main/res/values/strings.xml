@@ -260,4 +260,5 @@
     <string name="subs_no_date">No date found</string>
     <string name="subs_checked">Checked %1$s</string>
     <string name="subs_error">Couldn\'t read it (%1$s) · last good read %2$s</string>
+    <string name="settings_language">Language</string>
 </resources>

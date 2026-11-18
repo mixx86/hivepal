@@ -291,6 +291,28 @@ fun SettingsScreen(pairing: Pairing) {
             }
         }
 
+        SectionLabel(stringResource(R.string.settings_language))
+        BrandCard {
+            val current = remember { dev.agentring.app.AppLanguage.current(ctx) }
+            Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                dev.agentring.app.AppLanguage.SUPPORTED.forEach { (tag, label) ->
+                    val selected = tag == current
+                    androidx.compose.material3.FilterChip(
+                        selected = selected,
+                        onClick = {
+                            if (!selected) {
+                                dev.agentring.app.AppLanguage.set(ctx, tag)
+                                // Before Android 13 the screen is rebuilt here; 13+ does it by itself.
+                                if (android.os.Build.VERSION.SDK_INT < 33) (ctx as? android.app.Activity)?.recreate()
+                            }
+                        },
+                        label = { Text(label, style = MaterialTheme.typography.titleSmall) },
+                        modifier = Modifier.weight(1f).testTag("lang_$tag"),
+                    )
+                }
+            }
+        }
+
         SectionLabel(stringResource(R.string.settings_calls))
         CallReadinessCard(showHeader = false)
         BrandCard {
