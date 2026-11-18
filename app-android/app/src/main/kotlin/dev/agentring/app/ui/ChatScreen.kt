@@ -353,6 +353,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                 }
             } else {
                 val lastReadByAgent = messages.lastOrNull { !it.fromAgent && it.readAt != null }?.msgId
+                val byId = remember(messages) { messages.associateBy { it.msgId } }
                 // Quick replies disappear once the user answered that message.
                 val answered = remember(messages) { messages.filter { !it.fromAgent && it.replyTo != null }.associateBy { it.replyTo!! } }
                 val reversed = messages.asReversed()
@@ -379,6 +380,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                                 showRead = m.msgId == lastReadByAgent,
                                 topGap = if (firstOfRun) 10.dp else 2.dp,
                                 mineSide = if (isBots) m.author == Conv.pair(conv).first() else !m.fromAgent,
+                                quote = m.replyTo?.let { id -> byId[id]?.text },
                             )
                             val options = m.options
                             if (m.fromAgent && !options.isNullOrEmpty() && answered[m.msgId] == null) {
@@ -559,7 +561,15 @@ private fun DayLabel(ms: Long) {
 }
 
 @Composable
-private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boolean, topGap: Dp, mineSide: Boolean = !m.fromAgent) {
+private fun Bubble(
+    m: Message,
+    author: String?,
+    showTime: Boolean,
+    showRead: Boolean,
+    topGap: Dp,
+    mineSide: Boolean = !m.fromAgent,
+    quote: String? = null,
+) {
     val mine = mineSide
     val ctx = LocalContext.current
     val scheme = MaterialTheme.colorScheme
@@ -587,6 +597,16 @@ private fun Bubble(m: Message, author: String?, showTime: Boolean, showRead: Boo
             modifier = Modifier.widthIn(max = 310.dp),
         ) {
             Column {
+                if (!quote.isNullOrBlank()) {
+                    Text(
+                        "↪ " + Markdown.plain(quote).replace('\n', ' '),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = (if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.7f),
+                        modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp),
+                    )
+                }
                 m.attachments?.forEach { a -> AttachmentView(a, mine) }
                 if (m.text.isNotBlank()) {
                     val link = if (mine) scheme.onPrimary else scheme.primary

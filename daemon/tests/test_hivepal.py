@@ -53,7 +53,7 @@ def test_quick_replies_and_files(hive):
     httpx.post(f"{relay}/v1/messages", headers=phone["headers"],
                json={"text": "", "conv": "agent:nubi", "attachments": [up["file_id"]]}).raise_for_status()
     out = cli(nubi, "replies")
-    assert "Sí" in out and f"[audio: {up['file_id']}]" in out
+    assert "Sí (reply to: «¿Vas al gym?»)" in out and f"[audio: {up['file_id']}]" in out
     path = Path(cli(nubi, "file", up["file_id"], "-o", str(hive["tmp"] / "nota.m4a")).strip())
     assert path.read_bytes() == b"\x00" * 64
 

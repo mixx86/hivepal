@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "agentring"
-version = "0.2.0+multi2"
+version = "0.3.0+hivepal1"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

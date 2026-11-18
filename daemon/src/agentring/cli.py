@@ -589,7 +589,6 @@ def replies(
                 names.update({f"group:{g['group_id']}": g["name"] for g in c.list_groups()})
             except RelayError:
                 pass  # names are cosmetic; ids are shown instead
-    store.close()
 
     def who(r: dict[str, Any]) -> str:
         if r["sender"] == "user":
@@ -613,7 +612,13 @@ def replies(
             item["attachments"] = json.loads(r["attachments"])
         if r["options"]:
             item["options"] = json.loads(r["options"])
+        if r["reply_to"]:
+            # A tapped quick reply only says "Sí": show what it answers.
+            orig = store.message(r["reply_to"])
+            if orig is not None:
+                item["reply_to_text"] = orig["text"]
         out.append(item)
+    store.close()
     if json_out:
         _emit_json({"replies": out})
         return
@@ -628,7 +633,9 @@ def replies(
         else:
             prefix = ""
         files = "".join(f" [{a['mime'].split('/')[0]}: {a['file_id']}]" for a in r.get("attachments", []))
-        typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}{files}")
+        quoted = r.get("reply_to_text")
+        answer = f" (reply to: «{quoted[:80] + ('…' if len(quoted) > 80 else '')}»)" if quoted else ""
+        typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}{files}{answer}")
 
 
 @app.command()

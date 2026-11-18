@@ -142,5 +142,9 @@ class Store:
         args.append(limit)
         return [dict(r) for r in self.db.execute(q, args).fetchall()]
 
+    def message(self, msg_id: str) -> dict[str, Any] | None:
+        row = self.db.execute("SELECT * FROM messages WHERE msg_id = ?", (msg_id,)).fetchone()
+        return dict(row) if row else None
+
     def mark_delivered(self, msg_ids: list[str], ts: int) -> None:
         self.db.executemany("UPDATE messages SET delivered_at = ? WHERE msg_id = ?", [(ts, m) for m in msg_ids])
