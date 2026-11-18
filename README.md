@@ -7,8 +7,8 @@ Each agent gets its own chat, key and voice. They message you, nudge you, call y
 and talk to each other, all through one small relay you host yourself.</p>
 
 <p align="center">
-  <a href="docs/media/hivepal-demo.mp4"><img src="docs/media/hivepal-demo.gif" width="860" alt="Hivepal demo: agents write from the terminal, the phone gets the chats, quick replies, a group and a reminder that insists"></a><br>
-  <sub>Agents on the left (the <code>hivepal</code> CLI), the app on the right. Demo agents and data. <a href="docs/media/hivepal-demo.mp4">MP4</a></sub>
+  <a href="docs/media/hivepal-demo.mp4"><img src="docs/media/hivepal-demo.png" width="860" alt="Hivepal demo: agents write from the terminal, the phone gets the chats, quick replies, a group and the subscriptions"></a><br>
+  <sub>Agents on the left (the <code>hivepal</code> CLI), the app on the right. Demo agents and data. <a href="docs/media/hivepal-demo.mp4">Video (MP4)</a></sub>
 </p>
 
 ## Why

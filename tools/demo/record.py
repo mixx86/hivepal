@@ -27,7 +27,7 @@ def phone_tap(label: str, **kw) -> None:
     demo.tap(label, **kw)
 
 
-rec = subprocess.Popen(["adb", "-s", demo.EMU, "shell", "screenrecord", "--size", "540x1200", "--bit-rate", "8000000",
+rec = subprocess.Popen(["adb", "-s", demo.EMU, "shell", "screenrecord", "--size", "1080x2400", "--bit-rate", "20000000",
                         "--time-limit", "170", "/sdcard/demo.mp4"])
 time.sleep(1.0)
 T0 = time.time()
