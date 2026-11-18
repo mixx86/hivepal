@@ -1,12 +1,12 @@
 [project]
-name = "agentring"
-version = "0.3.0+hivepal4"
+name = "hivepal"
+version = "0.4.0"
 description = "Let any AI agent call your phone over VoIP and message you (daemon + CLI)"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-authors = [{ name = "agentring contributors" }]
+authors = [{ name = "mixx86" }, { name = "agentring contributors" }]
 keywords = ["ai-agent", "voip", "livekit", "android", "notifications", "mcp"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -38,9 +38,9 @@ Source = "https://github.com/mutonby/agentring"
 voice = ["livekit>=1.1.20,<1.3"]
 
 [project.scripts]
-hivepal = "agentring.cli:main"
+hivepal = "hivepal.cli:main"
 # The original name keeps working, so agents set up before the rename don't break.
-agentring = "agentring.cli:main"
+agentring = "hivepal.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -50,7 +50,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentring"]
+packages = ["src/hivepal"]
 
 [tool.hatch.build.targets.sdist]
 exclude = ["Dockerfile", ".dockerignore", "build-constraints.txt"]

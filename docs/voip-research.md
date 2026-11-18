@@ -1,4 +1,4 @@
-# Reliable incoming VoIP calls on Android: report for agentring
+# Reliable incoming VoIP calls on Android: report for hivepal
 
 ## 1. Ringing reliability
 
@@ -115,7 +115,7 @@
 5. Relay: cache the FCM token, send the push in parallel with room creation, TTL = time left, use the WebSocket for cancels, post a missed-call notification.
 6. LiveKit client: new `Room` per call created during ringing, `prepareConnection` during ringing, `connect(audio = true)` + preconnect audio, `NoAudioHandler` with Telecom (earpiece-first `AudioSwitchHandler` without it), proximity wake lock, SDK ≥ 2.29.x, debug toggle for software AEC.
 7. Compose: livekit `network_mode: host`, `use_external_ip`, embedded TURN (3478/udp + TLS 443 via caddy-l4 SNI), firewall ports. Test from cellular with UDP blocked.
-8. Acceptance test script: `adb shell dumpsys deviceidle force-idle`, `am set-standby-bucket dev.agentring.app rare`, screen off for 10 min, then `agentring call` and measure invite → ringing.
+8. Acceptance test script: `adb shell dumpsys deviceidle force-idle`, `am set-standby-bucket dev.agentring.app rare`, screen off for 10 min, then `hivepal call` and measure invite → ringing.
 9. M3: prestart the model session while ringing, model's own VAD (Gemini) or `semantic_vad` (OpenAI), agent greets first, `consult_agent` non-blocking, Gemini session resumption.
 
 Two items need the user's OK under the project's rule on design deviations: swapping the planned self-managed ConnectionService for core-telecom with a no-Telecom fallback, and the optional listen-only token returned from `/ringing`.

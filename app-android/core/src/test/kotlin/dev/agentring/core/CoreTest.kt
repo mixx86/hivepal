@@ -20,7 +20,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class CoreTest {
-    private val protocolDir = File(System.getProperty("agentring.protocolDir") ?: "../../protocol")
+    private val protocolDir = File(System.getProperty("hivepal.protocolDir") ?: "../../protocol")
 
     /** Opens a socket to a server that says hello as [helloId], then sends one message. */
     private fun socketAgainst(helloId: String, expected: String?): Pair<List<Event>, List<String>> {

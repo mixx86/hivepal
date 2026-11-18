@@ -22,7 +22,7 @@ class RelayApi(
     val baseUrl: String,
     private val deviceJwt: String?,
     private val http: OkHttpClient = defaultClient,
-    private val userAgent: String = "agentring-android",
+    private val userAgent: String = "hivepal-android",
 ) {
     companion object {
         val defaultClient: OkHttpClient = OkHttpClient.Builder()

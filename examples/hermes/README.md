@@ -1,4 +1,4 @@
-# Hermes + agentring
+# Hermes + hivepal
 
 Two things to set up: your Hermes agent can reach you (MCP server + skill), and you can
 reach it from a call (an agent in `agents.yaml`). Recipes for other harnesses:
@@ -6,46 +6,46 @@ reach it from a call (an agent in `agents.yaml`). Recipes for other harnesses:
 
 ## Hermes reaches you
 
-The quickest way: install the skill and ask Hermes to "set up agentring"; it walks you
-through the rest ([setup guide](../../skills/agentring/references/setup.md)).
+The quickest way: install the skill and ask Hermes to "set up hivepal"; it walks you
+through the rest ([setup guide](../../skills/hivepal/references/setup.md)).
 
 ```bash
-hermes skills install mutonby/agentring/skills/agentring
+hermes skills install mutonby/agentring/skills/hivepal
 ```
 
 Or by hand:
 
 ```bash
-uv tool install 'agentring[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
-agentring init --relay https://relay.example.com --api-key ak_...
-agentring pair                                   # scan the QR with the app
-agentring connect hermes                         # MCP server, skill and agents.yaml
+uv tool install 'hivepal[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
+hivepal init --relay https://relay.example.com --api-key ak_...
+hivepal pair                                   # scan the QR with the app
+hivepal connect hermes                         # MCP server, skill and agents.yaml
 echo GEMINI_API_KEY=... >> ~/.agentring/.env     # the voice AI on calls
 ```
 
-`agentring connect hermes` adds `agentring mcp` to `mcp_servers` in
+`hivepal connect hermes` adds `hivepal mcp` to `mcp_servers` in
 `~/.hermes/config.yaml` (`$HERMES_HOME`) with `timeout: 1800` (Hermes' default is
-300 s, shorter than a long call), installs the skill in `~/.hermes/skills/agentring` and
+300 s, shorter than a long call), installs the skill in `~/.hermes/skills/hivepal` and
 adds Hermes to `~/.agentring/agents.yaml`. Then run `/reload-mcp` or start a new session;
-`hermes mcp test agentring` checks the server.
+`hermes mcp test hivepal` checks the server.
 
-With agentring cloud, nothing to run but Hermes:
+With hivepal cloud, nothing to run but Hermes:
 
 ```bash
-AGENTRING_API_KEY=ak_... agentring connect hermes --url https://agentring.io/mcp
+HIVEPAL_API_KEY=ak_... hivepal connect hermes --url https://agentring.io/mcp
 ```
 
-The key goes to `~/.hermes/.env`; the config only says `Bearer ${AGENTRING_API_KEY}`.
+The key goes to `~/.hermes/.env`; the config only says `Bearer ${HIVEPAL_API_KEY}`.
 
 Calls need a voice provider key (Gemini has a free tier:
 https://aistudio.google.com/apikey; others: [docs/voice.md](../../docs/voice.md#providers)).
-With agentring cloud the voice AI runs on the server.
+With hivepal cloud the voice AI runs on the server.
 
 Then, for example: *"Every morning, read my inbox; if something can't wait, call me."*
 
 ## You reach Hermes by phone
 
-`agentring connect hermes` added this to `~/.agentring/agents.yaml`:
+`hivepal connect hermes` added this to `~/.agentring/agents.yaml`:
 
 ```yaml
 agents:
@@ -58,8 +58,8 @@ agents:
 `-z` runs one turn and prints only the final answer. Don't add `--yolo` for the phone.
 
 ```bash
-agentring agents ask hermes "What's on my calendar tomorrow?"   # check it works
-agentring serve --ai                                             # answers "Call agent" from the app
+hivepal agents ask hermes "What's on my calendar tomorrow?"   # check it works
+hivepal serve --ai                                             # answers "Call agent" from the app
 ```
 
 On the call: *"Ask Hermes to find the cheapest flight to Lisbon on Friday."* The voice

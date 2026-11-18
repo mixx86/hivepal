@@ -9,7 +9,7 @@ adb logcat -c || true
   -Pandroid.testInstrumentationRunnerArguments.apiKey="${CI_API_KEY}"
 status=$?
 mkdir -p e2e-screenshots
-for f in $(adb shell 'ls /data/local/tmp/agentring-*.png 2>/dev/null' | tr -d '\r'); do
+for f in $(adb shell 'ls /data/local/tmp/hivepal-*.png 2>/dev/null' | tr -d '\r'); do
   adb pull "$f" e2e-screenshots/ || true
 done
 adb logcat -d > "${RUNNER_TEMP:-/tmp}/logcat.txt" || true

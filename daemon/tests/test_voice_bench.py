@@ -1,4 +1,4 @@
-"""`agentring voice bench` against a fake OpenAI-Realtime server: timing, tools and scoring."""
+"""`hivepal voice bench` against a fake OpenAI-Realtime server: timing, tools and scoring."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ pytest.importorskip("livekit")
 
 import websockets  # noqa: E402
 
-from agentring.voice import bench  # noqa: E402
-from agentring.voice.openai_realtime import LocalRealtime  # noqa: E402
+from hivepal.voice import bench  # noqa: E402
+from hivepal.voice.openai_realtime import LocalRealtime  # noqa: E402
 
 LOUD = base64.b64encode((np.ones(2400, dtype=np.int16) * 3000).tobytes()).decode()  # 0.1 s of "voice"
 QUIET = base64.b64encode(np.zeros(2400, dtype=np.int16).tobytes()).decode()

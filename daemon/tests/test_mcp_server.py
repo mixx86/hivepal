@@ -1,4 +1,4 @@
-"""`agentring mcp` as an agent sees it: a real subprocess over stdio against a real relay."""
+"""`hivepal mcp` as an agent sees it: a real subprocess over stdio against a real relay."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import time
 import httpx
 from typer.testing import CliRunner
 
-from agentring.cli import app
+from hivepal.cli import app
 
 from .conftest import API_KEY
 from .test_e2e import simulate_phone_pairing
@@ -20,7 +20,7 @@ from .test_e2e import simulate_phone_pairing
 
 class Client:
     def __init__(self, env: dict[str, str]):
-        self.p = subprocess.Popen([sys.executable, "-m", "agentring.cli", "mcp"], env=env, text=True,
+        self.p = subprocess.Popen([sys.executable, "-m", "hivepal.cli", "mcp"], env=env, text=True,
                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.next_id = 0
 
@@ -45,18 +45,18 @@ class Client:
         assert self.p.wait(10) == 0
 
 
-def test_mcp_server_messages(relay: str, agentring_home):
+def test_mcp_server_messages(relay: str, hivepal_home):
     r = CliRunner().invoke(app, ["init", "--relay", relay, "--api-key", API_KEY])
     assert r.exit_code == 0, r.output
     tok = json.loads(CliRunner().invoke(app, ["pair", "--no-wait", "--json"]).output)
     phone = simulate_phone_pairing(tok["qr_payload"])
 
-    env = {**os.environ, "AGENTRING_HOME": str(agentring_home), "GEMINI_API_KEY": ""}
+    env = {**os.environ, "HIVEPAL_HOME": str(hivepal_home), "GEMINI_API_KEY": ""}
     c = Client(env)
     try:
         init = c.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
                                         "clientInfo": {"name": "test", "version": "1"}})["result"]
-        assert init["protocolVersion"] == "2025-06-18" and init["serverInfo"]["name"] == "agentring"
+        assert init["protocolVersion"] == "2025-06-18" and init["serverInfo"]["name"] == "hivepal"
         c.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         assert c.request("ping")["result"] == {}
         names = [t["name"] for t in c.request("tools/list")["result"]["tools"]]
@@ -97,9 +97,9 @@ def test_server_starts_without_configuration() -> None:
     first) and a tool call says what is missing instead of the process exiting."""
     import asyncio
 
-    from agentring.mcp_server import NotConfiguredTools, handle_rpc
+    from hivepal.mcp_server import NotConfiguredTools, handle_rpc
 
-    tools = NotConfiguredTools("Run: agentring init")
+    tools = NotConfiguredTools("Run: hivepal init")
 
     async def run() -> tuple[dict, dict]:
         listed = await handle_rpc(tools, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})  # type: ignore[arg-type]
@@ -111,4 +111,4 @@ def test_server_starts_without_configuration() -> None:
     listed, called = asyncio.run(run())
     assert {t["name"] for t in listed["result"]["tools"]} == {"send_message", "get_replies", "call", "status"}
     assert called["result"]["isError"] is True
-    assert "not set up" in called["result"]["content"][0]["text"] and "agentring init" in called["result"]["content"][0]["text"]
+    assert "not set up" in called["result"]["content"][0]["text"] and "hivepal init" in called["result"]["content"][0]["text"]

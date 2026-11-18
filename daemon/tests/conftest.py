@@ -32,11 +32,11 @@ def relay(tmp_path: Path):
         **os.environ,
         "PORT": str(port),
         "HOST": "127.0.0.1",
-        "AGENTRING_PUBLIC_URL": url,
-        "AGENTRING_INSECURE_DEV": "1",
-        "AGENTRING_DATA_DIR": str(tmp_path / "relay-data"),
-        "AGENTRING_API_KEY": API_KEY,
-        "AGENTRING_AGENT_NAME": "E2E",
+        "HIVEPAL_PUBLIC_URL": url,
+        "HIVEPAL_INSECURE_DEV": "1",
+        "HIVEPAL_DATA_DIR": str(tmp_path / "relay-data"),
+        "HIVEPAL_API_KEY": API_KEY,
+        "HIVEPAL_AGENT_NAME": "E2E",
     }
     proc = subprocess.Popen(
         ["node", "--disable-warning=ExperimentalWarning", str(RELAY_DIST)],
@@ -60,11 +60,11 @@ def relay(tmp_path: Path):
 
 
 @pytest.fixture()
-def agentring_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def hivepal_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home = tmp_path / "home"
-    monkeypatch.setenv("AGENTRING_HOME", str(home))
-    monkeypatch.delenv("AGENTRING_RELAY_URL", raising=False)
-    monkeypatch.delenv("AGENTRING_API_KEY", raising=False)
+    monkeypatch.setenv("HIVEPAL_HOME", str(home))
+    monkeypatch.delenv("HIVEPAL_RELAY_URL", raising=False)
+    monkeypatch.delenv("HIVEPAL_API_KEY", raising=False)
     return home
 
 
@@ -79,14 +79,14 @@ def hub(tmp_path: Path):
     port = _free_port()
     url = f"http://127.0.0.1:{port}"
     env = {
-        **{k: v for k, v in os.environ.items() if not k.startswith("AGENTRING_")},
+        **{k: v for k, v in os.environ.items() if not k.startswith("HIVEPAL_")},
         "PORT": str(port),
         "HOST": "127.0.0.1",
-        "AGENTRING_HUB": "1",
-        "AGENTRING_HUB_ADMIN_TOKEN": HUB_ADMIN_TOKEN,
-        "AGENTRING_PUBLIC_URL": url,
-        "AGENTRING_INSECURE_DEV": "1",
-        "AGENTRING_DATA_DIR": str(tmp_path / "hub-data"),
+        "HIVEPAL_HUB": "1",
+        "HIVEPAL_HUB_ADMIN_TOKEN": HUB_ADMIN_TOKEN,
+        "HIVEPAL_PUBLIC_URL": url,
+        "HIVEPAL_INSECURE_DEV": "1",
+        "HIVEPAL_DATA_DIR": str(tmp_path / "hub-data"),
     }
     proc = subprocess.Popen(
         ["node", "--disable-warning=ExperimentalWarning", str(RELAY_DIST)],

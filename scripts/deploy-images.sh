@@ -2,17 +2,17 @@
 # Builds the relay and daemon images on this machine and loads them on the server, so a small
 # VPS never compiles anything (building there is what eats its memory and fills its disk).
 #
-#   scripts/deploy-images.sh <ssh host> [compose dir on the server, default ~/agentring/deploy]
+#   scripts/deploy-images.sh <ssh host> [compose dir on the server, default ~/hivepal/deploy]
 #
 # The server's compose files must already be up to date (git pull, or a bundle for a private fork).
 # Then: docker compose --profile daemon up -d --no-build relay daemon, and old images are pruned.
 set -euo pipefail
 
 HOST=${1:?usage: deploy-images.sh <ssh host> [compose dir]}
-DIR=${2:-agentring/deploy}
+DIR=${2:-hivepal/deploy}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-RELAY=${HIVEPAL_RELAY_IMAGE:-${AGENTRING_RELAY_IMAGE:-agentring-relay:local}}
-DAEMON=${HIVEPAL_DAEMON_IMAGE:-${AGENTRING_DAEMON_IMAGE:-agentring-daemon:local}}
+RELAY=${HIVEPAL_RELAY_IMAGE:-${AGENTRING_RELAY_IMAGE:-hivepal-relay:local}}
+DAEMON=${HIVEPAL_DAEMON_IMAGE:-${AGENTRING_DAEMON_IMAGE:-hivepal-daemon:local}}
 
 arch=$(ssh "$HOST" uname -m)
 case "$arch" in

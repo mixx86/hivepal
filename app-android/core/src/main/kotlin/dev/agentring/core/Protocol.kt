@@ -29,7 +29,7 @@ data class QrPayload(
             val p = try {
                 ProtocolJson.decodeFromString<QrPayload>(raw.trim())
             } catch (e: Exception) {
-                throw IllegalArgumentException("This is not an agentring pairing code")
+                throw IllegalArgumentException("This is not an hivepal pairing code")
             }
             require(p.v == 1) { "Unsupported pairing code version ${p.v}; update the app" }
             require(p.pairingToken.startsWith("pt_")) { "Invalid pairing token" }

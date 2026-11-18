@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hivepal": {
+      "type": "http",
+      "url": "https://agentring.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${HIVEPAL_API_KEY}"
+      }
+    }
+  }
+}

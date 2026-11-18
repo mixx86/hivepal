@@ -15,7 +15,7 @@ the issue before disclosing it.
 ## Supported versions
 
 Only the latest release (and the default branch) gets security fixes. Release
-APKs (`agentring-X.Y.Z.apk`) are signed with the agentring release key, SHA-256
+APKs (`hivepal-X.Y.Z.apk`) are signed with the hivepal release key, SHA-256
 certificate fingerprint
 `afa35da7bed28a94b62693f7b4c184646b45c7855a51c3f8809283ae96889e3c`. The
 `android-preview` pre-release is a test build of the default branch signed with
@@ -23,7 +23,7 @@ the public debug key (see below).
 
 ## Threat model
 
-agentring is self-hosted: you run the relay, LiveKit and the daemon. One user,
+hivepal is self-hosted: you run the relay, LiveKit and the daemon. One user,
 one agent, one or more paired Android phones; there are no accounts. The hosted
 version runs the same relay in hub mode, many isolated tenants in one process
 (docs/cloud.md): there, one tenant must not be able to affect another.
@@ -51,9 +51,9 @@ agent. The relay never handles call audio: media goes through LiveKit.
   (send messages, place calls, list and revoke devices, read the event log).
   The relay compares SHA-256 digests in constant time. On the daemon it is
   stored in `~/.agentring/.env` (mode 600, directory mode 700). Rotate it by
-  setting a new `AGENTRING_API_KEY` on the relay.
+  setting a new `HIVEPAL_API_KEY` on the relay.
 - **Device JWT**: HS256, issued at pairing, long-lived. Every request re-checks
-  the device row, so `agentring devices revoke <device_id>` takes effect
+  the device row, so `hivepal devices revoke <device_id>` takes effect
   immediately: REST calls return 401, open WebSockets are closed with code
   4401, and if the phone is on the open call that call ends and its room closes.
   A join token minted just before stays valid for up to 120 s but finds no room,
@@ -84,7 +84,7 @@ keep it private.
 ### Transport
 
 - The relay refuses to start with a non-`https` public URL unless
-  `AGENTRING_INSECURE_DEV=1`.
+  `HIVEPAL_INSECURE_DEV=1`.
 - The app rejects `http://` relay URLs and `ws://` LiveKit URLs unless the host
   is private: `localhost`, `*.local`, `::1`, `10/8`, `127/8`, `172.16/12`,
   `192.168/16` and `100.64/10`.
@@ -107,7 +107,7 @@ keep it private.
 
 ### Voice AI provider
 
-With `--ai` (or the `agentring.voice` library) the daemon streams the call's
+With `--ai` (or the `hivepal.voice` library) the daemon streams the call's
 audio (everyone on the call, mixed) to the voice model provider — currently
 Google's Gemini Live API — together with the instructions, tool definitions,
 tool results and transcripts. Treat everything said on an AI call as shared with

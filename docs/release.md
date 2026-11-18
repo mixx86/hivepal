@@ -1,13 +1,13 @@
-# Releasing agentring
+# Releasing hivepal
 
 Pushing a tag `vX.Y.Z` runs [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 It builds everything first and publishes only once every build has succeeded:
 
 | Artifact | Where it goes |
 |---|---|
-| Android APK signed with the release key (`agentring-X.Y.Z.apk`) | GitHub release |
-| Daemon sdist + wheel (`agentring` on PyPI) | PyPI (trusted publishing) and the GitHub release |
-| `ghcr.io/<owner>/agentring-relay:X.Y.Z` and `agentring-daemon:X.Y.Z` (amd64 + arm64, SBOM + provenance) | GitHub Container Registry; `latest` too for final releases |
+| Android APK signed with the release key (`hivepal-X.Y.Z.apk`) | GitHub release |
+| Daemon sdist + wheel (`hivepal` on PyPI) | PyPI (trusted publishing) and the GitHub release |
+| `ghcr.io/<owner>/hivepal-relay:X.Y.Z` and `hivepal-daemon:X.Y.Z` (amd64 + arm64, SBOM + provenance) | GitHub Container Registry; `latest` too for final releases |
 | `SHA256SUMS` of every file in the release | GitHub release |
 
 Pre-releases use PEP 440 suffixes: `v0.3.0a1`, `v0.3.0b2`, `v0.3.0rc1`. They are
@@ -30,8 +30,8 @@ reinstall. Generate it once, on your own machine, and keep an offline backup of 
 file and its password (e.g. in a password manager).
 
 ```bash
-keytool -genkeypair -v -keystore agentring-release.jks -storetype PKCS12 \
-  -alias agentring -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=agentring"
+keytool -genkeypair -v -keystore hivepal-release.jks -storetype PKCS12 \
+  -alias hivepal -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=hivepal"
 ```
 
 `keytool` ships with any JDK (`$JAVA_HOME/bin/keytool`). It asks for a password; a
@@ -41,7 +41,7 @@ Note the certificate's SHA-256 fingerprint (lowercase, no colons, the way `apksi
 prints it) for the optional check in step 2:
 
 ```bash
-keytool -list -v -keystore agentring-release.jks -alias agentring \
+keytool -list -v -keystore hivepal-release.jks -alias hivepal \
   | sed -n 's/.*SHA256: //p' | tr -d ':' | tr 'A-F' 'a-f'
 ```
 
@@ -55,24 +55,24 @@ Repository → Settings → Secrets and variables → Actions:
 
 | Name | Kind | Value |
 |---|---|---|
-| `AGENTRING_KEYSTORE_BASE64` | secret | the keystore, base64 on one line |
-| `AGENTRING_KEYSTORE_PASSWORD` | secret | keystore password |
-| `AGENTRING_KEY_ALIAS` | secret | `agentring` (the `-alias` above) |
-| `AGENTRING_KEY_PASSWORD` | secret | key password; optional for PKCS12 (defaults to the keystore password) |
-| `AGENTRING_RELEASE_CERT_SHA256` | variable (optional) | the fingerprint from step 1; when set, an APK signed by anything else fails the release |
+| `HIVEPAL_KEYSTORE_BASE64` | secret | the keystore, base64 on one line |
+| `HIVEPAL_KEYSTORE_PASSWORD` | secret | keystore password |
+| `HIVEPAL_KEY_ALIAS` | secret | `hivepal` (the `-alias` above) |
+| `HIVEPAL_KEY_PASSWORD` | secret | key password; optional for PKCS12 (defaults to the keystore password) |
+| `HIVEPAL_RELEASE_CERT_SHA256` | variable (optional) | the fingerprint from step 1; when set, an APK signed by anything else fails the release |
 
 With the GitHub CLI:
 
 ```bash
-base64 < agentring-release.jks | tr -d '\n' | gh secret set AGENTRING_KEYSTORE_BASE64
-gh secret set AGENTRING_KEYSTORE_PASSWORD      # prompts for the value
-gh secret set AGENTRING_KEY_ALIAS --body agentring
-gh secret set AGENTRING_KEY_PASSWORD
-gh variable set AGENTRING_RELEASE_CERT_SHA256 --body <fingerprint>
+base64 < hivepal-release.jks | tr -d '\n' | gh secret set HIVEPAL_KEYSTORE_BASE64
+gh secret set HIVEPAL_KEYSTORE_PASSWORD      # prompts for the value
+gh secret set HIVEPAL_KEY_ALIAS --body hivepal
+gh secret set HIVEPAL_KEY_PASSWORD
+gh variable set HIVEPAL_RELEASE_CERT_SHA256 --body <fingerprint>
 ```
 
 The workflow decodes the keystore into the runner's temporary directory, sets
-`AGENTRING_REQUIRE_RELEASE_KEY=1` (so a missing key fails the build instead of
+`HIVEPAL_REQUIRE_RELEASE_KEY=1` (so a missing key fails the build instead of
 falling back to the debug key), deletes the file right after the build and checks
 that the APK is not signed with the debug certificate.
 
@@ -81,15 +81,15 @@ that the APK is not signed with the debug certificate.
 No PyPI token is stored anywhere: PyPI trusts this repository's workflow through
 OpenID Connect.
 
-The `pypi` job only runs when the repository variable `AGENTRING_PUBLISH_PYPI` is `true`
-(`gh variable set AGENTRING_PUBLISH_PYPI --body true`). Until then a release skips PyPI,
+The `pypi` job only runs when the repository variable `HIVEPAL_PUBLISH_PYPI` is `true`
+(`gh variable set HIVEPAL_PUBLISH_PYPI --body true`). Until then a release skips PyPI,
 attaches the wheel to the GitHub release and its notes say how to install from it.
 
 1. On [pypi.org](https://pypi.org) → your account → **Publishing** → *Add a new
    pending publisher* (the project doesn't exist yet; once it does, use the project's
    own Publishing page):
-   - PyPI project name: `agentring`
-   - Owner: `mutonby`, repository: `agentring`
+   - PyPI project name: `hivepal`
+   - Owner: `mutonby`, repository: `hivepal`
    - Workflow name: `release.yml`
    - Environment name: `pypi`
 2. On GitHub → Settings → Environments → **New environment** `pypi`. Recommended:
@@ -106,7 +106,7 @@ repository is private.
 
 Nothing to create: the `images` job pushes with the workflow's own `GITHUB_TOKEN`
 (`packages: write` is granted to that job only). The first push creates the
-packages `agentring-relay` and `agentring-daemon` under the owner's account,
+packages `hivepal-relay` and `hivepal-daemon` under the owner's account,
 linked to this repository through the `org.opencontainers.image.source` label.
 
 New packages of a private repository are private. To let anyone pull them: the
@@ -127,7 +127,7 @@ release.
 1. Pick a commit on the default branch whose CI is green.
 2. Set the version everywhere it is written down (the workflow refuses a tag that
    doesn't match `daemon/pyproject.toml`, and checks the wheel's
-   `agentring.__version__`):
+   `hivepal.__version__`):
 
    ```bash
    # daemon/pyproject.toml: version = "0.2.0", then refresh the lockfile:
@@ -140,7 +140,7 @@ release.
 3. Tag and push the tag:
 
    ```bash
-   git tag -a v0.2.0 -m "agentring 0.2.0"
+   git tag -a v0.2.0 -m "hivepal 0.2.0"
    git push origin v0.2.0
    ```
 
@@ -156,13 +156,13 @@ has the version, release a new patch version instead.
 
 ```bash
 cd app-android
-export AGENTRING_KEYSTORE_FILE=/path/to/agentring-release.jks
-export AGENTRING_KEYSTORE_PASSWORD=… AGENTRING_KEY_ALIAS=agentring
+export HIVEPAL_KEYSTORE_FILE=/path/to/hivepal-release.jks
+export HIVEPAL_KEYSTORE_PASSWORD=… HIVEPAL_KEY_ALIAS=hivepal
 ./gradlew :app:assembleRelease -PversionName=0.2.0 -PversionCode=20099
 ```
 
-The same names also work as Gradle properties (`-PAGENTRING_KEYSTORE_FILE=…`).
-Without `AGENTRING_KEYSTORE_FILE`, `assembleRelease` still works but signs with the
+The same names also work as Gradle properties (`-PHIVEPAL_KEYSTORE_FILE=…`).
+Without `HIVEPAL_KEYSTORE_FILE`, `assembleRelease` still works but signs with the
 public debug key and prints a warning: fine for testing, never publish that APK.
 Without `-PversionName`/`-PversionCode` the build is `0.2.0-dev` / `1`.
 
@@ -173,9 +173,9 @@ then acts as Play's *upload key* (enrol in Play App Signing when creating the ap
 
 ```bash
 cd app-android
-export AGENTRING_KEYSTORE_FILE=/path/to/agentring-release.jks
-export AGENTRING_KEYSTORE_PASSWORD=… AGENTRING_KEY_ALIAS=… AGENTRING_KEY_PASSWORD=…
-AGENTRING_REQUIRE_RELEASE_KEY=1 ./gradlew :app:bundleRelease -PversionName=0.3.0 -PversionCode=30099
+export HIVEPAL_KEYSTORE_FILE=/path/to/hivepal-release.jks
+export HIVEPAL_KEYSTORE_PASSWORD=… HIVEPAL_KEY_ALIAS=… HIVEPAL_KEY_PASSWORD=…
+HIVEPAL_REQUIRE_RELEASE_KEY=1 ./gradlew :app:bundleRelease -PversionName=0.3.0 -PversionCode=30099
 # -> app/build/outputs/bundle/release/app-release.aab
 ```
 
@@ -186,13 +186,13 @@ for new apps and updates from 2026-08-31.
 only on its internal and closed testing tracks and rejects a production or open-testing
 release that contains one, so `bundleRelease` leaves the car entry point out by default.
 For a closed-testing track with Android Auto, build a separate bundle with
-`-PagentringAndroidAuto=true` and a higher `versionCode`, and never promote it to
+`-PhivepalAndroidAuto=true` and a higher `versionCode`, and never promote it to
 production ([android-auto.md](android-auto.md)). The GitHub APK always includes it.
 
 Play Console items this app needs:
 
 - **Privacy policy:** `https://agentring.io/privacy`. **Account deletion:**
-  `https://agentring.io/delete-account` (accounts exist only on agentring cloud; they are
+  `https://agentring.io/delete-account` (accounts exist only on hivepal cloud; they are
   deleted from the dashboard or by email). Self-hosted users have no account.
 - **Full-screen intent** (`USE_FULL_SCREEN_INTENT`): declare "calling app" — incoming calls
   show over the lock screen.
@@ -209,7 +209,7 @@ Play Console items this app needs:
 
 ## Directories
 
-Where agentring is listed, and what to refresh after a release:
+Where hivepal is listed, and what to refresh after a release:
 
 - **MCP Registry** (`registry.modelcontextprotocol.io`, feeds GitHub's registry and other
   directories): [`server.json`](../server.json) lists the hosted server
@@ -217,18 +217,18 @@ Where agentring is listed, and what to refresh after a release:
   release, then `mcp-publisher validate`, `mcp-publisher login github` and
   `mcp-publisher publish` from the repository root. A version can be published once.
 - **Grok Build plugin marketplace** (`xai-org/plugin-marketplace`):
-  [`plugins/agentring`](../plugins/agentring) is the plugin (the hosted MCP server and a
+  [`plugins/hivepal`](../plugins/hivepal) is the plugin (the hosted MCP server and a
   copy of the skill; a test keeps the copy equal). The catalog entry pins a commit of this
   repository, so after changing the plugin or the skill, open a PR there that bumps the
   `sha` and regenerates the index (its CONTRIBUTING.md has the commands).
-- **skills.sh**: nothing to publish. It lists `skills/agentring` from this repository as
+- **skills.sh**: nothing to publish. It lists `skills/hivepal` from this repository as
   people install it (`npx skills add mutonby/agentring`).
 - **Glama** (`glama.ai/mcp/servers/mutonby/agentring`): it builds the server from this
   repository with the settings on its admin page (build step `uv sync --project daemon
-  --frozen --no-dev`, command `uv run --project daemon --no-sync agentring mcp`, Python
+  --frozen --no-dev`, command `uv run --project daemon --no-sync hivepal mcp`, Python
   3.12, placeholder relay URL and API key) and checks that it starts and lists its tools.
   Auto-release is on: it rebuilds on every GitHub release.
 - **awesome-mcp-servers** (`punkpeye/awesome-mcp-servers`, Communication): one line in
   its README; only needs a PR if the description changes.
-- **ClawHub**: `clawhub skill publish skills/agentring --slug agentring --version <x.y.z>`
+- **ClawHub**: `clawhub skill publish skills/hivepal --slug hivepal --version <x.y.z>`
   after changing the skill.

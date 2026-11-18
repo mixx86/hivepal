@@ -21,7 +21,7 @@ body:
       label: Steps to reproduce
       placeholder: |
         1. Lock the phone, wait 10 min
-        2. agentring call "test"
+        2. hivepal call "test"
         3. ...
     validations:
       required: true
@@ -65,19 +65,19 @@ body:
     id: relay-version
     attributes:
       label: Relay version and deployment
-      description: "`agentring status` prints the relay version. Deployment: docker-compose.yml, docker-compose.proxy.yml, Coolify, or bare `npm start`."
+      description: "`hivepal status` prints the relay version. Deployment: docker-compose.yml, docker-compose.proxy.yml, Coolify, or bare `npm start`."
   - type: input
     id: daemon-version
     attributes:
       label: Daemon version
-      description: "`agentring version`, and the OS it runs on."
+      description: "`hivepal version`, and the OS it runs on."
   - type: textarea
     id: logs
     attributes:
       label: Logs
       description: |
         Whatever applies:
-        - phone: `adb logcat -s PushHandler AgentringFCM CallManager CallService TelecomBridge Ringer VoiceSession`
+        - phone: `adb logcat -s PushHandler HivepalFCM CallManager CallService TelecomBridge Ringer VoiceSession`
         - relay: `docker compose logs relay`
-        - daemon: the output of the failing command (`agentring call` prints a timeline)
+        - daemon: the output of the failing command (`hivepal call` prints a timeline)
       render: text

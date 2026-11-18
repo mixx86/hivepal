@@ -90,7 +90,7 @@ private val AppShapes = Shapes(
 val MonoStyle = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 13.sp, lineHeight = 20.sp)
 
 @Composable
-fun AgentringTheme(content: @Composable () -> Unit) {
+fun HivepalTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalStatusColors provides DarkStatus) {
         MaterialTheme(colorScheme = Dark, typography = Type, shapes = AppShapes, content = content)
     }

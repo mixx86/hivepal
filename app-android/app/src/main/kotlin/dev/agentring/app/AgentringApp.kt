@@ -9,7 +9,7 @@ import dev.agentring.app.call.CallNotifications
 import dev.agentring.app.notify.Notifications
 
 @OptIn(FlowPreview::class)
-class AgentringApp : Application() {
+class HivepalApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Graph.init(this)
@@ -20,7 +20,7 @@ class AgentringApp : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(Graph.connection)
         // Hivepal: keep the home-screen widget in step with the messages.
         Graph.appScope.launch {
-            Graph.messages.messages.debounce(500).collect { dev.agentring.app.widget.HivepalWidget.update(this@AgentringApp) }
+            Graph.messages.messages.debounce(500).collect { dev.agentring.app.widget.HivepalWidget.update(this@HivepalApp) }
         }
     }
 }

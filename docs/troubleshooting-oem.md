@@ -1,6 +1,6 @@
 # Calls don't ring: battery savers and OEM background killers
 
-agentring wakes the phone with a high-priority FCM data message. The app then
+hivepal wakes the phone with a high-priority FCM data message. The app then
 starts a foreground call service, registers the call with Android's Telecom
 stack (with its own fallback if that fails) and shows a CallStyle notification
 with a full-screen intent. If any of those steps is blocked, the call is late or
@@ -33,7 +33,7 @@ item has a **Fix** button that opens the right system screen.
 | Full-screen calls on the lock screen | required (Android 14+ needs explicit permission) | *Full-screen intents* setting for the app |
 | Background activity allowed | required (not "Restricted") | app info |
 | Unrestricted battery use | strongly recommended (shown in red) | the *ignore battery optimisations* dialog |
-| Ring urgent calls in Do Not Disturb | optional (`agentring call --urgent`) | *Do Not Disturb access* |
+| Ring urgent calls in Do Not Disturb | optional (`hivepal call --urgent`) | *Do Not Disturb access* |
 
 These are the standard Android settings. OEM-specific switches (autostart,
 "never sleeping apps", lock in recents) can't be checked by the app; set them by
@@ -50,32 +50,32 @@ on a particular phone; the app then rings with its own service and notification.
 
 Usually only the app's checklist is needed.
 
-- Settings → Apps → agentring → **App battery usage** → **Unrestricted**.
+- Settings → Apps → hivepal → **App battery usage** → **Unrestricted**.
 - Android 14+: Settings → Apps → Special app access → **Full screen intents** →
-  agentring on.
+  hivepal on.
 - If you rarely open the app, Android may put it in a lower standby bucket; the
   "Unrestricted" setting above prevents most of the effect.
 
 ### Samsung (One UI)
 
-- Settings → Apps → agentring → Battery → **Unrestricted**.
+- Settings → Apps → hivepal → Battery → **Unrestricted**.
 - Settings → Battery (or Device care → Battery) → **Background usage limits**:
-  - add agentring to **Never sleeping apps**;
+  - add hivepal to **Never sleeping apps**;
   - make sure it is not in *Sleeping apps* or *Deep sleeping apps*;
   - consider turning off **Put unused apps to sleep**.
-- Settings → Apps → agentring → Notifications: allow, and check the call
+- Settings → Apps → hivepal → Notifications: allow, and check the call
   channels are not silenced.
 
 ### Xiaomi / Redmi / POCO (MIUI, HyperOS)
 
-- Settings → Apps → Manage apps → agentring:
+- Settings → Apps → Manage apps → hivepal:
   - **Autostart** on;
   - Battery saver → **No restrictions**;
   - Other permissions → **Show on Lock screen** and **Display pop-up windows
     while running in the background** allowed (needed for the full-screen call
     screen when locked);
   - Notifications → allow, including lock-screen notifications.
-- Open recent apps, long-press agentring and tap the **lock** icon so cleaning
+- Open recent apps, long-press hivepal and tap the **lock** icon so cleaning
   the recents doesn't kill it.
 - Disable any "battery saver" / "ultra battery saver" mode while you need calls.
 
@@ -83,17 +83,17 @@ Usually only the app's checklist is needed.
 
 - Without Google Play services FCM doesn't work and the phone will not wake for
   calls (UnifiedPush support is planned). Older models with Play services:
-- Settings → Battery → **App launch** → agentring → turn off *Manage
+- Settings → Battery → **App launch** → hivepal → turn off *Manage
   automatically*, then enable **Auto-launch**, **Secondary launch** and **Run in
   background**.
-- Settings → Apps → agentring → Battery → **Power-intensive prompt** off (if
+- Settings → Apps → hivepal → Battery → **Power-intensive prompt** off (if
   present) and *Keep running after screen off* on.
 - Lock the app in recent apps.
 
 ### OnePlus (OxygenOS)
 
-- Settings → Apps → agentring → Battery usage → **Allow background activity**
-  (older versions: Settings → Battery → Battery optimisation → agentring →
+- Settings → Apps → hivepal → Battery usage → **Allow background activity**
+  (older versions: Settings → Battery → Battery optimisation → hivepal →
   **Don't optimise**).
 - Settings → Battery → Advanced settings: turn off **Optimise battery use** /
   **Sleep standby optimisation** / **Deep optimisation**, whichever exist.
@@ -101,16 +101,16 @@ Usually only the app's checklist is needed.
 
 ### Oppo / Realme (ColorOS, Realme UI)
 
-- Settings → Apps → App management → agentring → Battery usage: allow
+- Settings → Apps → App management → hivepal → Battery usage: allow
   **foreground activity**, **background activity** and **auto launch**.
 - Settings → Battery → More settings: turn off **Sleep standby optimisation**
-  and any *App quick freeze* that includes agentring.
+  and any *App quick freeze* that includes hivepal.
 - Lock the app in recent apps.
 
 ## Verify
 
 1. Check the app's checklist is all green (Settings tab) and Home shows
-   *Push: Registered*. `agentring status` should show `push ok` for the device.
+   *Push: Registered*. `hivepal status` should show `push ok` for the device.
 2. Force Doze with the phone on USB (or wireless adb) and the screen off:
 
    ```bash
@@ -125,7 +125,7 @@ Usually only the app's checklist is needed.
 3. Place a test call from the daemon (needs the `[voice]` extra):
 
    ```bash
-   agentring call "test"
+   hivepal call "test"
    ```
 
    It prints a timeline: `ringing on dev_…` means the phone showed the call
@@ -147,12 +147,12 @@ time with the screen off, so also try with the phone locked and untouched for
 If it still doesn't ring, collect logs while you call:
 
 ```bash
-adb logcat -s PushHandler AgentringFCM CallManager CallService TelecomBridge Ringer
+adb logcat -s PushHandler HivepalFCM CallManager CallService TelecomBridge Ringer
 ```
 
 - Nothing from `PushHandler` → the push never reached the app (FCM, Play
   services or an OEM killer).
-- `AgentringFCM: push deprioritized` → FCM downgraded the message from high to
+- `HivepalFCM: push deprioritized` → FCM downgraded the message from high to
   normal priority.
 - `PushHandler: rejected push` → the signature or relay id didn't match; pair
   the phone again.

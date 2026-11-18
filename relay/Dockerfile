@@ -10,7 +10,7 @@ COPY src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
-ENV NODE_ENV=production AGENTRING_DATA_DIR=/data PORT=8080
+ENV NODE_ENV=production HIVEPAL_DATA_DIR=/data PORT=8080
 # The relay only needs node: drop the package managers from the runtime image.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \

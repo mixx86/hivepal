@@ -16,10 +16,10 @@ pytest.importorskip("livekit")
 
 import websockets  # noqa: E402
 
-from agentring.voice import CallInfo, GeminiLive, Tool, ToolCall, VoiceAgent, is_incoming_call, mcp_tools  # noqa: E402
-from agentring.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete  # noqa: E402
-from agentring.voice.gemini import _clean_schema, parse  # noqa: E402
-from agentring.voice.session import CallSession  # noqa: E402
+from hivepal.voice import CallInfo, GeminiLive, Tool, ToolCall, VoiceAgent, is_incoming_call, mcp_tools  # noqa: E402
+from hivepal.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete  # noqa: E402
+from hivepal.voice.gemini import _clean_schema, parse  # noqa: E402
+from hivepal.voice.session import CallSession  # noqa: E402
 
 # ------------------------------------------------------------------ Gemini protocol
 
@@ -340,7 +340,7 @@ def test_model_speech_is_published_at_48_khz():
     and chunk boundaries don't change the result."""
     import numpy as np
 
-    from agentring.voice.session import PLAY_RATE, Resampler
+    from hivepal.voice.session import PLAY_RATE, Resampler
 
     t = np.arange(2400) / 24_000
     pcm = (np.sin(2 * np.pi * 440 * t) * 10_000).astype(np.int16).tobytes()
@@ -365,7 +365,7 @@ def test_is_incoming_call():
 def test_consult_agent_through_the_session():
     import sys
 
-    from agentring.voice import CommandAgent, Consultations
+    from hivepal.voice import CommandAgent, Consultations
 
     slow = CommandAgent("ops", "Ops.", [sys.executable, "-c", "import sys, time; time.sleep(0.5); print('ok', sys.argv[1])",
                                         "{task}"])
@@ -410,8 +410,8 @@ def test_notes_loop_passes_provenance_only_to_backends_that_take_it():
 
 
 def test_warns_once_before_the_plan_minutes_cut_the_call():
-    from agentring.mcp_server import with_upgrade_hint
-    from agentring.voice.session import MINUTES_LOW_MS, Prompts
+    from hivepal.mcp_server import with_upgrade_hint
+    from hivepal.voice.session import MINUTES_LOW_MS, Prompts
 
     async def run(prompts=None):
         s = CallSession(VoiceAgent(lambda: _NullBackend(), "x", prompts=prompts), CallInfo("call_1", "test"))
@@ -436,7 +436,7 @@ def test_warns_once_before_the_plan_minutes_cut_the_call():
 
 
 def test_after_user_speech_gate_holds_tools_until_the_user_speaks():
-    from agentring.voice.quick import NO_USER_YET, after_user_speech
+    from hivepal.voice.quick import NO_USER_YET, after_user_speech
 
     async def run():
         ran: list[int] = []
@@ -458,19 +458,19 @@ def test_after_user_speech_gate_holds_tools_until_the_user_speaks():
 
 
 class _FakeBuilt:
-    """What `build_agent` gives `AgentringTools.call`, for a call nobody answers."""
+    """What `build_agent` gives `HivepalTools.call`, for a call nobody answers."""
 
     consultations = None
 
     def __init__(self, seen: dict):
-        from agentring.voice.session import Prompts
+        from hivepal.voice.session import Prompts
 
         self.seen = seen
         self.agent = self
         self.prompts = Prompts()
 
     async def run(self, info, join, *, relay=None):
-        from agentring.voice.session import CallResult
+        from hivepal.voice.session import CallResult
 
         self.seen["info"] = info
         self.seen["minutes_low"] = self.prompts.minutes_low
@@ -498,9 +498,9 @@ class _FakeClient:
 
 def _mcp_call(monkeypatch, tmp_path, **kw):
     """Runs the MCP `call` tool with the voice stack stubbed; returns (result, client, what it was given)."""
-    from agentring.mcp_server import AgentringTools
-    from agentring.store import Store
-    from agentring.voice import providers, quick
+    from hivepal.mcp_server import HivepalTools
+    from hivepal.store import Store
+    from hivepal.voice import providers, quick
 
     seen: dict = {}
 
@@ -511,7 +511,7 @@ def _mcp_call(monkeypatch, tmp_path, **kw):
     monkeypatch.setattr(quick, "build_agent", fake_build)
     monkeypatch.setattr(providers, "resolve_voice", lambda: object())
     client = _FakeClient()
-    tools = AgentringTools(client, Store(tmp_path / "s.db"), agents_file=None, **kw)
+    tools = HivepalTools(client, Store(tmp_path / "s.db"), agents_file=None, **kw)
     out = asyncio.run(tools.call("Deploy blocked", context="Need OK for the migration."))
     tools.store.close()
     return out, client, seen
@@ -524,7 +524,7 @@ def test_missed_targeted_call_sends_no_message(monkeypatch, tmp_path):
 
 
 def test_hosted_calls_say_where_to_get_more_minutes(monkeypatch, tmp_path):
-    from agentring.voice.session import Prompts
+    from hivepal.voice.session import Prompts
 
     seen = _mcp_call(monkeypatch, tmp_path, upgrade_url="https://agentring.io/app#usage")[2]
     assert seen["minutes_low"].endswith("with Pro on agentring.io.")
@@ -539,7 +539,7 @@ def test_missed_group_call_still_leaves_a_message(monkeypatch, tmp_path):
 
 
 def test_mcp_call_gates_tools_by_default(monkeypatch, tmp_path):
-    from agentring.voice.quick import after_user_speech
+    from hivepal.voice.quick import after_user_speech
 
     assert _mcp_call(monkeypatch, tmp_path)[2]["before_tool"] is after_user_speech
 
@@ -550,7 +550,7 @@ def test_mcp_call_gates_tools_by_default(monkeypatch, tmp_path):
 
 
 def test_build_agent_passes_before_tool(monkeypatch):
-    from agentring.voice import quick
+    from hivepal.voice import quick
 
     def gate(session, call):
         return None
@@ -562,7 +562,7 @@ def test_build_agent_passes_before_tool(monkeypatch):
 
 
 def test_instructions_ask_to_talk_before_tools():
-    from agentring.voice import Prompts
+    from hivepal.voice import Prompts
 
     async def run():
         text = await _session()._instructions()

@@ -1,7 +1,7 @@
-# agentring behind a reverse proxy you already run (host Caddy, Traefik, nginx…).
+# hivepal behind a reverse proxy you already run (host Caddy, Traefik, nginx…).
 #
 # The relay and LiveKit's signalling listen on 127.0.0.1 only; your proxy
-# terminates TLS for AGENTRING_DOMAIN and routes:
+# terminates TLS for HIVEPAL_DOMAIN and routes:
 #
 #   /rtc*                       -> 127.0.0.1:7880  (LiveKit signalling, WebSocket)
 #   /twirp/*, /v1/livekit/webhook -> 404           (LiveKit admin API / internal webhook: never public)
@@ -12,15 +12,15 @@
 #
 # Environment (nothing secret goes here: env vars show up in `docker inspect`
 # and in deploy tooling):
-#   AGENTRING_DOMAIN       public hostname, e.g. agentring.example.com
+#   HIVEPAL_DOMAIN       public hostname, e.g. hivepal.example.com
 #   LIVEKIT_NODE_IP        this server's public IPv4 (advertised to phones for media)
 #   LIVEKIT_API_KEY        key id, e.g. lk_3f9a… (not secret)
 #
 # Secrets are read-only files on the host, one directory per container so each
 # only sees its own (see docs/setup.md):
-#   /opt/agentring/relay/     uid 1000, 0400: firebase-service-account.json,
+#   /opt/hivepal/relay/     uid 1000, 0400: firebase-service-account.json,
 #                             google-services.json, livekit-api-secret
-#   /opt/agentring/livekit/   uid 65534: livekit.yaml (0444, deploy/livekit.yaml with
+#   /opt/hivepal/livekit/   uid 65534: livekit.yaml (0444, deploy/livekit.yaml with
 #                             the key id filled in), keys.yaml (0600, "<key id>: <secret>")
 
 services:
@@ -28,21 +28,21 @@ services:
     build: ../relay
     restart: unless-stopped
     environment:
-      AGENTRING_PUBLIC_URL: https://${AGENTRING_DOMAIN:?set AGENTRING_DOMAIN}
-      AGENTRING_AGENT_NAME: ${AGENTRING_AGENT_NAME:-Agent}
-      AGENTRING_API_KEY: ${AGENTRING_API_KEY:-}
+      HIVEPAL_PUBLIC_URL: https://${HIVEPAL_DOMAIN:?set HIVEPAL_DOMAIN}
+      HIVEPAL_AGENT_NAME: ${HIVEPAL_AGENT_NAME:-Agent}
+      HIVEPAL_API_KEY: ${HIVEPAL_API_KEY:-}
       FCM_SERVICE_ACCOUNT_FILE: /secrets/firebase-service-account.json
       FCM_GOOGLE_SERVICES_FILE: /secrets/google-services.json
-      LIVEKIT_URL: wss://${AGENTRING_DOMAIN}
+      LIVEKIT_URL: wss://${HIVEPAL_DOMAIN}
       LIVEKIT_API_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET_FILE: /secrets/livekit-api-secret
     volumes:
       - relay-data:/data
-      - ${AGENTRING_RELAY_SECRETS:-/opt/agentring/relay}:/secrets:ro
+      - ${HIVEPAL_RELAY_SECRETS:-/opt/hivepal/relay}:/secrets:ro
     ports:
       - "127.0.0.1:8095:8080"
-    networks: [agentring]
+    networks: [hivepal]
     # Hardening: unprivileged user (from the Dockerfile), nothing writable but /data and /tmp.
     # Probe every second while starting so the proxy routes to a new container within
     # seconds of a deploy (the image's default waits 30 s for the first check).
@@ -66,12 +66,12 @@ services:
     restart: unless-stopped
     command: ["--config", "/etc/livekit/livekit.yaml", "--node-ip", "${LIVEKIT_NODE_IP:?set LIVEKIT_NODE_IP}"]
     volumes:
-      - ${AGENTRING_LIVEKIT_DIR:-/opt/agentring/livekit}:/etc/livekit:ro
+      - ${HIVEPAL_LIVEKIT_DIR:-/opt/hivepal/livekit}:/etc/livekit:ro
     ports:
       - "127.0.0.1:7880:7880"
       - "7881:7881/tcp"
       - "50000-50100:50000-50100/udp"
-    networks: [agentring]
+    networks: [hivepal]
     user: "65534:65534"
     read_only: true
     cap_drop: [ALL]
@@ -81,7 +81,7 @@ services:
     pids_limit: 512
 
 networks:
-  agentring:
+  hivepal:
 
 volumes:
   relay-data:

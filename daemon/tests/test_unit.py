@@ -16,12 +16,12 @@ import typer
 import websockets
 from typer.testing import CliRunner
 
-from agentring.cli import app, parse_since
-from agentring.config import ConfigError, load_settings
-from agentring.relay_client import (ALLOW_INSECURE_ENV, InsecureRelayError, RelayClient, RelayError, check_relay_url,
+from hivepal.cli import app, parse_since
+from hivepal.config import ConfigError, load_settings
+from hivepal.relay_client import (ALLOW_INSECURE_ENV, InsecureRelayError, RelayClient, RelayError, check_relay_url,
                                     is_private_host)
-from agentring.store import Store
-from agentring.sync import apply_event, catch_up, run_ws
+from hivepal.store import Store
+from hivepal.sync import apply_event, catch_up, run_ws
 
 from .conftest import API_KEY
 
@@ -182,12 +182,12 @@ def test_store_creates_private_files(tmp_path: Path, loose_umask):
     s.close()
 
 
-def test_environment_only_setup_leaves_nothing_readable_by_others(relay: str, agentring_home, monkeypatch, loose_umask):
-    monkeypatch.setenv("AGENTRING_RELAY_URL", relay)
-    monkeypatch.setenv("AGENTRING_API_KEY", API_KEY)
+def test_environment_only_setup_leaves_nothing_readable_by_others(relay: str, hivepal_home, monkeypatch, loose_umask):
+    monkeypatch.setenv("HIVEPAL_RELAY_URL", relay)
+    monkeypatch.setenv("HIVEPAL_API_KEY", API_KEY)
     assert CliRunner().invoke(app, ["msg", "hi"]).exit_code == 0  # no `init`
-    assert _mode(agentring_home) == 0o700
-    files = list(agentring_home.iterdir())
+    assert _mode(hivepal_home) == 0o700
+    files = list(hivepal_home.iterdir())
     assert files and all(_mode(f) & 0o077 == 0 for f in files)
 
 
@@ -252,19 +252,19 @@ def test_opt_in_allows_public_http(monkeypatch):
         pass
 
 
-def test_environment_settings_get_the_same_rule(agentring_home, monkeypatch):
-    monkeypatch.setenv("AGENTRING_RELAY_URL", "http://relay.example.com")
-    monkeypatch.setenv("AGENTRING_API_KEY", "ak_x")
+def test_environment_settings_get_the_same_rule(hivepal_home, monkeypatch):
+    monkeypatch.setenv("HIVEPAL_RELAY_URL", "http://relay.example.com")
+    monkeypatch.setenv("HIVEPAL_API_KEY", "ak_x")
     with pytest.raises(ConfigError, match="plain http"):
         load_settings()
-    monkeypatch.setenv("AGENTRING_RELAY_URL", "http://relay:8080")
+    monkeypatch.setenv("HIVEPAL_RELAY_URL", "http://relay:8080")
     assert load_settings().relay_url == "http://relay:8080"
 
 
-def test_init_refuses_public_http(agentring_home):
+def test_init_refuses_public_http(hivepal_home):
     r = CliRunner().invoke(app, ["init", "--relay", "http://relay.example.com", "--api-key", "ak_x"])
     assert r.exit_code == 1 and "plain http" in r.output
-    assert not (agentring_home / "config.yaml").exists()
+    assert not (hivepal_home / "config.yaml").exists()
 
 
 class _Reply(BaseHTTPRequestHandler):
@@ -291,7 +291,7 @@ class _Reply(BaseHTTPRequestHandler):
     (200, {"content-type": "application/json"}, b"[1, 2]"),
     (200, {"content-type": "application/json"}, b"{}"),
 ])
-def test_init_saves_nothing_unless_a_relay_answered(agentring_home, status, headers, body):
+def test_init_saves_nothing_unless_a_relay_answered(hivepal_home, status, headers, body):
     handler = type("H", (_Reply,), {"status": status, "headers_out": headers, "body": body})
     srv = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
@@ -301,7 +301,7 @@ def test_init_saves_nothing_unless_a_relay_answered(agentring_home, status, head
         srv.shutdown()
     assert r.exit_code == 1, r.output
     assert isinstance(r.exception, SystemExit)  # a clean error, not a traceback
-    assert not (agentring_home / "config.yaml").exists() and not (agentring_home / ".env").exists()
+    assert not (hivepal_home / "config.yaml").exists() and not (hivepal_home / ".env").exists()
 
 
 def test_redirects_and_non_json_are_relay_errors():
@@ -320,7 +320,7 @@ def test_redirects_and_non_json_are_relay_errors():
 
 
 def test_private_name_suffixes_may_use_http():
-    from agentring.relay_client import is_private_host
+    from hivepal.relay_client import is_private_host
 
     for host in ("host.docker.internal", "nas.lan", "box.tail1234.ts.net", "pi.home.arpa", "relay", "pi.local"):
         assert is_private_host(host), host
@@ -332,8 +332,8 @@ def test_private_name_suffixes_may_use_http():
 def test_quota_errors_tell_the_agent_where_to_upgrade(monkeypatch, tmp_path):
     import asyncio
 
-    from agentring.mcp_server import AgentringTools, call_tool, quota_note
-    from agentring.relay_client import RelayError
+    from hivepal.mcp_server import HivepalTools, call_tool, quota_note
+    from hivepal.relay_client import RelayError
 
     class Tools:
         upgrade_url = "https://cloud.example/app#usage"
@@ -352,20 +352,20 @@ def test_quota_errors_tell_the_agent_where_to_upgrade(monkeypatch, tmp_path):
     # Other errors are untouched.
     assert asyncio.run(call_tool(Tools(), "status", {}))["content"][0]["text"] == "busy: Another call is in progress (HTTP 409)"
     # Without a URL (self-hosted relay with limits) the note still names the cause.
-    assert quota_note(None) == "The user's agentring plan limit is reached."
+    assert quota_note(None) == "The user's hivepal plan limit is reached."
 
-    monkeypatch.setenv("AGENTRING_UPGRADE_URL", "https://x.example/up")
-    from agentring.config import Settings
+    monkeypatch.setenv("HIVEPAL_UPGRADE_URL", "https://x.example/up")
+    from hivepal.config import Settings
 
-    t = AgentringTools.from_settings(Settings(relay_url="http://127.0.0.1:1", api_key="ak_x", home=tmp_path), agents_file=None)
+    t = HivepalTools.from_settings(Settings(relay_url="http://127.0.0.1:1", api_key="ak_x", home=tmp_path), agents_file=None)
     assert t.upgrade_url == "https://x.example/up"
 
 
 def test_call_cut_off_by_the_quota_gets_a_note():
     import asyncio
 
-    from agentring.mcp_server import AgentringTools
-    from agentring.relay_client import RelayError
+    from hivepal.mcp_server import HivepalTools
+    from hivepal.relay_client import RelayError
 
     class Client:
         relay_url = "http://relay"
@@ -376,7 +376,7 @@ def test_call_cut_off_by_the_quota_gets_a_note():
                 raise RelayError(404, "not_found", "Call not found")
             return self.calls[call_id]
 
-    t = AgentringTools(Client(), store=None, upgrade_url="https://cloud.example/app#usage")  # type: ignore[arg-type]
+    t = HivepalTools(Client(), store=None, upgrade_url="https://cloud.example/app#usage")  # type: ignore[arg-type]
     note = asyncio.run(t.quota_cutoff_note("c1"))
     assert note and note.startswith("The call was cut off") and "https://cloud.example/app#usage" in note
     assert asyncio.run(t.quota_cutoff_note("c2")) is None

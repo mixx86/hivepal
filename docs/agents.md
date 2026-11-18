@@ -4,30 +4,30 @@ There are two directions, and you can use both:
 
 1. **Your agent reaches you.** Claude Code, OpenClaw, n8n or a script messages your
    phone, waits for your reply, or calls you. A voice AI talks to you for the
-   agent and hands it the transcript. Use the [MCP server](#mcp-server-agentring-mcp)
+   agent and hands it the transcript. Use the [MCP server](#mcp-server-hivepal-mcp)
    (or its [HTTP version](#remote-mcp-http)), the CLI or the relay's REST API.
 2. **You reach your agents by phone.** On a call (one the agent placed, or one you
    made with "Call agent" in the app), the voice AI can ask your agents for help.
    Each agent in [`agents.yaml`](#agentsyaml) is a tool for it, through
    `consult_agent`, and so are your MCP servers.
 
-## MCP server (`agentring mcp`)
+## MCP server (`hivepal mcp`)
 
-`agentring mcp` is an MCP server over stdio. Add it to any MCP client:
+`hivepal mcp` is an MCP server over stdio. Add it to any MCP client:
 
 ```bash
-claude mcp add agentring -- agentring mcp          # Claude Code
+claude mcp add hivepal -- hivepal mcp          # Claude Code
 ```
 
 ```json
-{ "mcpServers": { "agentring": { "command": "agentring", "args": ["mcp"] } } }
+{ "mcpServers": { "hivepal": { "command": "hivepal", "args": ["mcp"] } } }
 ```
 
 The second form is the usual `mcpServers` config that most clients read. It uses
-the daemon's config (`agentring init`), so run `agentring init` and
-`agentring pair` first. Other harnesses: see [recipes](#recipes-by-harness).
+the daemon's config (`hivepal init`), so run `hivepal init` and
+`hivepal pair` first. Other harnesses: see [recipes](#recipes-by-harness).
 
-`agentring mcp --agent-name "Claude Code"` sets the caller name the phone shows (useful
+`hivepal mcp --agent-name "Claude Code"` sets the caller name the phone shows (useful
 when several agents share one relay), and `--device dev_…` (repeatable) rings only those
 phones instead of every paired one.
 
@@ -39,7 +39,7 @@ opencode: 30 s, Hermes: 300 s).
 |---|---|
 | `send_message(text, reply_to?)` | Sends a message to the phone (a notification you can reply to inline). Returns `msg_id`. |
 | `get_replies(wait_s?)` | Your new replies, each one returned once. `wait_s` waits up to that long for one (max 3600). |
-| `call(reason, context?, urgent?)` | The phone rings. When you answer, the voice AI says why it's calling, talks with you, and hangs up when you're done. Returns the transcript, how long the call lasted, why it ended and which tools were used. Blocks until the call ends. Needs the `[voice]` extra and the voice provider's key (`GEMINI_API_KEY` by default; `AGENTRING_VOICE_PROVIDER` picks another, see [voice.md](voice.md#providers)). |
+| `call(reason, context?, urgent?)` | The phone rings. When you answer, the voice AI says why it's calling, talks with you, and hangs up when you're done. Returns the transcript, how long the call lasted, why it ended and which tools were used. Blocks until the call ends. Needs the `[voice]` extra and the voice provider's key (`GEMINI_API_KEY` by default; `HIVEPAL_VOICE_PROVIDER` picks another, see [voice.md](voice.md#providers)). |
 | `status()` | Whether the relay is reachable and which phones are paired. |
 
 `context` is everything the voice AI knows about the agent's work: put in it what
@@ -48,11 +48,11 @@ the voice AI on these calls can also consult your agents, but only once you have
 on the call: `context` may hold text the calling agent read elsewhere, and that alone
 must not start a tool ([voice.md](voice.md#as-a-library)).
 
-With `agentring mcp --device`, the call is private to those phones. If nobody answers,
+With `hivepal mcp --device`, the call is private to those phones. If nobody answers,
 or an agent's answer comes after the call, nothing is sent as a message, because a
 message reaches every paired phone: the calling agent still gets the result.
 
-Before `agentring init`, the server still starts and lists its tools; each tool call then
+Before `hivepal init`, the server still starts and lists its tools; each tool call then
 answers with what is missing, so the agent can tell you.
 
 The server is a small JSON-RPC loop with no MCP SDK and no extra dependencies
@@ -62,18 +62,18 @@ as n8n can also use the REST API (below).
 
 ## Remote MCP (HTTP)
 
-`agentring mcp-http` serves the same four tools over MCP **Streamable HTTP** at
+`hivepal mcp-http` serves the same four tools over MCP **Streamable HTTP** at
 `/mcp`, for many users at once. Each user's agent sends its relay API key as a
 bearer token, so nothing about the user is configured on the server, and the agent's
 computer needs no daemon:
 
 ```bash
-claude mcp add --transport http agentring https://mcp.example.com/mcp \
+claude mcp add --transport http hivepal https://mcp.example.com/mcp \
   --header "Authorization: Bearer ak_..."
 ```
 
 ```json
-{ "mcpServers": { "agentring": { "type": "http", "url": "https://mcp.example.com/mcp",
+{ "mcpServers": { "hivepal": { "type": "http", "url": "https://mcp.example.com/mcp",
                                  "headers": { "Authorization": "Bearer ak_..." } } } }
 ```
 
@@ -81,19 +81,19 @@ Run it next to your relay (self-hosted: every key is checked against that one re
 with `GET /v1/status`):
 
 ```bash
-agentring mcp-http --relay-url https://relay.example.com          # listens on 127.0.0.1:8790
+hivepal mcp-http --relay-url https://relay.example.com          # listens on 127.0.0.1:8790
 ```
 
 | Option | Environment | Default | |
 |---|---|---|---|
-| `--host`, `--port` | `AGENTRING_MCP_HOST`, `AGENTRING_MCP_PORT` | `127.0.0.1`, `8790` | Put TLS (Caddy, Traefik) in front of it. |
-| `--relay-url` | `AGENTRING_RELAY_URL` | | The relay. With a hub, its internal address (optional). |
-| | `AGENTRING_HUB_ADMIN_URL`, `AGENTRING_HUB_ADMIN_TOKEN_FILE` or `AGENTRING_HUB_ADMIN_TOKEN` | | Hub mode: keys are resolved to their tenant ([cloud.md](cloud.md#remote-mcp-server)). |
-| `--data-dir` | `AGENTRING_MCP_DATA_DIR` | `~/.agentring/mcp-http` | Per-user state, one SQLite file per tenant. |
-| `--max-calls` | `AGENTRING_MCP_MAX_CALLS` | `4` | Voice calls at once, all users together; one more gets the tool error `busy`. |
-| | `AGENTRING_UPGRADE_URL` | none | Hosted plans: where users raise their limits. Added to `quota_exceeded` tool errors and to the result of a call the relay cut off for minutes, so the agent can pass the link on. `agentring mcp` (stdio) reads it too. |
-| `--max-body` | `AGENTRING_MCP_MAX_BODY` | `1048576` | Largest request body (bytes); larger gets 413. |
-| `--allow-origin` | `AGENTRING_MCP_ALLOWED_ORIGINS` (comma-separated) | none | Browser `Origin`s allowed to use `/mcp` (`*` = any). Requests from any other Origin get 403; MCP clients that are not browsers send none. |
+| `--host`, `--port` | `HIVEPAL_MCP_HOST`, `HIVEPAL_MCP_PORT` | `127.0.0.1`, `8790` | Put TLS (Caddy, Traefik) in front of it. |
+| `--relay-url` | `HIVEPAL_RELAY_URL` | | The relay. With a hub, its internal address (optional). |
+| | `HIVEPAL_HUB_ADMIN_URL`, `HIVEPAL_HUB_ADMIN_TOKEN_FILE` or `HIVEPAL_HUB_ADMIN_TOKEN` | | Hub mode: keys are resolved to their tenant ([cloud.md](cloud.md#remote-mcp-server)). |
+| `--data-dir` | `HIVEPAL_MCP_DATA_DIR` | `~/.agentring/mcp-http` | Per-user state, one SQLite file per tenant. |
+| `--max-calls` | `HIVEPAL_MCP_MAX_CALLS` | `4` | Voice calls at once, all users together; one more gets the tool error `busy`. |
+| | `HIVEPAL_UPGRADE_URL` | none | Hosted plans: where users raise their limits. Added to `quota_exceeded` tool errors and to the result of a call the relay cut off for minutes, so the agent can pass the link on. `hivepal mcp` (stdio) reads it too. |
+| `--max-body` | `HIVEPAL_MCP_MAX_BODY` | `1048576` | Largest request body (bytes); larger gets 413. |
+| `--allow-origin` | `HIVEPAL_MCP_ALLOWED_ORIGINS` (comma-separated) | none | Browser `Origin`s allowed to use `/mcp` (`*` = any). Requests from any other Origin get 403; MCP clients that are not browsers send none. |
 
 How it behaves:
 
@@ -112,26 +112,26 @@ How it behaves:
   proxy's read timeout anyway if it is shorter than a call. If the client hangs up,
   a waiting `get_replies` stops, with or without a stream; a phone call goes on until it ends.
 - **Limits.** Batches of up to 32 messages; up to 16 tool calls running at once per
-  account (over it, `429` with `Retry-After`; `AGENTRING_MCP_MAX_INFLIGHT` changes
+  account (over it, `429` with `Retry-After`; `HIVEPAL_MCP_MAX_INFLIGHT` changes
   it). Connections and response sizes are capped too: see [cloud.md](cloud.md).
 - **Voice.** `call` runs the voice AI on this server, with the provider and key from
-  its environment (`AGENTRING_VOICE_PROVIDER`, `GEMINI_API_KEY`, …) as for
-  `agentring call --ai`. `agents.yaml` is not used: the server never runs commands
+  its environment (`HIVEPAL_VOICE_PROVIDER`, `GEMINI_API_KEY`, …) as for
+  `hivepal call --ai`. `agents.yaml` is not used: the server never runs commands
   for its users.
 - **State.** Which replies `get_replies` already returned is kept per tenant (hub
   tenant id, or the relay id in self-hosted mode) in
   `{data dir}/tenants/{id}.db`, the same mirror the local daemon keeps, so every
   session of one user sees each reply once, also after a restart.
 
-With Docker, the daemon image (`daemon/Dockerfile`, entrypoint `agentring`) runs it;
+With Docker, the daemon image (`daemon/Dockerfile`, entrypoint `hivepal`) runs it;
 for example as a service in `deploy/docker-compose.yml`, routed at `/mcp` by the proxy:
 
 ```yaml
   mcp:
-    build: ../daemon                 # or the agentring-daemon image of a release that has mcp-http
+    build: ../daemon                 # or the hivepal-daemon image of a release that has mcp-http
     command: ["mcp-http", "--host", "0.0.0.0"]
     environment:
-      AGENTRING_RELAY_URL: http://relay:8080
+      HIVEPAL_RELAY_URL: http://relay:8080
       GEMINI_API_KEY: ${GEMINI_API_KEY}
     volumes: ["mcp-data:/config"]    # state in /config/mcp-http
     read_only: true
@@ -169,7 +169,7 @@ mcp:                         # MCP servers over Streamable HTTP; their tools go 
   task that starts with `-` is passed as `Task: -…`, so `[claude, -p, "{task}"]` is safe.
   You still choose what the agent sees: put `--` before `{task}`, or text before it in
   the same argument (`"Task: {task}"`), and it is passed as it is.
-- The agent runs with your environment plus `env` and `AGENTRING_CALL_ID`, in `cwd`.
+- The agent runs with your environment plus `env` and `HIVEPAL_CALL_ID`, in `cwd`.
   The call id lets an agent keep one session per call (see [OpenClaw](#openclaw)).
 - **`description` matters**: the voice AI picks the agent by it.
 - Over the phone, expose only what the caller should be able to do: use
@@ -179,15 +179,15 @@ mcp:                         # MCP servers over Streamable HTTP; their tools go 
 Check the file and try an agent without a call:
 
 ```bash
-agentring agents                       # lists them; errors if the file is wrong
-agentring agents ask claude "Is CI green on main?"
+hivepal agents                       # lists them; errors if the file is wrong
+hivepal agents ask claude "Is CI green on main?"
 ```
 
 Then use it on calls:
 
 ```bash
-agentring serve --ai                   # answers "Call agent" from the app
-agentring call "Deploy needs your OK" --ai
+hivepal serve --ai                   # answers "Call agent" from the app
+hivepal call "Deploy needs your OK" --ai
 ```
 
 ### How a consultation goes
@@ -206,53 +206,53 @@ builds the tool (`.tool()`) for a `VoiceAgent`. Any tool of your own can do the 
 
 ## Recipes by harness
 
-agentring doesn't care which harness you use: anything that speaks MCP can reach
+hivepal doesn't care which harness you use: anything that speaks MCP can reach
 you, and anything you can run as a command can be consulted from a call.
 
 ### Your agent reaches you (MCP)
 
 | Harness | Setup |
 |---|---|
-| Claude Code | `claude mcp add agentring -- agentring mcp` |
-| Codex | `codex mcp add agentring -- agentring mcp`, then `tool_timeout_sec = 1800` under `[mcp_servers.agentring]` in `~/.codex/config.toml` |
-| opencode | `opencode.json`: `"mcp": {"agentring": {"type": "local", "command": ["agentring", "mcp"], "timeout": 1800000}}` |
-| OpenClaw | `agentring connect openclaw`, or by hand: `openclaw mcp set agentring '{"command":"agentring","args":["mcp"],"requestTimeoutMs":1800000}'` |
-| Hermes | `agentring connect hermes`, or by hand in `~/.hermes/config.yaml`: `mcp_servers: {agentring: {command: agentring, args: [mcp], timeout: 1800}}` |
-| Grok Build | `grok mcp add agentring -- agentring mcp` (its default tool timeout is long enough). With agentring cloud, the plugin instead: `grok plugin install mutonby/agentring#plugins/agentring --trust` and `AGENTRING_API_KEY` in your environment ([plugins/agentring](../plugins/agentring)) |
-| Anything else | the `mcpServers` JSON above, the `agentring` CLI, or the [REST API](#rest-api-n8n-scripts) |
+| Claude Code | `claude mcp add hivepal -- hivepal mcp` |
+| Codex | `codex mcp add hivepal -- hivepal mcp`, then `tool_timeout_sec = 1800` under `[mcp_servers.hivepal]` in `~/.codex/config.toml` |
+| opencode | `opencode.json`: `"mcp": {"hivepal": {"type": "local", "command": ["hivepal", "mcp"], "timeout": 1800000}}` |
+| OpenClaw | `hivepal connect openclaw`, or by hand: `openclaw mcp set hivepal '{"command":"hivepal","args":["mcp"],"requestTimeoutMs":1800000}'` |
+| Hermes | `hivepal connect hermes`, or by hand in `~/.hermes/config.yaml`: `mcp_servers: {hivepal: {command: hivepal, args: [mcp], timeout: 1800}}` |
+| Grok Build | `grok mcp add hivepal -- hivepal mcp` (its default tool timeout is long enough). With hivepal cloud, the plugin instead: `grok plugin install mutonby/agentring#plugins/hivepal --trust` and `HIVEPAL_API_KEY` in your environment ([plugins/hivepal](../plugins/hivepal)) |
+| Anything else | the `mcpServers` JSON above, the `hivepal` CLI, or the [REST API](#rest-api-n8n-scripts) |
 
-Add [`skills/agentring`](../skills/agentring) where the harness reads skills, so the
-agent knows when to message and when to call (`agentring connect` does it for you).
+Add [`skills/hivepal`](../skills/hivepal) where the harness reads skills, so the
+agent knows when to message and when to call (`hivepal connect` does it for you).
 
-### `agentring connect` (OpenClaw, Hermes)
+### `hivepal connect` (OpenClaw, Hermes)
 
 One command sets up the whole thing for OpenClaw or Hermes, and is safe to run again:
 
 ```bash
-agentring connect openclaw                     # or: agentring connect hermes
-agentring connect hermes --dry-run             # show what would change
-AGENTRING_API_KEY=ak_... agentring connect hermes --url https://agentring.io/mcp   # hosted MCP server
+hivepal connect openclaw                     # or: hivepal connect hermes
+hivepal connect hermes --dry-run             # show what would change
+HIVEPAL_API_KEY=ak_... hivepal connect hermes --url https://agentring.io/mcp   # hosted MCP server
 ```
 
-1. **MCP server.** Registers `agentring mcp` (by absolute path, with `--agent-name
+1. **MCP server.** Registers `hivepal mcp` (by absolute path, with `--agent-name
    OpenClaw`/`Hermes` so the phone shows who is calling) through `openclaw mcp set`, or in
    `$HERMES_HOME/config.yaml` (default `~/.hermes`; the old file is kept as
-   `config.yaml.bak-agentring`). The tool timeout goes to 30 minutes, since a `call` lasts
+   `config.yaml.bak-hivepal`). The tool timeout goes to 30 minutes, since a `call` lasts
    as long as the conversation. With `--url`, the remote server instead: the key goes to
    the harness's `.env` (`~/.openclaw/.env`, `~/.hermes/.env`, mode 0600) and the config
-   only says `Bearer ${AGENTRING_API_KEY}`.
-2. **Skill.** Installs [`skills/agentring`](../skills/agentring) (OpenClaw: `openclaw skills
-   install --global`; Hermes: `~/.hermes/skills/agentring`). `--no-skill` skips it.
+   only says `Bearer ${HIVEPAL_API_KEY}`.
+2. **Skill.** Installs [`skills/hivepal`](../skills/hivepal) (OpenClaw: `openclaw skills
+   install --global`; Hermes: `~/.hermes/skills/hivepal`). `--no-skill` skips it.
 3. **Consult from a call.** Adds the harness to `~/.agentring/agents.yaml` with the
    recipe below (comments in the file are kept). Not with `--url`: a remote server never
    runs commands. `--no-consult` skips it.
 
-Then OpenClaw picks the server up on the next turn (`openclaw mcp probe agentring`
+Then OpenClaw picks the server up on the next turn (`openclaw mcp probe hivepal`
 checks it); in Hermes run `/reload-mcp` or start a new session (`hermes mcp test
-agentring`). The skill also carries a setup guide
-([`references/setup.md`](../skills/agentring/references/setup.md)): install it first
+hivepal`). The skill also carries a setup guide
+([`references/setup.md`](../skills/hivepal/references/setup.md)): install it first
 (`openclaw skills install @mutonby/agentring`, `hermes skills install
-mutonby/agentring/skills/agentring`) and ask your agent to "set up agentring".
+mutonby/agentring/skills/hivepal`) and ask your agent to "set up hivepal".
 
 ### You consult your agent from a call (`agents.yaml`)
 
@@ -275,10 +275,10 @@ agents:
     command: [hermes, -z, "Task: {task}"]
   openclaw:
     description: My OpenClaw assistant. Messages, calendar, home.
-    command: [sh, -c, 'exec openclaw agent --agent main --session-id "agentring-${AGENTRING_CALL_ID:-test}" --message="$1"', sh, "{task}"]
+    command: [sh, -c, 'exec openclaw agent --agent main --session-id "hivepal-${HIVEPAL_CALL_ID:-test}" --message="$1"', sh, "{task}"]
 ```
 
-Keep only the ones you use, and check each with `agentring agents ask <name> "…"`.
+Keep only the ones you use, and check each with `hivepal agents ask <name> "…"`.
 They start read-only or with the harness's own approval rules. Widen them on
 purpose, knowing the voice AI acts on what it hears:
 
@@ -308,7 +308,7 @@ OpenClaw gateway's or Hermes' API server, a webhook, your own service), point
 #!/bin/bash
 # ~/bin/ask-agent: task on stdin, answer on stdout. Set AGENT_URL, AGENT_MODEL, AGENT_KEY.
 set -euo pipefail
-jq -Rs --arg m "$AGENT_MODEL" --arg u "agentring-${AGENTRING_CALL_ID:-test}" \
+jq -Rs --arg m "$AGENT_MODEL" --arg u "hivepal-${HIVEPAL_CALL_ID:-test}" \
   '{model: $m, user: $u, messages: [{role: "user", content: .}]}' \
 | curl -sf "$AGENT_URL/v1/chat/completions" -H "Authorization: Bearer $AGENT_KEY" \
     -H 'content-type: application/json' -d @- \
@@ -325,15 +325,15 @@ jq -Rs --arg m "$AGENT_MODEL" --arg u "agentring-${AGENTRING_CALL_ID:-test}" \
 ## REST API (n8n, scripts)
 
 Every action is one HTTPS request to your relay with the daemon's `ak_…` API key
-(`agentring status --json` prints the relay URL; the key is in
+(`hivepal status --json` prints the relay URL; the key is in
 `~/.agentring/.env`). See [`protocol/relay.openapi.yaml`](../protocol/relay.openapi.yaml):
 
 ```bash
-curl -s https://relay.example.com/v1/messages -H "Authorization: Bearer $AGENTRING_API_KEY" \
+curl -s https://relay.example.com/v1/messages -H "Authorization: Bearer $HIVEPAL_API_KEY" \
   -H 'content-type: application/json' -d '{"text": "Backup finished"}'
 ```
 
 Replies come from `GET /v1/messages?after=<msg_id>`, or live over the WebSocket. A
 call over plain REST only rings the phone: the voice needs a worker in the room,
-which is the daemon (`agentring call --ai`, or the `call` MCP tool). See
+which is the daemon (`hivepal call --ai`, or the `call` MCP tool). See
 [`examples/`](../examples) for an n8n workflow.

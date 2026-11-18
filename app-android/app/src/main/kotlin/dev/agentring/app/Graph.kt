@@ -54,7 +54,7 @@ object Graph {
         }
     }
 
-    val userAgent: String get() = "agentring-android/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE})"
+    val userAgent: String get() = "hivepal-android/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE})"
 
     fun init(application: Application) {
         app = application
@@ -94,7 +94,7 @@ object Graph {
         return p
     }
 
-    /** Forgets the pairing locally (the relay keeps it until `agentring devices revoke`). */
+    /** Forgets the pairing locally (the relay keeps it until `hivepal devices revoke`). */
     fun unpair() {
         connection.disconnect()
         Notifications.cancelMessages(app)

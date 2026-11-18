@@ -60,13 +60,13 @@ export interface BuiltApp {
 }
 
 /**
- * The API key comes from AGENTRING_API_KEY or is generated on first start and
+ * The API key comes from HIVEPAL_API_KEY or is generated on first start and
  * persisted in the database's meta table and in DATA_DIR/api_key (mode 0600), so
  * the operator can read it once. Requests are checked against its hash.
  */
 function resolveApiKey(cfg: Config, db: Db): { apiKey: string; generated: boolean } {
   if (cfg.apiKey) {
-    if (!cfg.apiKey.startsWith("ak_")) throw new Error("AGENTRING_API_KEY must start with ak_");
+    if (!cfg.apiKey.startsWith("ak_")) throw new Error("HIVEPAL_API_KEY must start with ak_");
     return { apiKey: cfg.apiKey, generated: false };
   }
   let generated = false;

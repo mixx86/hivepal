@@ -1,4 +1,4 @@
-"""agentring cloud end to end: a real relay in hub mode, `agentring mcp-http` resolving
+"""hivepal cloud end to end: a real relay in hub mode, `hivepal mcp-http` resolving
 tenant keys through the hub's admin API, the daemon's RelayClient against a tenant URL."""
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ import time
 
 import httpx
 
-from agentring.relay_client import RelayClient, RelayError
+from hivepal.relay_client import RelayClient, RelayError
 
 from .conftest import HUB_ADMIN_TOKEN
 from .test_e2e import simulate_phone_pairing

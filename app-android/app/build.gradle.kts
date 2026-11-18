@@ -5,30 +5,30 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Release signing: a Gradle property (-PAGENTRING_KEYSTORE_FILE=…) or an environment
+// Release signing: a Gradle property (-PHIVEPAL_KEYSTORE_FILE=…) or an environment
 // variable of the same name. Without a keystore, release builds fall back to the debug
-// key (local builds keep working); AGENTRING_REQUIRE_RELEASE_KEY=1 turns that into an error.
+// key (local builds keep working); HIVEPAL_REQUIRE_RELEASE_KEY=1 turns that into an error.
 fun signingValue(name: String): String? =
     (providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull)?.takeIf { it.isNotBlank() }
 
-val releaseKeystore = signingValue("AGENTRING_KEYSTORE_FILE")
-val requireReleaseKey = signingValue("AGENTRING_REQUIRE_RELEASE_KEY") == "1"
+val releaseKeystore = signingValue("HIVEPAL_KEYSTORE_FILE")
+val requireReleaseKey = signingValue("HIVEPAL_REQUIRE_RELEASE_KEY") == "1"
 val buildsRelease = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
 if (releaseKeystore == null && buildsRelease) {
     if (requireReleaseKey) {
-        throw GradleException("AGENTRING_KEYSTORE_FILE is not set and AGENTRING_REQUIRE_RELEASE_KEY=1")
+        throw GradleException("HIVEPAL_KEYSTORE_FILE is not set and HIVEPAL_REQUIRE_RELEASE_KEY=1")
     }
     logger.warn(
-        "WARNING: AGENTRING_KEYSTORE_FILE is not set: the release APK is signed with the public " +
+        "WARNING: HIVEPAL_KEYSTORE_FILE is not set: the release APK is signed with the public " +
             "DEBUG key. Fine for local testing, never publish it.",
     )
 }
 
 // Android Auto (docs/android-auto.md). Google Play takes calling apps for cars only on its
 // internal and closed testing tracks and rejects them on open testing and production, so
-// release builds leave the car entry point out unless -PagentringAndroidAuto=true (the
+// release builds leave the car entry point out unless -PhivepalAndroidAuto=true (the
 // GitHub APK, a closed-testing bundle). Debug builds always include it.
-val androidAuto = providers.gradleProperty("agentringAndroidAuto").orNull == "true"
+val androidAuto = providers.gradleProperty("hivepalAndroidAuto").orNull == "true"
 
 android {
     namespace = "dev.agentring.app"
@@ -42,9 +42,9 @@ android {
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
         versionName = providers.gradleProperty("versionName").orNull ?: "0.2.0-dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // Hosted agentring (docs/cloud.md), offered in the setup tutorial; -PagentringCloudUrl= (empty) hides it.
-        val cloudUrl = providers.gradleProperty("agentringCloudUrl").orNull ?: ""  // Hivepal: no hosted service
-        require(cloudUrl.isEmpty() || cloudUrl.startsWith("https://")) { "agentringCloudUrl must be https://" }
+        // Hosted hivepal (docs/cloud.md), offered in the setup tutorial; -PhivepalCloudUrl= (empty) hides it.
+        val cloudUrl = providers.gradleProperty("hivepalCloudUrl").orNull ?: ""  // Hivepal: no hosted service
+        require(cloudUrl.isEmpty() || cloudUrl.startsWith("https://")) { "hivepalCloudUrl must be https://" }
         buildConfigField("String", "CLOUD_URL", "\"$cloudUrl\"")
     }
 
@@ -59,11 +59,11 @@ android {
         if (releaseKeystore != null) {
             create("release") {
                 storeFile = file(releaseKeystore)
-                storePassword = signingValue("AGENTRING_KEYSTORE_PASSWORD")
-                    ?: throw GradleException("AGENTRING_KEYSTORE_PASSWORD is not set")
-                keyAlias = signingValue("AGENTRING_KEY_ALIAS") ?: throw GradleException("AGENTRING_KEY_ALIAS is not set")
+                storePassword = signingValue("HIVEPAL_KEYSTORE_PASSWORD")
+                    ?: throw GradleException("HIVEPAL_KEYSTORE_PASSWORD is not set")
+                keyAlias = signingValue("HIVEPAL_KEY_ALIAS") ?: throw GradleException("HIVEPAL_KEY_ALIAS is not set")
                 // PKCS12 keystores (keytool's default) use the store password for the key too.
-                keyPassword = signingValue("AGENTRING_KEY_PASSWORD") ?: storePassword
+                keyPassword = signingValue("HIVEPAL_KEY_PASSWORD") ?: storePassword
             }
         }
     }

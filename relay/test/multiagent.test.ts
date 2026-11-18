@@ -210,7 +210,7 @@ describe("multi-agent: conversations", () => {
 
 describe("multi-agent: upgrade", () => {
   it("messages from before the fork belong to agent:main", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "agentring-upgrade-"));
+    const dir = mkdtempSync(join(tmpdir(), "hivepal-upgrade-"));
     // A database at the upstream schema (4 migrations) with one message in it.
     const old = openDatabase(join(dir, "relay.db"), MIGRATIONS_FOR_TEST.slice(0, 4));
     old.prepare("INSERT INTO messages (msg_id, sender, text, created_at) VALUES ('msg_00000000000000000000000001', 'agent', 'viejo', 1)").run();

@@ -14,9 +14,9 @@ import androidx.car.app.validation.HostValidator
  * ([dev.agentring.app.call.TelecomBridge]); answer, hang up and mute work from the car.
  *
  * Declared in the `:auto` module's manifest, which release builds include only with
- * `-PagentringAndroidAuto=true` (docs/android-auto.md).
+ * `-PhivepalAndroidAuto=true` (docs/android-auto.md).
  */
-class AgentringCarAppService : CarAppService() {
+class HivepalCarAppService : CarAppService() {
     // The library's list of Android Auto / Automotive hosts, as Google's samples use it.
     @SuppressLint("PrivateResource")
     override fun createHostValidator(): HostValidator =

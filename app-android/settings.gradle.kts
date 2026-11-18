@@ -25,7 +25,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "agentring-android"
+rootProject.name = "hivepal-android"
 include(":core")
 if (!coreOnly) {
     include(":app")

@@ -8,8 +8,8 @@ import time
 
 import pytest
 
-from agentring.voice.agents import AgentsConfigError, CommandAgent, Consultations, load_agents, parse_agents
-from agentring.voice.tools import _session
+from hivepal.voice.agents import AgentsConfigError, CommandAgent, Consultations, load_agents, parse_agents
+from hivepal.voice.tools import _session
 
 PY = sys.executable
 
@@ -235,7 +235,7 @@ def test_close_stops_agents_still_working():
 
 
 def test_missed_call_message():
-    from agentring.voice.quick import missed_call_message
+    from hivepal.voice.quick import missed_call_message
 
     class Relay:
         def post_message(self, text, *, reply_to=None):
@@ -250,7 +250,7 @@ def test_missed_call_message():
 def test_cli_agents_ask_reads_the_group_agents_option(tmp_path):
     from typer.testing import CliRunner
 
-    from agentring.cli import app
+    from hivepal.cli import app
 
     f = tmp_path / "agents.yaml"
     f.write_text(f"""

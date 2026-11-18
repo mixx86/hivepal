@@ -10,8 +10,8 @@ import httpx
 import pytest
 from typer.testing import CliRunner
 
-from agentring.cli import _when, app, with_personas
-from agentring.voice.session import CallInfo
+from hivepal.cli import _when, app, with_personas
+from hivepal.voice.session import CallInfo
 
 from .conftest import API_KEY
 from .test_e2e import simulate_phone_pairing
@@ -20,15 +20,15 @@ runner = CliRunner()
 
 
 def cli(home: Path, *args: str) -> str:
-    r = runner.invoke(app, list(args), env={"AGENTRING_HOME": str(home)})
+    r = runner.invoke(app, list(args), env={"HIVEPAL_HOME": str(home)})
     assert r.exit_code == 0, r.output
     return r.output
 
 
 @pytest.fixture()
 def hive(relay: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("AGENTRING_RELAY_URL", raising=False)
-    monkeypatch.delenv("AGENTRING_API_KEY", raising=False)
+    monkeypatch.delenv("HIVEPAL_RELAY_URL", raising=False)
+    monkeypatch.delenv("HIVEPAL_API_KEY", raising=False)
     admin, nubi, rutina = tmp_path / "admin", tmp_path / "nubi", tmp_path / "rutina"
     cli(admin, "init", "--relay", relay, "--api-key", API_KEY)
     phone = simulate_phone_pairing(json.loads(cli(admin, "pair", "--no-wait", "--json"))["qr_payload"])
@@ -103,7 +103,7 @@ def test_insisting_reminder_and_last_seen(hive):
     out = cli(hive["rutina"], "remind", "A dormir", "--in", "1h", "--insist", "15m", "--call", "--json")
     r = json.loads(out)
     assert r["insist_s"] == 900 and r["call"] is True
-    r = runner.invoke(app, ["remind", "x", "--in", "1h", "--call"], env={"AGENTRING_HOME": str(hive["rutina"])})
+    r = runner.invoke(app, ["remind", "x", "--in", "1h", "--call"], env={"HIVEPAL_HOME": str(hive["rutina"])})
     assert r.exit_code != 0
     assert "seen" in cli(hive["admin"], "bots")
 
@@ -111,7 +111,7 @@ def test_insisting_reminder_and_last_seen(hive):
 def test_bots_wake_sets_and_clears(monkeypatch):
     from typer.testing import CliRunner
 
-    from agentring import cli
+    from hivepal import cli
 
     calls = []
 
@@ -133,3 +133,35 @@ def test_bots_wake_sets_and_clears(monkeypatch):
     r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "OFF"])
     assert r.exit_code == 0 and "no wake-up email" in r.output
     assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None)]
+
+
+def test_legacy_agentring_env_is_adopted():
+    import importlib
+    import os
+
+    import hivepal
+
+    os.environ["AGENTRING_SOMETHING_OLD"] = "x"
+    os.environ.pop("HIVEPAL_SOMETHING_OLD", None)
+    try:
+        importlib.reload(hivepal)
+        assert os.environ["HIVEPAL_SOMETHING_OLD"] == "x"
+    finally:
+        os.environ.pop("AGENTRING_SOMETHING_OLD", None)
+        os.environ.pop("HIVEPAL_SOMETHING_OLD", None)
+
+
+def test_config_from_before_the_rename(tmp_path, monkeypatch):
+    """A bot's ~/.agentring-<id>/.env written by agentring still configures hivepal."""
+    from hivepal import config
+
+    (tmp_path / "config.yaml").write_text("relay_url: https://relay.example.com\n")
+    (tmp_path / ".env").write_text("AGENTRING_API_KEY=ak_old\nAGENTRING_SOMETHING=x\n")
+    monkeypatch.setenv("HIVEPAL_HOME", str(tmp_path))
+    monkeypatch.delenv("HIVEPAL_API_KEY", raising=False)
+    monkeypatch.delenv("AGENTRING_API_KEY", raising=False)
+    monkeypatch.delenv("HIVEPAL_RELAY_URL", raising=False)
+    s = config.load_settings()
+    assert s.api_key == "ak_old"
+    assert s.db_path.name == "agentring.db"
+    assert config.secret("HIVEPAL_SOMETHING") == "x"

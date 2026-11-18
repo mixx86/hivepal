@@ -1,7 +1,7 @@
-# agentring all-in-one deployment: relay + LiveKit (calls) + Caddy (automatic TLS),
+# hivepal all-in-one deployment: relay + LiveKit (calls) + Caddy (automatic TLS),
 # plus the optional daemon under the "daemon" profile.
 #
-#   cp .env.example .env   # set AGENTRING_DOMAIN (and LIVEKIT_NODE_IP if you know it)
+#   cp .env.example .env   # set HIVEPAL_DOMAIN (and LIVEKIT_NODE_IP if you know it)
 #   docker compose up -d --build
 #   docker compose logs relay | grep -A2 "API key"   # first start only
 #
@@ -19,7 +19,7 @@
 # generates it on first start into two volumes, one per container. The Firebase files
 # are read from ./secrets (see docs/firebase.md).
 #
-# Optional daemon (agentring serve) on the same server:
+# Optional daemon (hivepal serve) on the same server:
 #   docker compose run --rm daemon init --relay http://relay:8080 \
 #     --api-key "$(docker compose exec -T relay cat /data/api_key)"
 #   docker compose run --rm daemon pair
@@ -27,27 +27,27 @@
 # Provider keys for `serve --ai` go in the daemon's /config/.env, e.g. from a file:
 #   docker compose run --rm -T --entrypoint sh daemon -c 'cat >> /config/.env' < gemini.env
 #
-# Prebuilt images (from a release) instead of building here: set AGENTRING_RELAY_IMAGE /
-# AGENTRING_DAEMON_IMAGE (e.g. ghcr.io/mutonby/agentring-relay:0.2.0) in .env, then
+# Prebuilt images (from a release) instead of building here: set HIVEPAL_RELAY_IMAGE /
+# HIVEPAL_DAEMON_IMAGE (e.g. ghcr.io/mutonby/agentring-relay:0.2.0) in .env, then
 # `docker compose pull && docker compose up -d` (no --build).
 
 services:
   relay:
     build: ../relay
-    image: ${AGENTRING_RELAY_IMAGE:-agentring-relay:local}
+    image: ${HIVEPAL_RELAY_IMAGE:-hivepal-relay:local}
     restart: unless-stopped
     depends_on:
       livekit-init:
         condition: service_completed_successfully
     environment:
-      AGENTRING_PUBLIC_URL: https://${AGENTRING_DOMAIN:?set AGENTRING_DOMAIN in .env}
-      AGENTRING_AGENT_NAME: ${AGENTRING_AGENT_NAME:-Agent}
-      AGENTRING_API_KEY: ${AGENTRING_API_KEY:-}
+      HIVEPAL_PUBLIC_URL: https://${HIVEPAL_DOMAIN:?set HIVEPAL_DOMAIN in .env}
+      HIVEPAL_AGENT_NAME: ${HIVEPAL_AGENT_NAME:-Agent}
+      HIVEPAL_API_KEY: ${HIVEPAL_API_KEY:-}
       FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-}
       FCM_GOOGLE_SERVICES_FILE: ${FCM_GOOGLE_SERVICES_FILE:-}
-      LIVEKIT_URL: wss://${AGENTRING_DOMAIN}
+      LIVEKIT_URL: wss://${HIVEPAL_DOMAIN}
       LIVEKIT_API_URL: http://livekit:7880
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-agentring}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-hivepal}
       LIVEKIT_API_SECRET_FILE: /livekit/livekit-api-secret
     volumes:
       - relay-data:/data
@@ -95,7 +95,7 @@ services:
     restart: "no"
     entrypoint: ["/bin/sh", "/in/livekit-init.sh"]
     environment:
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-agentring}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-hivepal}
       LIVEKIT_NODE_IP: ${LIVEKIT_NODE_IP:-}
     volumes:
       - ./livekit-init.sh:/in/livekit-init.sh:ro
@@ -112,7 +112,7 @@ services:
     restart: unless-stopped
     depends_on: [relay, livekit]
     environment:
-      AGENTRING_DOMAIN: ${AGENTRING_DOMAIN}
+      HIVEPAL_DOMAIN: ${HIVEPAL_DOMAIN}
     ports:
       - "80:80"
       - "443:443"
@@ -121,18 +121,18 @@ services:
       - caddy-data:/data
       - caddy-config:/config
 
-  # Optional: the agentring daemon on this server (see the top of this file). Its config,
+  # Optional: the hivepal daemon on this server (see the top of this file). Its config,
   # API key and provider keys (/config/.env) live in the daemon-home volume.
-  # Extra `serve` flags: AGENTRING_SERVE_FLAGS in .env, e.g. --ai.
+  # Extra `serve` flags: HIVEPAL_SERVE_FLAGS in .env, e.g. --ai.
   daemon:
     profiles: [daemon]
     build: ../daemon
-    image: ${AGENTRING_DAEMON_IMAGE:-agentring-daemon:local}
+    image: ${HIVEPAL_DAEMON_IMAGE:-hivepal-daemon:local}
     restart: unless-stopped
     depends_on: [relay]
-    command: serve ${AGENTRING_SERVE_FLAGS:-}
+    command: serve ${HIVEPAL_SERVE_FLAGS:-}
     environment:
-      AGENTRING_HOME: /config
+      HIVEPAL_HOME: /config
     volumes:
       - daemon-home:/config
     read_only: true

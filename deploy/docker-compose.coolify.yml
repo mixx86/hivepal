@@ -1,16 +1,16 @@
-# agentring on a Coolify server (Traefik proxy, "coolify" network).
+# hivepal on a Coolify server (Traefik proxy, "coolify" network).
 #
 # Same hardening as docker-compose.proxy.yml; the difference is routing: Traefik
 # reaches the containers over the "coolify" network through the explicit labels
 # below (don't set domains for these services in Coolify, or it adds its own).
 #
-#   https://${AGENTRING_DOMAIN}/rtc*  -> livekit:7880 (signalling)
-#   https://${AGENTRING_DOMAIN}/*     -> relay:8080   (/twirp is never routed to LiveKit;
+#   https://${HIVEPAL_DOMAIN}/rtc*  -> livekit:7880 (signalling)
+#   https://${HIVEPAL_DOMAIN}/*     -> relay:8080   (/twirp is never routed to LiveKit;
 #                                        the relay refuses its webhook when it comes via the proxy)
 #
 # Published on the host: LiveKit media only (UDP 50000-50100, TCP 7881).
-# Environment (nothing secret): AGENTRING_DOMAIN, LIVEKIT_NODE_IP, LIVEKIT_API_KEY,
-# AGENTRING_AGENT_NAME. Secrets: files prepared by deploy/prepare-host.sh.
+# Environment (nothing secret): HIVEPAL_DOMAIN, LIVEKIT_NODE_IP, LIVEKIT_API_KEY,
+# HIVEPAL_AGENT_NAME. Secrets: files prepared by deploy/prepare-host.sh.
 
 # Coolify runs compose with the repository root as project directory, so paths are
 # relative to the repo root. Locally: docker compose --project-directory . -f deploy/docker-compose.coolify.yml
@@ -20,33 +20,33 @@ services:
     build: ./relay
     restart: unless-stopped
     environment:
-      AGENTRING_PUBLIC_URL: https://${AGENTRING_DOMAIN:?set AGENTRING_DOMAIN}
-      AGENTRING_AGENT_NAME: ${AGENTRING_AGENT_NAME:-Agent}
+      HIVEPAL_PUBLIC_URL: https://${HIVEPAL_DOMAIN:?set HIVEPAL_DOMAIN}
+      HIVEPAL_AGENT_NAME: ${HIVEPAL_AGENT_NAME:-Agent}
       FCM_SERVICE_ACCOUNT_FILE: /secrets/firebase-service-account.json
       FCM_GOOGLE_SERVICES_FILE: /secrets/google-services.json
-      LIVEKIT_URL: wss://${AGENTRING_DOMAIN}
+      LIVEKIT_URL: wss://${HIVEPAL_DOMAIN}
       # An alias on the private network: the shared "coolify" network has other tenants' services on it.
-      LIVEKIT_API_URL: http://agentring-livekit:7880
+      LIVEKIT_API_URL: http://hivepal-livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET_FILE: /secrets/livekit-api-secret
     volumes:
       - relay-data:/data
-      - /opt/agentring/relay:/secrets:ro
+      - /opt/hivepal/relay:/secrets:ro
     expose: ["8080"]
-    networks: [agentring, coolify]
+    networks: [hivepal, coolify]
     labels:
       - traefik.enable=true
       - traefik.docker.network=coolify
-      - traefik.http.routers.agentring-relay.rule=Host(`${AGENTRING_DOMAIN}`)
-      - traefik.http.routers.agentring-relay.entrypoints=https
-      - traefik.http.routers.agentring-relay.tls=true
-      - traefik.http.routers.agentring-relay.tls.certresolver=letsencrypt
-      - traefik.http.routers.agentring-relay.middlewares=agentring-headers
-      - traefik.http.routers.agentring-relay.service=agentring-relay
-      - traefik.http.services.agentring-relay.loadbalancer.server.port=8080
-      - traefik.http.middlewares.agentring-headers.headers.stsSeconds=31536000
-      - traefik.http.middlewares.agentring-headers.headers.contentTypeNosniff=true
-      - traefik.http.middlewares.agentring-headers.headers.frameDeny=true
+      - traefik.http.routers.hivepal-relay.rule=Host(`${HIVEPAL_DOMAIN}`)
+      - traefik.http.routers.hivepal-relay.entrypoints=https
+      - traefik.http.routers.hivepal-relay.tls=true
+      - traefik.http.routers.hivepal-relay.tls.certresolver=letsencrypt
+      - traefik.http.routers.hivepal-relay.middlewares=hivepal-headers
+      - traefik.http.routers.hivepal-relay.service=hivepal-relay
+      - traefik.http.services.hivepal-relay.loadbalancer.server.port=8080
+      - traefik.http.middlewares.hivepal-headers.headers.stsSeconds=31536000
+      - traefik.http.middlewares.hivepal-headers.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.hivepal-headers.headers.frameDeny=true
     # Probe every second while starting so the proxy routes to a new container within
     # seconds of a deploy (the image's default waits 30 s for the first check).
     healthcheck:
@@ -69,25 +69,25 @@ services:
     restart: unless-stopped
     command: ["--config", "/etc/livekit/livekit.yaml", "--node-ip", "${LIVEKIT_NODE_IP:?set LIVEKIT_NODE_IP}"]
     volumes:
-      - /opt/agentring/livekit:/etc/livekit:ro
+      - /opt/hivepal/livekit:/etc/livekit:ro
     expose: ["7880"]
     ports:
       - "7881:7881/tcp"
       - "50000-50100:50000-50100/udp"
     networks:
-      agentring:
-        aliases: [agentring-livekit]
+      hivepal:
+        aliases: [hivepal-livekit]
       coolify:
     labels:
       - traefik.enable=true
       - traefik.docker.network=coolify
-      - traefik.http.routers.agentring-rtc.rule=Host(`${AGENTRING_DOMAIN}`) && PathPrefix(`/rtc`)
-      - traefik.http.routers.agentring-rtc.priority=100
-      - traefik.http.routers.agentring-rtc.entrypoints=https
-      - traefik.http.routers.agentring-rtc.tls=true
-      - traefik.http.routers.agentring-rtc.tls.certresolver=letsencrypt
-      - traefik.http.routers.agentring-rtc.service=agentring-rtc
-      - traefik.http.services.agentring-rtc.loadbalancer.server.port=7880
+      - traefik.http.routers.hivepal-rtc.rule=Host(`${HIVEPAL_DOMAIN}`) && PathPrefix(`/rtc`)
+      - traefik.http.routers.hivepal-rtc.priority=100
+      - traefik.http.routers.hivepal-rtc.entrypoints=https
+      - traefik.http.routers.hivepal-rtc.tls=true
+      - traefik.http.routers.hivepal-rtc.tls.certresolver=letsencrypt
+      - traefik.http.routers.hivepal-rtc.service=hivepal-rtc
+      - traefik.http.services.hivepal-rtc.loadbalancer.server.port=7880
     user: "65534:65534"
     read_only: true
     cap_drop: [ALL]
@@ -97,7 +97,7 @@ services:
     pids_limit: 512
 
 networks:
-  agentring:
+  hivepal:
   coolify:
     external: true
 

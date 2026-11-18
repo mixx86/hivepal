@@ -40,6 +40,16 @@ export interface LiveKitConfig {
 
 export const ANDROID_PACKAGE = "dev.agentring.app";
 
+/** Renamed from agentring: AGENTRING_* settings keep working (servers set up before the rename). */
+export function adoptLegacyEnv(e: NodeJS.ProcessEnv = process.env): void {
+  for (const [k, v] of Object.entries(e)) {
+    if (k.startsWith("AGENTRING_") && v !== undefined) {
+      const nk = "HIVEPAL_" + k.slice("AGENTRING_".length);
+      if (e[nk] === undefined) e[nk] = v;
+    }
+  }
+}
+
 function env(name: string, fallback?: string): string | undefined {
   const v = process.env[name];
   return v === undefined || v === "" ? fallback : v;
@@ -80,25 +90,26 @@ export function trustedHops(cfg: Pick<Config, "trustedProxies">): (address: stri
 }
 
 function trustedProxies(value: string): number {
-  if (!/^\d+$/.test(value)) throw new Error(`AGENTRING_TRUSTED_PROXIES must be a number of proxies (got ${value})`);
+  if (!/^\d+$/.test(value)) throw new Error(`HIVEPAL_TRUSTED_PROXIES must be a number of proxies (got ${value})`);
   return Number(value);
 }
 
 function ringTimeoutS(value: string): number {
   if (!/^\d+$/.test(value) || Number(value) === 0) {
-    throw new Error(`AGENTRING_RING_TIMEOUT_S must be a whole number of seconds above 0 (got ${value})`);
+    throw new Error(`HIVEPAL_RING_TIMEOUT_S must be a whole number of seconds above 0 (got ${value})`);
   }
   return Number(value);
 }
 
 export function loadConfig(): Config {
-  const dataDir = env("AGENTRING_DATA_DIR", "./data")!;
+  adoptLegacyEnv();
+  const dataDir = env("HIVEPAL_DATA_DIR", "./data")!;
   const port = Number(env("PORT", "8080"));
-  const publicUrl = env("AGENTRING_PUBLIC_URL", `http://localhost:${port}`)!.replace(/\/+$/, "");
-  const insecureDev = env("AGENTRING_INSECURE_DEV") === "1";
+  const publicUrl = env("HIVEPAL_PUBLIC_URL", `http://localhost:${port}`)!.replace(/\/+$/, "");
+  const insecureDev = env("HIVEPAL_INSECURE_DEV") === "1";
   if (!publicUrl.startsWith("https://") && !insecureDev) {
     throw new Error(
-      `AGENTRING_PUBLIC_URL must be https:// (got ${publicUrl}). Set AGENTRING_INSECURE_DEV=1 for local development only.`,
+      `HIVEPAL_PUBLIC_URL must be https:// (got ${publicUrl}). Set HIVEPAL_INSECURE_DEV=1 for local development only.`,
     );
   }
 
@@ -141,10 +152,10 @@ export function loadConfig(): Config {
     port,
     publicUrl,
     dataDir,
-    agentName: env("AGENTRING_AGENT_NAME", "Agent")!,
-    apiKey: env("AGENTRING_API_KEY"),
-    ringTimeoutS: ringTimeoutS(env("AGENTRING_RING_TIMEOUT_S", "30")!),
-    trustedProxies: trustedProxies(env("AGENTRING_TRUSTED_PROXIES", "1")!),
+    agentName: env("HIVEPAL_AGENT_NAME", "Agent")!,
+    apiKey: env("HIVEPAL_API_KEY"),
+    ringTimeoutS: ringTimeoutS(env("HIVEPAL_RING_TIMEOUT_S", "30")!),
+    trustedProxies: trustedProxies(env("HIVEPAL_TRUSTED_PROXIES", "1")!),
     insecureDev,
     fcm,
     livekit,

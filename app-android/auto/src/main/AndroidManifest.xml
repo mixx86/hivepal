@@ -5,7 +5,7 @@
     <application>
         <!-- Exported for the Android Auto host; the service checks the host itself (createHostValidator). -->
         <service
-            android:name="dev.agentring.app.car.AgentringCarAppService"
+            android:name="dev.agentring.app.car.HivepalCarAppService"
             android:exported="true"
             tools:ignore="ExportedService,MissingClass">
             <intent-filter>

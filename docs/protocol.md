@@ -18,7 +18,7 @@ expires.
 
 The relay tells credentials apart by prefix (`ak_`, `at_`) vs JWT shape. TLS is
 mandatory in production; the relay refuses to start with a non-`https` public
-URL unless `AGENTRING_INSECURE_DEV=1`.
+URL unless `HIVEPAL_INSECURE_DEV=1`.
 
 Every device request re-checks the device row, so `DELETE /v1/devices/{id}`
 revokes immediately (REST returns 401, open WebSockets are closed with code
@@ -94,7 +94,7 @@ value return the original message (idempotency for flaky mobile networks).
    20 s; the relay drops sockets silent for 60 s).
 
 `GET /v1/events?after_seq=<n>` returns the same thing as a page, for clients
-that only want to catch up (e.g. `agentring replies` when `serve` isn't
+that only want to catch up (e.g. `hivepal replies` when `serve` isn't
 running).
 
 Visibility: both principals see all persisted events; each side acts on them
@@ -162,7 +162,7 @@ re-send it via `POST /v1/device/fcm` on next start/refresh).
 ### Pairing
 
 ```
-agentring pair
+hivepal pair
   └─ POST /v1/pairing-tokens  (agent)        → { pairing_token, expires_at, qr_payload }
      prints QR(qr_payload)                      qr_payload = {"v":1,"relay_url":"https://…","pairing_token":"pt_…"}
 app scans QR
@@ -175,13 +175,13 @@ app stores device_jwt + push_secret (SecretStore: AES-GCM with an Android Keysto
 FirebaseMessagingService.onNewToken → POST /v1/device/fcm { fcm_token }
 ```
 
-`agentring pair` polls `GET /v1/devices` (or listens on WS) and prints
+`hivepal pair` polls `GET /v1/devices` (or listens on WS) and prints
 "Paired with Pixel 8 ✅".
 
 ### Message agent → user (M1)
 
 ```
-agentring msg "hola" → POST /v1/messages {text}  (agent) → 201 {msg_id}
+hivepal msg "hola" → POST /v1/messages {text}  (agent) → 201 {msg_id}
 relay: store, event msg.new(from=agent) → WS (all) + FCM (devices)
 app: verify sig → notification (MessagingStyle, inline reply)
 ```
@@ -191,8 +191,8 @@ app: verify sig → notification (MessagingStyle, inline reply)
 ```
 app (inline reply or thread) → POST /v1/messages {text, client_msg_id, reply_to?}  (device)
 relay: event msg.new(from=user) → WS
-daemon serve: store locally          agentring replies [--since]
-(daemon not running: `agentring replies` falls back to GET /v1/messages?from=user)
+daemon serve: store locally          hivepal replies [--since]
+(daemon not running: `hivepal replies` falls back to GET /v1/messages?from=user)
 ```
 
 ### Outbound call (agent → user) (M2)
@@ -311,7 +311,7 @@ compares the session's join time with the phone's latest join.
 - Token: one room, `canPublish`, `canSubscribe`, `canPublishData`, TTL 120 s
   (join window only; an established session is not affected).
 - Live transcript: not implemented yet. The daemon keeps the transcript of AI calls
-  (`agentring call --ai --json`, the MCP `call` tool); the app does not show it.
+  (`hivepal call --ai --json`, the MCP `call` tool); the app does not show it.
 
 ### Hosted relays (hub mode)
 

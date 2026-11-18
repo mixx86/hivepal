@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Test agentring on a real Android phone connected over USB.
+# Test hivepal on a real Android phone connected over USB.
 #
-#   scripts/device-test.sh [path/to/agentring.apk]           # install + guided test
+#   scripts/device-test.sh [path/to/hivepal.apk]           # install + guided test
 #   scripts/device-test.sh --instrumented                    # build + run the automated e2e test
 #
 # Needs: adb (USB debugging enabled on the phone), Node 22+, uv.
@@ -18,7 +18,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=8080
 API_KEY=ak_device_test_key
 WORK="$(mktemp -d)"
-export AGENTRING_HOME="$WORK/agentring-home"
+export HIVEPAL_HOME="$WORK/hivepal-home"
 
 INSTRUMENTED=0
 APK=""
@@ -30,7 +30,7 @@ for arg in "$@"; do
 done
 
 say() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
-agentring() { (cd "$ROOT/daemon" && uv run -q agentring "$@"); }
+hivepal() { (cd "$ROOT/daemon" && uv run -q hivepal "$@"); }
 
 cleanup() {
   [[ -n "${RELAY_PID:-}" ]] && kill "$RELAY_PID" 2>/dev/null || true
@@ -47,8 +47,8 @@ say "Starting a local relay (logs: $WORK/relay.log)"
 (cd "$ROOT/relay" && npm ci --no-audit --no-fund --silent && npm run -s build)
 (
   cd "$ROOT/relay"
-  PORT=$PORT HOST=127.0.0.1 AGENTRING_PUBLIC_URL="http://localhost:$PORT" AGENTRING_INSECURE_DEV=1 \
-  AGENTRING_DATA_DIR="$WORK/relay-data" AGENTRING_API_KEY="$API_KEY" AGENTRING_AGENT_NAME="Test Agent" \
+  PORT=$PORT HOST=127.0.0.1 HIVEPAL_PUBLIC_URL="http://localhost:$PORT" HIVEPAL_INSECURE_DEV=1 \
+  HIVEPAL_DATA_DIR="$WORK/relay-data" HIVEPAL_API_KEY="$API_KEY" HIVEPAL_AGENT_NAME="Test Agent" \
     exec node --disable-warning=ExperimentalWarning dist/main.js
 ) > "$WORK/relay.log" 2>&1 &
 RELAY_PID=$!
@@ -61,12 +61,12 @@ if [[ $INSTRUMENTED == 1 ]]; then
     -Pandroid.testInstrumentationRunnerArguments.relayUrl="http://localhost:$PORT" \
     -Pandroid.testInstrumentationRunnerArguments.apiKey="$API_KEY")
   mkdir -p "$ROOT/app-android/e2e-screenshots"
-  for f in $(adb shell 'ls /data/local/tmp/agentring-*.png 2>/dev/null' | tr -d '\r'); do
+  for f in $(adb shell 'ls /data/local/tmp/hivepal-*.png 2>/dev/null' | tr -d '\r'); do
     adb pull "$f" "$ROOT/app-android/e2e-screenshots/" >/dev/null
   done
   say "Passed. Screenshots in app-android/e2e-screenshots/"
-  agentring init --relay "http://127.0.0.1:$PORT" --api-key "$API_KEY" >/dev/null
-  agentring replies --all
+  hivepal init --relay "http://127.0.0.1:$PORT" --api-key "$API_KEY" >/dev/null
+  hivepal replies --all
   exit 0
 fi
 
@@ -78,22 +78,22 @@ else
 fi
 
 say "Pairing"
-agentring init --relay "http://127.0.0.1:$PORT" --api-key "$API_KEY"
+hivepal init --relay "http://127.0.0.1:$PORT" --api-key "$API_KEY"
 adb shell am start -n dev.agentring.app/.ui.MainActivity >/dev/null
 echo "On the phone: Get started → (allow notifications) → Scan QR code, and scan the code below."
-agentring pair
+hivepal pair
 
 say "Message agent → phone"
-agentring msg "Hola 👋 soy tu agente. Contéstame desde la app o desde la notificación."
+hivepal msg "Hola 👋 soy tu agente. Contéstame desde la app o desde la notificación."
 echo "Check the phone shows it (Messages tab, or a notification if the app is in the background"
 echo "and Firebase is configured). Reply to it, then press Enter here."
 read -r _
 
 say "Replies the agent received"
-agentring replies --all
+hivepal replies --all
 
 say "Status"
-agentring status
+hivepal status
 echo
 echo "Relay log: $WORK/relay.log   (Ctrl+C or Enter to stop the relay)"
 read -r _

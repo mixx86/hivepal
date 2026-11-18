@@ -8,7 +8,7 @@ There are three pieces:
 | Piece | Where it runs | What it does |
 |---|---|---|
 | **relay** + **LiveKit** | a VPS, or your own computer | pairing, messages, call state, push; LiveKit carries the call audio |
-| **daemon / CLI** (`agentring`) | the computer where your agent runs | the CLI, the MCP server for your agent, the voice AI; only makes outgoing connections, so NAT is fine |
+| **daemon / CLI** (`hivepal`) | the computer where your agent runs | the CLI, the MCP server for your agent, the voice AI; only makes outgoing connections, so NAT is fine |
 | **Android app** | your phone | rings, native call screen, messages |
 
 First choose where the relay runs:
@@ -25,7 +25,7 @@ Already running Caddy, Traefik, nginx or Coolify on your server? Use option A wi
 ## 1. Firebase: what wakes the phone (5 minutes, free)
 
 A locked phone, or one where the app is closed, only rings if a push notification wakes
-it. agentring uses **your own** free Firebase project for that: follow
+it. hivepal uses **your own** free Firebase project for that: follow
 [firebase.md](firebase.md) and you end up with two files. Put both in `deploy/secrets/`
 of your checkout:
 
@@ -39,7 +39,7 @@ Without them, messages and calls only reach the phone while the app is open on s
 ## 2. The relay
 
 ```bash
-git clone https://github.com/mutonby/agentring && cd agentring/deploy
+git clone https://github.com/mutonby/agentring && cd hivepal/deploy
 ```
 
 ### Option A: a VPS with a domain
@@ -53,7 +53,7 @@ git clone https://github.com/mutonby/agentring && cd agentring/deploy
 
    ```bash
    cp .env.example .env
-   nano .env      # AGENTRING_DOMAIN, AGENTRING_AGENT_NAME, and uncomment the two FCM_ lines
+   nano .env      # HIVEPAL_DOMAIN, HIVEPAL_AGENT_NAME, and uncomment the two FCM_ lines
    docker compose up -d --build
    docker compose logs relay | grep -A2 "API key"
    ```
@@ -77,12 +77,12 @@ through `.env`.
 
    ```bash
    cp .env.local.example .env.local
-   nano .env.local   # AGENTRING_HOST_IP, AGENTRING_AGENT_NAME, and uncomment the two FCM_ lines
+   nano .env.local   # HIVEPAL_HOST_IP, HIVEPAL_AGENT_NAME, and uncomment the two FCM_ lines
    docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
    docker compose -f docker-compose.local.yml logs relay | grep -A2 "API key"
    ```
 
-3. Check it from the phone's browser: `http://<AGENTRING_HOST_IP>:8080/healthz` shows
+3. Check it from the phone's browser: `http://<HIVEPAL_HOST_IP>:8080/healthz` shows
    `{"ok":true}`. If it doesn't load, allow incoming connections for Docker in the
    computer's firewall.
 
@@ -103,53 +103,53 @@ Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv tool install './daemon[voice]'        # from the repo checkout; [voice] is needed for calls
-agentring init --relay https://relay.example.com --api-key ak_...   # option B: http://<AGENTRING_HOST_IP>:8080
-agentring status
+hivepal init --relay https://relay.example.com --api-key ak_...   # option B: http://<HIVEPAL_HOST_IP>:8080
+hivepal status
 ```
 
 Its configuration lives in `~/.agentring/` (`config.yaml`, and the key in `.env`, mode 600).
-The `AGENTRING_RELAY_URL` and `AGENTRING_API_KEY` environment variables override it. To run
+The `HIVEPAL_RELAY_URL` and `HIVEPAL_API_KEY` environment variables override it. To run
 the daemon on the VPS instead, next to the relay, see the `daemon` profile at the top of
 `deploy/docker-compose.yml`.
 
 ## 4. The app
 
-1. On the phone, install agentring from
+1. On the phone, install hivepal from
    [Google Play](https://play.google.com/store/apps/details?id=dev.agentring.app). This is the
    recommended way: Play keeps the app up to date, and the same app works with your own relay
-   (you pair it with your relay's QR code below). If you'd rather not use Play, download `agentring.apk` from the
+   (you pair it with your relay's QR code below). If you'd rather not use Play, download `hivepal.apk` from the
    [latest release](https://github.com/mutonby/agentring/releases) and install it (Android
    asks you to allow installs from your browser once). The two are signed with different
    keys, so to switch from one to the other, uninstall the app first.
 2. Open it and tap **Get started**. It asks, one by one, for notifications, the microphone,
    full-screen calls on the lock screen and unrestricted battery use: allow them all.
-3. On your computer, run `agentring pair`. Scan the QR code it shows with the app, or copy
+3. On your computer, run `hivepal pair`. Scan the QR code it shows with the app, or copy
    the pairing code it prints and paste it in the app.
-4. The CLI prints `Paired with <your phone> ✓`, and `agentring status` shows `push ok` next
+4. The CLI prints `Paired with <your phone> ✓`, and `hivepal status` shows `push ok` next
    to it. If it says `NO push token`, the relay has no Firebase files (step 1).
 5. In the app, **Settings → Calls** lists what calls need. Fix anything that is not OK.
 
 ## 5. Your first message and call
 
 ```bash
-agentring msg "hello"                 # the phone gets a notification; reply from it
-agentring replies                     # your reply
+hivepal msg "hello"                 # the phone gets a notification; reply from it
+hivepal replies                     # your reply
 
-agentring call "test"                 # rings; answer and you hear a greeting, then your own voice echoed
+hivepal call "test"                 # rings; answer and you hear a greeting, then your own voice echoed
 echo GEMINI_API_KEY=... >> ~/.agentring/.env   # free key: https://aistudio.google.com/apikey (or another provider: voice.md)
-agentring call "The backup failed" --ai        # a voice AI tells you why it's calling and talks with you
+hivepal call "The backup failed" --ai        # a voice AI tells you why it's calling and talks with you
 ```
 
-Now lock the phone, wait a minute and run `agentring call "test" --ai` again: it should
+Now lock the phone, wait a minute and run `hivepal call "test" --ai` again: it should
 ring like a normal call. If it doesn't, see [troubleshooting-oem.md](troubleshooting-oem.md).
 
-To call your agent from the app ("Call agent"), keep `agentring serve --ai` running on the
+To call your agent from the app ("Call agent"), keep `hivepal serve --ai` running on the
 computer.
 
 ## 6. Connect your agent
 
 ```bash
-claude mcp add agentring -- agentring mcp   # Claude Code; Codex, opencode, OpenClaw, Hermes: docs/agents.md
+claude mcp add hivepal -- hivepal mcp   # Claude Code; Codex, opencode, OpenClaw, Hermes: docs/agents.md
 ```
 
 Then ask it, for example: *"Run the migration; if anything fails, call me."* Recipes for
@@ -162,16 +162,16 @@ other harnesses, and how to let the voice AI ask your agents for help during a c
 |---|---|
 | The app won't accept the relay URL | It only accepts `http://` for private, LAN and Tailscale addresses; anything else must be `https://`. |
 | Pairing fails | Open `<relay URL>/healthz` in the phone's browser. If it doesn't load, the phone can't reach the relay (Wi-Fi, Tailscale, firewall). |
-| Messages arrive only with the app open | `agentring status` says `NO push token`: put the Firebase files in `deploy/secrets/`, uncomment the `FCM_` lines, restart, and pair again. |
+| Messages arrive only with the app open | `hivepal status` says `NO push token`: put the Firebase files in `deploy/secrets/`, uncomment the `FCM_` lines, restart, and pair again. |
 | The phone doesn't ring when locked | Firebase (above), then the battery settings for your phone: [troubleshooting-oem.md](troubleshooting-oem.md). |
 | The call connects but there is no sound | Call audio needs UDP 50000–50100 and TCP 7881 open to the phone. On a VPS, set `LIVEKIT_NODE_IP` to its public IPv4. |
-| `agentring call --ai` says it needs a key | The provider's key in `~/.agentring/.env`: `GEMINI_API_KEY` by default, or `OPENAI_API_KEY` / `XAI_API_KEY` / `PHONIC_API_KEY` ([voice.md](voice.md#providers)). |
+| `hivepal call --ai` says it needs a key | The provider's key in `~/.agentring/.env`: `GEMINI_API_KEY` by default, or `OPENAI_API_KEY` / `XAI_API_KEY` / `PHONIC_API_KEY` ([voice.md](voice.md#providers)). |
 
 ### Running the relay without Docker (development)
 
 ```bash
 cd relay && npm ci && npm run build
-AGENTRING_INSECURE_DEV=1 AGENTRING_PUBLIC_URL=http://192.168.1.20:8080 npm start
+HIVEPAL_INSECURE_DEV=1 HIVEPAL_PUBLIC_URL=http://192.168.1.20:8080 npm start
 ```
 
 This covers messages only. Calls also need a LiveKit server (`LIVEKIT_URL`,
@@ -179,7 +179,7 @@ This covers messages only. Calls also need a LiveKit server (`LIVEKIT_URL`,
 option B sets that up for you.
 
 The relay reads the client address from `X-Forwarded-For`, trusting one reverse proxy.
-Set `AGENTRING_TRUSTED_PROXIES` to the number of proxies in front of it, or `0` if
+Set `HIVEPAL_TRUSTED_PROXIES` to the number of proxies in front of it, or `0` if
 clients reach it directly.
 
 ## Behind an existing reverse proxy (with calls)
@@ -203,18 +203,18 @@ and ships without npm/yarn; **no secret is passed as an environment variable**.
    deploy/prepare-host.sh /path/to/firebase-files   # prints LIVEKIT_API_KEY=lk_…
    ```
 
-   It creates `/opt/agentring/relay` (Firebase files + LiveKit secret, uid 1000)
-   and `/opt/agentring/livekit` (config + `keys.yaml`, uid 65534). The LiveKit
+   It creates `/opt/hivepal/relay` (Firebase files + LiveKit secret, uid 1000)
+   and `/opt/hivepal/livekit` (config + `keys.yaml`, uid 65534). The LiveKit
    secret is generated there and never leaves the server.
 
 2. Environment for the compose app (none of these is secret):
-   `AGENTRING_DOMAIN`, `LIVEKIT_NODE_IP` (the server's public IPv4),
-   `LIVEKIT_API_KEY` (from step 1), optionally `AGENTRING_AGENT_NAME`.
+   `HIVEPAL_DOMAIN`, `LIVEKIT_NODE_IP` (the server's public IPv4),
+   `LIVEKIT_API_KEY` (from step 1), optionally `HIVEPAL_AGENT_NAME`.
 
 3. Proxy routes. Caddy example:
 
    ```caddyfile
-   agentring.example.com {
+   hivepal.example.com {
    	header Strict-Transport-Security "max-age=31536000"
    	header -Server
    	# LiveKit's admin API and the relay's webhook are internal only.
@@ -235,4 +235,4 @@ and ships without npm/yarn; **no secret is passed as an environment variable**.
 
 4. The relay generates its API key on first start; read it with
    `docker exec <relay container> cat /data/api_key` and give it only to the daemon
-   (`agentring init`).
+   (`hivepal init`).

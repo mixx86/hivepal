@@ -1,4 +1,4 @@
-# agentring daemon (CLI + `agentring serve`, with the voice extra), for the optional
+# hivepal daemon (CLI + `hivepal serve`, with the voice extra), for the optional
 # "daemon" profile in deploy/docker-compose.yml. Dependencies come only from uv.lock.
 # The same image runs the remote MCP server: command `mcp-http --host 0.0.0.0` (port
 # 8790, state in /config/mcp-http; docs/agents.md#remote-mcp-http).
@@ -25,13 +25,13 @@ RUN uv build --wheel --out-dir /tmp/dist --build-constraints build-constraints.t
 FROM python:3.12.14-slim-trixie@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 # pip is not needed at runtime: everything is in the venv.
 RUN pip uninstall --yes --root-user-action=ignore pip \
- && useradd --uid 1000 --user-group --no-create-home --home-dir /config --shell /usr/sbin/nologin agentring \
- && mkdir -p /config && chown agentring:agentring /config && chmod 0700 /config
+ && useradd --uid 1000 --user-group --no-create-home --home-dir /config --shell /usr/sbin/nologin hivepal \
+ && mkdir -p /config && chown hivepal:hivepal /config && chmod 0700 /config
 # Code owned by root and not writable by the process; only /config belongs to it.
 COPY --from=build --chown=root:root /app/.venv /app/.venv
-ENV PATH=/app/.venv/bin:$PATH AGENTRING_HOME=/config PYTHONUNBUFFERED=1
-USER agentring
+ENV PATH=/app/.venv/bin:$PATH HIVEPAL_HOME=/config PYTHONUNBUFFERED=1
+USER hivepal
 WORKDIR /config
 VOLUME /config
-ENTRYPOINT ["agentring"]
+ENTRYPOINT ["hivepal"]
 CMD ["serve"]

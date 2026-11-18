@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: agentring relay API
+  title: hivepal relay API
   version: 1.0.0-draft
   license:
     name: Apache-2.0
@@ -950,7 +950,7 @@ components:
       scheme: bearer
       bearerFormat: "ak_<base64url>"
       description: >-
-        Daemon API key (AGENTRING_API_KEY). In hub mode, a short-lived agent token
+        Daemon API key (HIVEPAL_API_KEY). In hub mode, a short-lived agent token
         (`at_<base64url>`, from the hub admin API) is accepted in its place.
     deviceJwt:
       type: http

@@ -10,8 +10,8 @@ afterEach(() => {
 });
 
 function baseEnv() {
-  process.env.AGENTRING_PUBLIC_URL = "https://relay.test";
-  process.env.AGENTRING_DATA_DIR = ":memory:";
+  process.env.HIVEPAL_PUBLIC_URL = "https://relay.test";
+  process.env.HIVEPAL_DATA_DIR = ":memory:";
   delete process.env.LIVEKIT_API_KEY;
   delete process.env.LIVEKIT_API_SECRET;
   delete process.env.LIVEKIT_API_SECRET_FILE;
@@ -22,7 +22,7 @@ function baseEnv() {
 describe("LiveKit config", () => {
   it("reads the secret from a file and defaults the URLs to the relay's host", () => {
     baseEnv();
-    const dir = mkdtempSync(join(tmpdir(), "agentring-"));
+    const dir = mkdtempSync(join(tmpdir(), "hivepal-"));
     writeFileSync(join(dir, "secret"), "s".repeat(40) + "\n");
     process.env.LIVEKIT_API_KEY = "lk_test";
     process.env.LIVEKIT_API_SECRET_FILE = join(dir, "secret");
@@ -45,13 +45,13 @@ describe("LiveKit config", () => {
 describe("ring timeout", () => {
   it("defaults to 30 s and rejects values that would break or instantly expire calls", () => {
     baseEnv();
-    delete process.env.AGENTRING_RING_TIMEOUT_S;
+    delete process.env.HIVEPAL_RING_TIMEOUT_S;
     expect(loadConfig().ringTimeoutS).toBe(30);
-    process.env.AGENTRING_RING_TIMEOUT_S = "45";
+    process.env.HIVEPAL_RING_TIMEOUT_S = "45";
     expect(loadConfig().ringTimeoutS).toBe(45);
     for (const bad of ["30s", "0", "-5", "1.5", "abc"]) {
-      process.env.AGENTRING_RING_TIMEOUT_S = bad;
-      expect(() => loadConfig(), bad).toThrow(/AGENTRING_RING_TIMEOUT_S/);
+      process.env.HIVEPAL_RING_TIMEOUT_S = bad;
+      expect(() => loadConfig(), bad).toThrow(/HIVEPAL_RING_TIMEOUT_S/);
     }
   });
 });

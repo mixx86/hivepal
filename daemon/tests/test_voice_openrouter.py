@@ -9,10 +9,10 @@ import httpx
 import numpy as np
 import pytest
 
-from agentring.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete
-from agentring.voice.openrouter import EnergyVAD, OpenRouterVoice, split_sentences
-from agentring.voice.providers import VoiceConfigError, resolve_voice
-from agentring.voice.tools import Tool, ToolCall
+from hivepal.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete
+from hivepal.voice.openrouter import EnergyVAD, OpenRouterVoice, split_sentences
+from hivepal.voice.providers import VoiceConfigError, resolve_voice
+from hivepal.voice.tools import Tool, ToolCall
 
 RATE = 16_000
 
@@ -267,30 +267,30 @@ def test_untrusted_notes_are_fenced():
 # ------------------------------------------------------------------ provider choice
 
 
-def test_resolve_openrouter(agentring_home, monkeypatch):
-    for k in ("AGENTRING_VOICE_PROVIDER", "AGENTRING_VOICE_MODEL", "AGENTRING_VOICE_NAME", "OPENROUTER_API_KEY", "AGENTRING_OPENROUTER_ZDR",
-              "AGENTRING_OPENROUTER_STT_MODEL", "AGENTRING_OPENROUTER_BASE_URL", "AGENTRING_OPENROUTER_PROVIDER", "AGENTRING_VOICE_LANGUAGE"):
+def test_resolve_openrouter(hivepal_home, monkeypatch):
+    for k in ("HIVEPAL_VOICE_PROVIDER", "HIVEPAL_VOICE_MODEL", "HIVEPAL_VOICE_NAME", "OPENROUTER_API_KEY", "HIVEPAL_OPENROUTER_ZDR",
+              "HIVEPAL_OPENROUTER_STT_MODEL", "HIVEPAL_OPENROUTER_BASE_URL", "HIVEPAL_OPENROUTER_PROVIDER", "HIVEPAL_VOICE_LANGUAGE"):
         monkeypatch.delenv(k, raising=False)
     with pytest.raises(VoiceConfigError, match="OPENROUTER_API_KEY"):
         resolve_voice("openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-k")
-    monkeypatch.setenv("AGENTRING_VOICE_LANGUAGE", "es")
-    monkeypatch.setenv("AGENTRING_OPENROUTER_ZDR", "1")
-    monkeypatch.setenv("AGENTRING_OPENROUTER_STT_MODEL", "openai/whisper-large-v3-turbo")
+    monkeypatch.setenv("HIVEPAL_VOICE_LANGUAGE", "es")
+    monkeypatch.setenv("HIVEPAL_OPENROUTER_ZDR", "1")
+    monkeypatch.setenv("HIVEPAL_OPENROUTER_STT_MODEL", "openai/whisper-large-v3-turbo")
     b = resolve_voice("openrouter", model="z-ai/glm-5.3-flash", voice="voice_483").factory()()
     assert isinstance(b, OpenRouterVoice)
     assert (b.model, b.voice, b.language, b.zdr, b.stt_model) == (
         "z-ai/glm-5.3-flash", "voice_483", "es", True, "openai/whisper-large-v3-turbo")
-    monkeypatch.setenv("AGENTRING_OPENROUTER_PROVIDER", '{"sort": "latency"}')
+    monkeypatch.setenv("HIVEPAL_OPENROUTER_PROVIDER", '{"sort": "latency"}')
     b = resolve_voice("openrouter").factory()()
     assert b.provider == {"sort": "latency"}
     body: dict = {}
     b._add_policy(body)
     assert body["provider"] == {"sort": "latency", "zdr": True, "data_collection": "deny"}
-    monkeypatch.setenv("AGENTRING_OPENROUTER_PROVIDER", "latency")
+    monkeypatch.setenv("HIVEPAL_OPENROUTER_PROVIDER", "latency")
     with pytest.raises(VoiceConfigError, match="JSON"):
         resolve_voice("openrouter").factory()
-    monkeypatch.delenv("AGENTRING_OPENROUTER_PROVIDER")
-    monkeypatch.setenv("AGENTRING_OPENROUTER_BASE_URL", "ftp://nope")
+    monkeypatch.delenv("HIVEPAL_OPENROUTER_PROVIDER")
+    monkeypatch.setenv("HIVEPAL_OPENROUTER_BASE_URL", "ftp://nope")
     with pytest.raises(VoiceConfigError, match="BASE_URL"):
         resolve_voice("openrouter").factory()

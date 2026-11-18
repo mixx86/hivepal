@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.mutonby/agentring",
-  "title": "agentring",
+  "title": "hivepal",
   "description": "Let your AI agent message and call your Android phone, and get your reply or the call transcript.",
   "version": "0.2.0",
   "websiteUrl": "https://agentring.io",
@@ -17,13 +17,13 @@
       "headers": [
         {
           "name": "Authorization",
-          "description": "Your agentring API key, from the dashboard at https://agentring.io after you pair your phone.",
+          "description": "Your hivepal API key, from the dashboard at https://agentring.io after you pair your phone.",
           "value": "Bearer {api_key}",
           "isRequired": true,
           "isSecret": true,
           "variables": {
             "api_key": {
-              "description": "agentring API key (starts with ak_)",
+              "description": "hivepal API key (starts with ak_)",
               "placeholder": "ak_...",
               "isRequired": true,
               "isSecret": true

@@ -1,6 +1,6 @@
 # Push notifications with your own Firebase project
 
-agentring wakes your phone with **Firebase Cloud Messaging (FCM)** high-priority
+hivepal wakes your phone with **Firebase Cloud Messaging (FCM)** high-priority
 data messages. You use **your own** free Firebase project: nothing goes through
 anyone else's servers, and the prebuilt APK works with it without rebuilding —
 the relay hands the app the (public) client settings when you pair.
@@ -14,7 +14,7 @@ Time: ~5 minutes. Cost: free (FCM has no usage charges).
 ## 1. Create the project
 
 1. Open <https://console.firebase.google.com> and click **Create a project**.
-2. Name it (e.g. `agentring`). Google Analytics is not needed — turn it off.
+2. Name it (e.g. `hivepal`). Google Analytics is not needed — turn it off.
 
 ## 2. Register the Android app
 
@@ -41,7 +41,7 @@ On the relay server, with the docker compose deployment:
 ```bash
 cd deploy
 cp ~/Downloads/google-services.json        secrets/google-services.json
-cp ~/Downloads/agentring-*-firebase-adminsdk-*.json secrets/firebase-service-account.json
+cp ~/Downloads/hivepal-*-firebase-adminsdk-*.json secrets/firebase-service-account.json
 chmod 600 secrets/*.json
 # The relay runs as uid 1000 inside its container. If your user on the server isn't
 # uid 1000 (check with `id -u`), hand the files to that uid so the relay can read them:
@@ -56,7 +56,7 @@ FCM_GOOGLE_SERVICES_FILE=/secrets/google-services.json
 ```
 
 Restart: `docker compose up -d`. The relay log should say `"push":"fcm"`, and
-`agentring status` shows `Push: fcm`.
+`hivepal status` shows `Push: fcm`.
 
 Running the relay without docker? Point the same two environment variables at
 the files.
@@ -65,8 +65,8 @@ the files.
 
 The app learns the Firebase settings when it pairs. If you paired before
 configuring Firebase, pair again: in the app *Settings → Unpair this phone*,
-then `agentring pair` on your computer. The app's Home screen should show
-**Push: Registered**, and `agentring status` shows `push ok` for the device.
+then `hivepal pair` on your computer. The app's Home screen should show
+**Push: Registered**, and `hivepal status` shows `push ok` for the device.
 
 ## Troubleshooting
 
@@ -76,5 +76,5 @@ then `agentring pair` on your computer. The app's Home screen should show
 | Relay fails to start: `google-services.json has no Android app with package name "dev.agentring.app"` | You registered a different package name. Add another Android app with `dev.agentring.app` and download the new file. |
 | Home shows *Push: Unavailable: Google Play services* | The phone has no Google Play services (e.g. some Huawei / de-Googled ROMs). UnifiedPush support is planned. |
 | Home shows *Push: Error …* | Check the phone has internet, then reopen the app. Make sure the relay was restarted after adding the files and that you re-paired. |
-| `agentring status` says `NO push token` | The app never registered: open it once; check the Home screen's Push row. |
+| `hivepal status` says `NO push token` | The app never registered: open it once; check the Home screen's Push row. |
 | Pushes arrive late or not at all with the screen off | Battery optimisation: see [troubleshooting-oem.md](troubleshooting-oem.md). |

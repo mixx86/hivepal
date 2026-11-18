@@ -1,4 +1,4 @@
-# Claude Code + agentring
+# Claude Code + hivepal
 
 Two things to set up: Claude Code can reach you (MCP server + skill), and you can
 reach Claude Code from your phone (an agent in `agents.yaml`).
@@ -6,10 +6,10 @@ reach Claude Code from your phone (an agent in `agents.yaml`).
 ## Claude Code reaches you
 
 ```bash
-agentring init --relay https://relay.example.com --api-key ak_...
-agentring pair                                   # scan the QR with the app
-claude mcp add agentring -- agentring mcp        # the send_message / get_replies / call tools
-mkdir -p ~/.claude/skills && cp -r ../../skills/agentring ~/.claude/skills/   # when to use them
+hivepal init --relay https://relay.example.com --api-key ak_...
+hivepal pair                                   # scan the QR with the app
+claude mcp add hivepal -- hivepal mcp        # the send_message / get_replies / call tools
+mkdir -p ~/.claude/skills && cp -r ../../skills/hivepal ~/.claude/skills/   # when to use them
 ```
 
 Calls need the voice extra and a Gemini API key (free tier available at
@@ -17,7 +17,7 @@ https://aistudio.google.com/apikey), or the key of another voice provider (OpenA
 Phonic: [docs/voice.md](../../docs/voice.md#providers)):
 
 ```bash
-uv tool install 'agentring[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
+uv tool install 'hivepal[voice] @ git+https://github.com/mutonby/agentring#subdirectory=daemon'
 echo GEMINI_API_KEY=... >> ~/.agentring/.env
 ```
 
@@ -31,7 +31,7 @@ add a `Stop` hook to `~/.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "Stop": [{ "hooks": [{ "type": "command", "command": "agentring msg 'Claude Code finished' >/dev/null" }] }]
+    "Stop": [{ "hooks": [{ "type": "command", "command": "hivepal msg 'Claude Code finished' >/dev/null" }] }]
   }
 }
 ```
@@ -50,8 +50,8 @@ agents:
 ```
 
 ```bash
-agentring agents ask claude "What changed on main today?"   # check it works
-agentring serve --ai                                          # answers "Call agent" from the app
+hivepal agents ask claude "What changed on main today?"   # check it works
+hivepal serve --ai                                          # answers "Call agent" from the app
 ```
 
 On the call: *"Ask Claude whether CI is green on main."* The voice AI asks it, tells

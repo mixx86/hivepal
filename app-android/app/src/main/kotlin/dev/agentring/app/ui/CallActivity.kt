@@ -121,7 +121,7 @@ class CallActivity : ComponentActivity() {
             }
         }
         setContent {
-            AgentringTheme {
+            HivepalTheme {
                 val state by Graph.calls.state.collectAsStateWithLifecycle()
                 state?.let {
                     CallScreen(
@@ -207,7 +207,7 @@ class CallActivity : ComponentActivity() {
         val want = s is CallUi.Active && !s.speaker || s is CallUi.Connecting || s is CallUi.Outgoing
         val pm = getSystemService(PowerManager::class.java)
         if (want && proximity == null && pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
-            proximity = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "agentring:proximity").apply { acquire(3 * 60 * 60 * 1000L) }
+            proximity = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "hivepal:proximity").apply { acquire(3 * 60 * 60 * 1000L) }
         } else if (!want) {
             proximity?.let { if (it.isHeld) it.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY) }
             proximity = null

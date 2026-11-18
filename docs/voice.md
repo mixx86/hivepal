@@ -15,26 +15,26 @@ uv tool install './daemon[voice]'
 echo GEMINI_API_KEY=... >> ~/.agentring/.env
 # or, e.g. Grok for every call (CLI and MCP):
 echo XAI_API_KEY=... >> ~/.agentring/.env
-echo AGENTRING_VOICE_PROVIDER=grok >> ~/.agentring/.env
+echo HIVEPAL_VOICE_PROVIDER=grok >> ~/.agentring/.env
 ```
 
 ## Without code
 
 ```bash
 # Call the phone; the AI explains why and answers questions with your MCP tools.
-agentring call "The nightly backup failed" --ai \
+hivepal call "The nightly backup failed" --ai \
   --instructions @prompt.md --mcp http://127.0.0.1:8787/mcp --tools status,logs
 
 # Answer calls from the phone with the AI.
-agentring serve --ai --instructions @prompt.md --mcp http://127.0.0.1:8787/mcp
+hivepal serve --ai --instructions @prompt.md --mcp http://127.0.0.1:8787/mcp
 ```
 
 - `--instructions`: the system prompt (inline or `@file`). Default: a short, generic phone persona.
 - `--mcp`: any MCP server over Streamable HTTP; repeat for several. `--tools` keeps only
   the listed tools: over the phone, expose only what the caller should be able to do.
-- `--provider`: `gemini` (default), `openai`, `grok`, `phonic` or `local`. Default: `AGENTRING_VOICE_PROVIDER`.
+- `--provider`: `gemini` (default), `openai`, `grok`, `phonic` or `local`. Default: `HIVEPAL_VOICE_PROVIDER`.
 - `--model` / `--voice`: the provider's model and voice (defaults in [providers](#providers));
-  `AGENTRING_VOICE_MODEL` / `AGENTRING_VOICE_NAME` set them for the configured provider.
+  `HIVEPAL_VOICE_MODEL` / `HIVEPAL_VOICE_NAME` set them for the configured provider.
 - `--agents`: an [`agents.yaml`](agents.md#agentsyaml) with your agents (the AI consults them with
   `consult_agent`) and MCP servers. Default `~/.agentring/agents.yaml` if it exists; `none` skips it.
 - `call --ai --json` prints the whole result (transcript, tool calls, duration).
@@ -42,8 +42,8 @@ agentring serve --ai --instructions @prompt.md --mcp http://127.0.0.1:8787/mcp
 ## As a library
 
 ```python
-from agentring.relay_client import RelayClient
-from agentring.voice import CallInfo, GeminiLive, Prompts, Tool, VoiceAgent  # or OpenAIRealtime, GrokVoice, Phonic
+from hivepal.relay_client import RelayClient
+from hivepal.voice import CallInfo, GeminiLive, Prompts, Tool, VoiceAgent  # or OpenAIRealtime, GrokVoice, Phonic
 
 def status(service: str) -> str:
     return "up"
@@ -60,7 +60,7 @@ result = await agent.run(CallInfo(created["call"]["call_id"], "The API is down")
 print(result.end_reason, result.transcript, result.tools)
 ```
 
-Incoming calls: on each relay event (`agentring.sync.run_ws`), `accept_incoming(client, event)`
+Incoming calls: on each relay event (`hivepal.sync.run_ws`), `accept_incoming(client, event)`
 returns `(CallInfo, join)` for a call from the phone, ready for `agent.run`.
 
 What you can plug in:
@@ -87,9 +87,9 @@ connection), the relay says it is over, or the model's session limit is near
 
 - The MCP `call` tool's `context` comes from the calling agent, which may be passing on
   text it read somewhere. So on those calls `before_tool` defaults to `after_user_speech`
-  (`agentring.voice`): every tool is refused, with a note telling the model to ask,
+  (`hivepal.voice`): every tool is refused, with a note telling the model to ask,
   until someone on the call has spoken, going by the transcript. Hanging up is never
-  held back. `AgentringTools(..., before_tool=…)` replaces it. `call --ai` and
+  held back. `HivepalTools(..., before_tool=…)` replaces it. `call --ai` and
   `serve --ai` have no gate: their instructions are your own.
 - A late `consult_agent` answer is an agent's output, so it is a note with `trusted=False`.
   `RealtimeBackend.send_text(text, *, respond, trusted=True)` gets that flag. Gemini,
@@ -106,14 +106,14 @@ connection), the relay says it is over, or the model's session limit is near
 | `openai` | OpenAI Realtime (`gpt-realtime-2.1`) | `marin` | `OPENAI_API_KEY` | `OpenAIRealtime` (voice/openai_realtime.py) |
 | `grok` | xAI Grok Voice (`grok-voice-latest`) | xAI's default | `XAI_API_KEY` | `GrokVoice` (voice/openai_realtime.py) |
 | `phonic` | Phonic (`phonic-1`) | Phonic's default | `PHONIC_API_KEY` | `Phonic` (voice/phonic.py) |
-| `local` | whatever your server runs | your server's | none (`AGENTRING_VOICE_KEY` if it asks for one) | `LocalRealtime` (voice/openai_realtime.py) |
+| `local` | whatever your server runs | your server's | none (`HIVEPAL_VOICE_KEY` if it asks for one) | `LocalRealtime` (voice/openai_realtime.py) |
 | `openrouter` | any chat model on OpenRouter (`anthropic/claude-haiku-5.5`), with speech-to-text and text-to-speech models in front and behind | `voice_478` (Voxtral 3) | `OPENROUTER_API_KEY` | `OpenRouterVoice` (voice/openrouter.py) |
 
 The CLI (`call --ai`, `serve --ai`) and the MCP `call` tool resolve the provider the
-same way: `--provider`/`--model`/`--voice` if given, else `AGENTRING_VOICE_PROVIDER`,
-`AGENTRING_VOICE_MODEL`, `AGENTRING_VOICE_NAME` (environment or `~/.agentring/.env`),
+same way: `--provider`/`--model`/`--voice` if given, else `HIVEPAL_VOICE_PROVIDER`,
+`HIVEPAL_VOICE_MODEL`, `HIVEPAL_VOICE_NAME` (environment or `~/.agentring/.env`),
 else the defaults above. In code: `resolve_voice("grok").factory()` is what `VoiceAgent`
-takes. `AGENTRING_VOICE_LANGUAGE` (e.g. `es`) is added to the instructions of every provider
+takes. `HIVEPAL_VOICE_LANGUAGE` (e.g. `es`) is added to the instructions of every provider
 ("Speak es from your first word, unless the user speaks another language."), so Gemini and
 `local` greet in it too. It is also the language Phonic speaks before it has heard anyone
 (otherwise English) and a hint for OpenAI's and Grok's transcription of the user. Use a
@@ -134,19 +134,19 @@ per audio minute), at the cost of some latency: about 2.5-3 s to the first word 
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
-AGENTRING_VOICE_PROVIDER=openrouter
-AGENTRING_VOICE_MODEL=anthropic/claude-haiku-5.5           # any chat model with tool calling
-AGENTRING_VOICE_NAME=voice_483                             # a TTS voice (voice_483: Voxtral 3, Spanish)
-AGENTRING_VOICE_LANGUAGE=es                                # hint for the transcription
-AGENTRING_OPENROUTER_STT_MODEL=mistralai/voxtral-mini-transcribe-3-0   # default
-AGENTRING_OPENROUTER_TTS_MODEL=mistralai/voxtral-mini-tts-3-0          # default
-AGENTRING_OPENROUTER_ZDR=1            # optional: only zero-data-retention endpoints, for all three
-AGENTRING_OPENROUTER_BASE_URL=...     # optional: another server with the same OpenAI-compatible endpoints
+HIVEPAL_VOICE_PROVIDER=openrouter
+HIVEPAL_VOICE_MODEL=anthropic/claude-haiku-5.5           # any chat model with tool calling
+HIVEPAL_VOICE_NAME=voice_483                             # a TTS voice (voice_483: Voxtral 3, Spanish)
+HIVEPAL_VOICE_LANGUAGE=es                                # hint for the transcription
+HIVEPAL_OPENROUTER_STT_MODEL=mistralai/voxtral-mini-transcribe-3-0   # default
+HIVEPAL_OPENROUTER_TTS_MODEL=mistralai/voxtral-mini-tts-3-0          # default
+HIVEPAL_OPENROUTER_ZDR=1            # optional: only zero-data-retention endpoints, for all three
+HIVEPAL_OPENROUTER_BASE_URL=...     # optional: another server with the same OpenAI-compatible endpoints
 ```
 
-With `AGENTRING_OPENROUTER_ZDR=1` every request carries `provider: {zdr: true,
+With `HIVEPAL_OPENROUTER_ZDR=1` every request carries `provider: {zdr: true,
 data_collection: "deny"}`, so OpenRouter only routes to endpoints that keep nothing, and
-fails rather than fall back to one that does. Measured with `agentring voice bench
+fails rather than fall back to one that does. Measured with `hivepal voice bench
 --provider openrouter --lang es --runs 2` on 2026-11-13 (Haiku 5.5, Voxtral STT and TTS):
 first audio 2.5-3.3 s, right tools 6-7/8 (it sometimes answers the "ask an agent" prompt itself
 instead of calling `consult_agent`), spoke before a tool 4-6/6.
@@ -169,8 +169,8 @@ Realtime was not part of that run. Write-up with charts: https://agentring.io/bl
 To compare providers yourself, on your machine and with your network, run the same test:
 
 ```bash
-agentring voice bench --provider grok --lang es      # or gemini, openai, phonic, openrouter, local
-agentring voice bench --provider local --runs 5 --out ./bench-local   # keeps each session's audio
+hivepal voice bench --provider grok --lang es      # or gemini, openai, phonic, openrouter, local
+hivepal voice bench --provider local --runs 5 --out ./bench-local   # keeps each session's audio
 ```
 
 It speaks the four prompts with the system's text-to-speech (`say` on macOS, `espeak-ng`
@@ -200,8 +200,8 @@ improve its products) and a paid tier of about $0.005/min of audio in and $0.018
 ## Local voice (experimental)
 
 `--provider local` talks to an OpenAI-Realtime-compatible server you run yourself: no key,
-no per-minute bill, and the call audio stays on your machine. agentring doesn't ship or pick
-a model; it connects to `AGENTRING_VOICE_URL` (default `ws://127.0.0.1:8765/v1/realtime`) and
+no per-minute bill, and the call audio stays on your machine. hivepal doesn't ship or pick
+a model; it connects to `HIVEPAL_VOICE_URL` (default `ws://127.0.0.1:8765/v1/realtime`) and
 the server decides who listens, thinks and speaks. Use `wss://` (or a private network such as
 Tailscale) if the server is on another machine: the URL carries the call audio.
 
@@ -221,9 +221,9 @@ s2s/bin/speech-to-speech serve --mac-optimal-settings --llm_backend chat-complet
   --responses_api_base_url http://127.0.0.1:8082/v1 --responses_api_api_key none --model_name ministral \
   --parakeet_tdt_language es --qwen3_tts_language Spanish --port 8765   # or en / English
 
-# 3. agentring
-agentring voice bench --provider local --lang es   # check it before a real call
-agentring call "Testing the local voice" --ai --provider local
+# 3. hivepal
+hivepal voice bench --provider local --lang es   # check it before a real call
+hivepal call "Testing the local voice" --ai --provider local
 ```
 
 Any model `llama-server` can run works: change the `.gguf`. What we measured
@@ -270,15 +270,15 @@ uses): the same protocol, no key, no voice or transcription model of its own.
 `tests/test_voice.py` and `tests/test_voice_providers.py` cover the protocols (against
 fake servers), tools, MCP and session logic without a phone. `tests/test_voice_live.py`
 runs whole calls (the AI calls a simulated phone, and the phone calls
-`agentring serve --ai`) against a real relay, LiveKit and a real model, Gemini unless
-`AGENTRING_TEST_PROVIDER` says otherwise:
+`hivepal serve --ai`) against a real relay, LiveKit and a real model, Gemini unless
+`HIVEPAL_TEST_PROVIDER` says otherwise:
 
 ```bash
 docker run -d --name lk -p 7880:7880 -p 7881:7881 -p 50000-50100:50000-50100/udp \
   -e "LIVEKIT_KEYS=devkey: $(openssl rand -hex 24 | tee /tmp/lk)" \
   -e 'LIVEKIT_CONFIG=rtc: {port_range_start: 50000, port_range_end: 50100, tcp_port: 7881}' \
   livekit/livekit-server:v1.13.10 --node-ip "$(ipconfig getifaddr en0)" --bind 0.0.0.0
-AGENTRING_TEST_LIVEKIT_URL=ws://127.0.0.1:7880 AGENTRING_TEST_LIVEKIT_SECRET=$(cat /tmp/lk) \
+HIVEPAL_TEST_LIVEKIT_URL=ws://127.0.0.1:7880 HIVEPAL_TEST_LIVEKIT_SECRET=$(cat /tmp/lk) \
 GEMINI_API_KEY=... uv run --extra voice pytest tests/test_voice_live.py -s
-# another provider: AGENTRING_TEST_PROVIDER=grok XAI_API_KEY=... (same for openai, phonic)
+# another provider: HIVEPAL_TEST_PROVIDER=grok XAI_API_KEY=... (same for openai, phonic)
 ```

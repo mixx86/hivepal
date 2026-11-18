@@ -2,11 +2,11 @@
 
 Opt-in (needs a LiveKit server and the provider's key; costs a few cents):
 
-    AGENTRING_TEST_LIVEKIT_URL=ws://127.0.0.1:7880 AGENTRING_TEST_LIVEKIT_KEY=devkey \\
-    AGENTRING_TEST_LIVEKIT_SECRET=... GEMINI_API_KEY=... uv run --extra voice pytest tests/test_voice_live.py -s
+    HIVEPAL_TEST_LIVEKIT_URL=ws://127.0.0.1:7880 HIVEPAL_TEST_LIVEKIT_KEY=devkey \\
+    HIVEPAL_TEST_LIVEKIT_SECRET=... GEMINI_API_KEY=... uv run --extra voice pytest tests/test_voice_live.py -s
 
-AGENTRING_TEST_PROVIDER picks another provider (openai, grok, phonic; its key instead of
-GEMINI_API_KEY) and AGENTRING_TEST_MODEL another model.
+HIVEPAL_TEST_PROVIDER picks another provider (openai, grok, phonic; its key instead of
+GEMINI_API_KEY) and HIVEPAL_TEST_MODEL another model.
 
 The phone answers, waits for the greeting, asks for the time (the agent must use a
 tool to know it), then says goodbye (the agent must hang up). The phone speaks with
@@ -27,26 +27,26 @@ pytest.importorskip("livekit")
 
 from livekit import rtc  # noqa: E402
 
-from agentring.relay_client import RelayClient  # noqa: E402
-from agentring.voice import CallInfo, Prompts, Tool, VoiceAgent  # noqa: E402
-from agentring.voice.echo import SAMPLE_RATE, synthesize  # noqa: E402
-from agentring.voice.providers import PROVIDERS, resolve_voice  # noqa: E402
+from hivepal.relay_client import RelayClient  # noqa: E402
+from hivepal.voice import CallInfo, Prompts, Tool, VoiceAgent  # noqa: E402
+from hivepal.voice.echo import SAMPLE_RATE, synthesize  # noqa: E402
+from hivepal.voice.providers import PROVIDERS, resolve_voice  # noqa: E402
 
 from .conftest import API_KEY  # noqa: E402
 
-LK_URL = os.environ.get("AGENTRING_TEST_LIVEKIT_URL")
-PROVIDER = PROVIDERS[os.environ.get("AGENTRING_TEST_PROVIDER", "gemini")]
+LK_URL = os.environ.get("HIVEPAL_TEST_LIVEKIT_URL")
+PROVIDER = PROVIDERS[os.environ.get("HIVEPAL_TEST_PROVIDER", "gemini")]
 pytestmark = pytest.mark.skipif(
     not (LK_URL and os.environ.get(PROVIDER.key_env) and shutil.which("say")),
-    reason=f"needs AGENTRING_TEST_LIVEKIT_URL/KEY/SECRET, {PROVIDER.key_env} and macOS say",
+    reason=f"needs HIVEPAL_TEST_LIVEKIT_URL/KEY/SECRET, {PROVIDER.key_env} and macOS say",
 )
 
 
 @pytest.fixture()
 def livekit_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LIVEKIT_URL", LK_URL or "")
-    monkeypatch.setenv("LIVEKIT_API_KEY", os.environ.get("AGENTRING_TEST_LIVEKIT_KEY", "devkey"))
-    monkeypatch.setenv("LIVEKIT_API_SECRET", os.environ.get("AGENTRING_TEST_LIVEKIT_SECRET", ""))
+    monkeypatch.setenv("LIVEKIT_API_KEY", os.environ.get("HIVEPAL_TEST_LIVEKIT_KEY", "devkey"))
+    monkeypatch.setenv("LIVEKIT_API_SECRET", os.environ.get("HIVEPAL_TEST_LIVEKIT_SECRET", ""))
 
 
 class Phone:
@@ -120,7 +120,7 @@ def test_ai_call_end_to_end(livekit_env, relay: str):
     device = client.list_devices()[0]["device_id"]
 
     agent = VoiceAgent(
-        resolve_voice(PROVIDER.name, model=os.environ.get("AGENTRING_TEST_MODEL")).factory(),
+        resolve_voice(PROVIDER.name, model=os.environ.get("HIVEPAL_TEST_MODEL")).factory(),
         "Eres un asistente de pruebas que habla por teléfono en castellano. Frases muy cortas. "
         "No sabes la hora: si te la preguntan, usa la herramienta hora y di exactamente lo que devuelva. "
         "Cuando el usuario se despida, despídete en una frase y usa end_call.",
@@ -157,15 +157,15 @@ def test_ai_call_end_to_end(livekit_env, relay: str):
     assert heard_s > greeting_s + 1
 
 
-def test_phone_calls_the_agent(livekit_env, relay: str, agentring_home, tmp_path):
-    """`agentring serve --ai` answers a call from the phone, talks and hangs up when told goodbye."""
+def test_phone_calls_the_agent(livekit_env, relay: str, hivepal_home, tmp_path):
+    """`hivepal serve --ai` answers a call from the phone, talks and hangs up when told goodbye."""
     import json
     import subprocess
     import sys
 
     from typer.testing import CliRunner
 
-    from agentring.cli import app
+    from hivepal.cli import app
 
     assert CliRunner().invoke(app, ["init", "--relay", relay, "--api-key", API_KEY]).exit_code == 0
     client = RelayClient(relay, API_KEY)
@@ -174,11 +174,11 @@ def test_phone_calls_the_agent(livekit_env, relay: str, agentring_home, tmp_path
                                                "platform": "android"}).json()["device_jwt"]
     log_path = tmp_path / "serve.log"
     serve = subprocess.Popen(
-        [sys.executable, "-m", "agentring.cli", "-v", "serve", "--ai", "--instructions",
+        [sys.executable, "-m", "hivepal.cli", "-v", "serve", "--ai", "--instructions",
          "Eres un asistente de pruebas por teléfono, en castellano y con frases muy cortas. "
          "Cuando el usuario se despida, despídete y usa end_call."],
         stdout=open(log_path, "w"), stderr=subprocess.STDOUT,
-        env={**os.environ, "AGENTRING_HOME": str(agentring_home), "AGENTRING_VOICE_PROVIDER": PROVIDER.name})
+        env={**os.environ, "HIVEPAL_HOME": str(hivepal_home), "HIVEPAL_VOICE_PROVIDER": PROVIDER.name})
 
     async def run():
         deadline = time.time() + 20
@@ -217,6 +217,6 @@ def test_phone_calls_the_agent(livekit_env, relay: str, agentring_home, tmp_path
         serve.wait(15)
         client.close()
     out = log_path.read_text()
-    print("\n".join(line for line in out.splitlines() if "agentring" in line))
+    print("\n".join(line for line in out.splitlines() if "hivepal" in line))
     assert greeting_s > 1, out
     assert "answering call_" in out and "end_call" in out, out

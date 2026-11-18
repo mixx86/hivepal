@@ -51,7 +51,7 @@ With the hosted version there is no server, Firebase project or voice AI key to 
 3. **Add the MCP server to your agent.** The dashboard shows the command with your key:
 
    ```bash
-   claude mcp add --transport http agentring https://agentring.io/mcp \
+   claude mcp add --transport http hivepal https://agentring.io/mcp \
      --header "Authorization: Bearer ak_…"
    ```
 
@@ -79,7 +79,7 @@ assistant about your inbox.
 
 ## Works with your agent
 
-agentring doesn't care which harness you use: anything that speaks MCP can reach you,
+hivepal doesn't care which harness you use: anything that speaks MCP can reach you,
 and anything you can run as a command can be consulted from a call.
 
 | | Reaches you | You consult it from a call |
@@ -87,14 +87,14 @@ and anything you can run as a command can be consulted from a call.
 | Claude Code | MCP | `claude -p` |
 | Codex | MCP | `codex exec` |
 | opencode | MCP | `opencode run` |
-| Grok Build | MCP, or the [plugin](plugins/agentring) | |
+| Grok Build | MCP, or the [plugin](plugins/hivepal) | |
 | OpenClaw | MCP | `openclaw agent` |
 | Hermes | MCP | `hermes -z` |
 | n8n, scripts, anything with HTTP | REST API, CLI | any command, or a small script for an HTTP agent |
 
 Copy-paste setup for each: [docs/agents.md](docs/agents.md#recipes-by-harness). OpenClaw and
-Hermes have one command for all of it: `agentring connect openclaw` / `agentring connect hermes`,
-or install the [skill](skills/agentring) and ask your agent to set agentring up.
+Hermes have one command for all of it: `hivepal connect openclaw` / `hivepal connect hermes`,
+or install the [skill](skills/hivepal) and ask your agent to set hivepal up.
 
 The skill installs in any harness that reads skills with `npx skills add mutonby/agentring`
 ([skills.sh](https://skills.sh/mutonby/agentring)), and from ClawHub as `@mutonby/agentring`.
@@ -119,18 +119,18 @@ docker compose logs relay | grep -A2 "API key"   # add the same -f/--env-file fo
 
 # 2. The computer where your agent runs
 uv tool install './daemon[voice]'
-agentring init --relay https://relay.example.com --api-key ak_...
-agentring pair                         # scan the QR code with the app
-agentring msg "hello"                  # the phone gets a notification
+hivepal init --relay https://relay.example.com --api-key ak_...
+hivepal pair                         # scan the QR code with the app
+hivepal msg "hello"                  # the phone gets a notification
 echo GEMINI_API_KEY=... >> ~/.agentring/.env  # or OPENAI_API_KEY / XAI_API_KEY / PHONIC_API_KEY
-agentring call "Testing agentring" --ai       # + --provider openai|grok|phonic
+hivepal call "Testing hivepal" --ai       # + --provider openai|grok|phonic
 
 # 3. Your agent (Claude Code here; others: docs/agents.md)
-claude mcp add agentring -- agentring mcp
+claude mcp add hivepal -- hivepal mcp
 ```
 
 Install the app from **[Google Play](https://play.google.com/store/apps/details?id=dev.agentring.app&referrer=utm_source%3Dgithub%26utm_medium%3Dreadme)**
-(recommended: it updates itself, and the same app works with agentring cloud and with your
+(recommended: it updates itself, and the same app works with hivepal cloud and with your
 own relay). The APK on [Releases](https://github.com/mutonby/agentring/releases) is for
 those who'd rather not use Play; it's signed with a different key, so uninstall one before
 installing the other. The full
@@ -149,7 +149,7 @@ vendor's battery saver: [docs/troubleshooting-oem.md](docs/troubleshooting-oem.m
 - **relay** (TypeScript): pairing, messages, call state, push, LiveKit tokens. Runs on
   your server behind Caddy.
 - **LiveKit**: the call audio, self-hosted in the same compose file.
-- **daemon** (Python): the `agentring` CLI, the MCP server and the voice AI. Runs next
+- **daemon** (Python): the `hivepal` CLI, the MCP server and the voice AI. Runs next
   to your agents, behind NAT is fine.
 - **Android app** (Kotlin): QR pairing, the native call screen, messages.
 
@@ -165,9 +165,9 @@ the conversation and hands real work to your agents. Pick the one you like:
 | [OpenRouter](https://openrouter.ai): speech-to-text, any chat model, text-to-speech, experimental ([details](docs/voice.md#openrouter-speech-to-text--any-model--text-to-speech)) | `openrouter` | `OPENROUTER_API_KEY` |
 | Your own server, e.g. [HF speech-to-speech](https://github.com/huggingface/speech-to-speech) + a small model on llama.cpp (experimental) | `local` | none |
 
-Set `AGENTRING_VOICE_PROVIDER` in `~/.agentring/.env` to use one for every call, from the
+Set `HIVEPAL_VOICE_PROVIDER` in `~/.agentring/.env` to use one for every call, from the
 CLI and from MCP. How they compare (latency, tool use), how to measure them yourself
-(`agentring voice bench`), the local setup and how to add another one:
+(`hivepal voice bench`), the local setup and how to add another one:
 [docs/voice.md](docs/voice.md#providers).
 
 More: [architecture](docs/architecture.md) · [protocol](docs/protocol.md) ·

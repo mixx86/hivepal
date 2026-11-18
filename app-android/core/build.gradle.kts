@@ -26,5 +26,5 @@ dependencies {
 
 tasks.test {
     // Shared protocol fixtures live at the repository root.
-    systemProperty("agentring.protocolDir", rootProject.projectDir.resolve("../protocol").absolutePath)
+    systemProperty("hivepal.protocolDir", rootProject.projectDir.resolve("../protocol").absolutePath)
 }

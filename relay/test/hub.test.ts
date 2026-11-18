@@ -33,7 +33,7 @@ async function start(idleUnloadMs?: number) {
 }
 
 beforeEach(async () => {
-  dir = mkdtempSync(join(tmpdir(), "agentring-hub-"));
+  dir = mkdtempSync(join(tmpdir(), "hivepal-hub-"));
   await start();
 });
 

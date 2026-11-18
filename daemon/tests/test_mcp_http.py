@@ -1,4 +1,4 @@
-"""`agentring mcp-http` as an MCP client sees it: Streamable HTTP against a real relay."""
+"""`hivepal mcp-http` as an MCP client sees it: Streamable HTTP against a real relay."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 
-from agentring import mcp_http
-from agentring.mcp_http import MAX_BATCH, MAX_SESSIONS_PER_TENANT, HttpConfig, HttpError, KeyResolver, McpHttpServer, Tenant, UpstreamError
-from agentring.mcp_server import AgentringTools
-from agentring.relay_client import RelayClient
-from agentring.store import Store
+from hivepal import mcp_http
+from hivepal.mcp_http import MAX_BATCH, MAX_SESSIONS_PER_TENANT, HttpConfig, HttpError, KeyResolver, McpHttpServer, Tenant, UpstreamError
+from hivepal.mcp_server import HivepalTools
+from hivepal.relay_client import RelayClient
+from hivepal.store import Store
 
 from .conftest import API_KEY
 from .test_e2e import simulate_phone_pairing
@@ -116,7 +116,7 @@ def test_handshake_sessions_and_http_errors(relay: str, start):
     assert httpx.get(f"{s.url}/healthz").json() == {"ok": True}
 
     init = c.initialize()
-    assert init["protocolVersion"] == "2025-06-18" and init["serverInfo"]["name"] == "agentring"
+    assert init["protocolVersion"] == "2025-06-18" and init["serverInfo"]["name"] == "hivepal"
     assert init["capabilities"] == {"tools": {"listChanged": False}}
     assert c.request("ping")["result"] == {}
     names = [t["name"] for t in c.request("tools/list")["result"]["tools"]]
@@ -163,7 +163,7 @@ def test_auth_failures(relay: str, start):
                            ({"authorization": "Bearer ak_wrong_key"}, "invalid_token")]:
         r = httpx.post(f"{s.url}/mcp", content=ping, headers={"content-type": "application/json", **headers})
         assert r.status_code == 401, headers
-        assert r.headers["www-authenticate"].startswith('Bearer realm="agentring"')
+        assert r.headers["www-authenticate"].startswith('Bearer realm="hivepal"')
         assert (f'error="{error}"' in r.headers["www-authenticate"]) == (error is not None)
         assert r.json()["error"]["code"] == -32001
     # A session is tied to its key.
@@ -273,9 +273,9 @@ def test_hub_mode_resolves_keys_through_the_admin_api(relay: str, start, tmp_pat
     try:
         token_file = tmp_path / "admin-token"
         token_file.write_text(ADMIN_TOKEN + "\n")
-        monkeypatch.setenv("AGENTRING_HUB_ADMIN_URL", admin.url)
-        monkeypatch.setenv("AGENTRING_HUB_ADMIN_TOKEN_FILE", str(token_file))
-        monkeypatch.delenv("AGENTRING_RELAY_URL", raising=False)
+        monkeypatch.setenv("HIVEPAL_HUB_ADMIN_URL", admin.url)
+        monkeypatch.setenv("HIVEPAL_HUB_ADMIN_TOKEN_FILE", str(token_file))
+        monkeypatch.delenv("HIVEPAL_RELAY_URL", raising=False)
         cfg = HttpConfig.from_env(port=0, data_dir=tmp_path / "hub-data")
         assert cfg.hub and cfg.admin_token == ADMIN_TOKEN and cfg.relay_url is None
         s = ServerThread(cfg)
@@ -322,24 +322,24 @@ def test_relay_client_keeps_the_tenant_path_prefix():
 
 
 def test_config_from_env(monkeypatch, tmp_path: Path):
-    from agentring.config import ConfigError
+    from hivepal.config import ConfigError
 
-    for v in ("AGENTRING_RELAY_URL", "AGENTRING_HUB_ADMIN_URL", "AGENTRING_HUB_ADMIN_TOKEN", "AGENTRING_HUB_ADMIN_TOKEN_FILE",
-              "AGENTRING_MCP_PORT", "AGENTRING_MCP_MAX_CALLS", "AGENTRING_MCP_ALLOWED_ORIGINS"):
+    for v in ("HIVEPAL_RELAY_URL", "HIVEPAL_HUB_ADMIN_URL", "HIVEPAL_HUB_ADMIN_TOKEN", "HIVEPAL_HUB_ADMIN_TOKEN_FILE",
+              "HIVEPAL_MCP_PORT", "HIVEPAL_MCP_MAX_CALLS", "HIVEPAL_MCP_ALLOWED_ORIGINS"):
         monkeypatch.delenv(v, raising=False)
     with pytest.raises(ConfigError):
         HttpConfig.from_env()
-    monkeypatch.setenv("AGENTRING_HUB_ADMIN_URL", "http://relay:8080/")
+    monkeypatch.setenv("HIVEPAL_HUB_ADMIN_URL", "http://relay:8080/")
     with pytest.raises(ConfigError, match="admin token"):
         HttpConfig.from_env()
-    monkeypatch.setenv("AGENTRING_HUB_ADMIN_TOKEN", "t" * 40)
-    monkeypatch.setenv("AGENTRING_MCP_MAX_CALLS", "9")
-    monkeypatch.setenv("AGENTRING_MCP_ALLOWED_ORIGINS", "https://a.example, https://b.example/")
+    monkeypatch.setenv("HIVEPAL_HUB_ADMIN_TOKEN", "t" * 40)
+    monkeypatch.setenv("HIVEPAL_MCP_MAX_CALLS", "9")
+    monkeypatch.setenv("HIVEPAL_MCP_ALLOWED_ORIGINS", "https://a.example, https://b.example/")
     cfg = HttpConfig.from_env(port=1234, data_dir=tmp_path)
     assert (cfg.admin_url, cfg.port, cfg.max_calls, cfg.host) == ("http://relay:8080", 1234, 9, "127.0.0.1")
     assert cfg.allowed_origins == ("https://a.example", "https://b.example")
-    monkeypatch.setenv("AGENTRING_MCP_PORT", "nope")
-    with pytest.raises(ConfigError, match="AGENTRING_MCP_PORT"):
+    monkeypatch.setenv("HIVEPAL_MCP_PORT", "nope")
+    with pytest.raises(ConfigError, match="HIVEPAL_MCP_PORT"):
         HttpConfig.from_env()
 
 
@@ -351,7 +351,7 @@ def test_slow_call_streams_keepalives(relay: str, start, monkeypatch):
         await asyncio.sleep(1.2)
         return {"call_id": "call_test", "answered": True, "reason": reason}
 
-    monkeypatch.setattr(AgentringTools, "call", slow_call)
+    monkeypatch.setattr(HivepalTools, "call", slow_call)
     s = start(relay_url=relay, keepalive_s=0.2)
     c = Client(s.url)
     c.initialize()
@@ -379,7 +379,7 @@ def test_cancelled_request_ends_the_stream(relay: str, start, monkeypatch):
         started.set()
         await asyncio.sleep(60)
 
-    monkeypatch.setattr(AgentringTools, "call", endless_call)
+    monkeypatch.setattr(HivepalTools, "call", endless_call)
     s = start(relay_url=relay, keepalive_s=0.2)
     c = Client(s.url)
     c.initialize()
@@ -400,7 +400,7 @@ def test_cancelled_request_ends_the_stream(relay: str, start, monkeypatch):
 
 def test_call_cap_answers_busy(relay: str, start, monkeypatch):
     pytest.importorskip("livekit")
-    monkeypatch.setenv("AGENTRING_VOICE_PROVIDER", "gemini")
+    monkeypatch.setenv("HIVEPAL_VOICE_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", "fake-key-never-used")
     s = start(relay_url=relay, max_calls=0)
     c = Client(s.url)
@@ -426,7 +426,7 @@ def test_bad_ids_and_long_keys(relay: str, start):
 
 
 def test_stdio_refuses_bad_ids():
-    from agentring.mcp_server import McpServer
+    from hivepal.mcp_server import McpServer
 
     sent: list[dict] = []
     srv = McpServer(None, lambda line: sent.append(json.loads(line)))  # type: ignore[arg-type]
@@ -437,13 +437,13 @@ def test_stdio_refuses_bad_ids():
 
 
 def test_cancelled_get_replies_does_not_swallow_a_reply(relay: str, tmp_path: Path):
-    from agentring.mcp_server import AgentringTools
-    from agentring.store import Store
+    from hivepal.mcp_server import HivepalTools
+    from hivepal.store import Store
 
     with RelayClient(relay, API_KEY) as rc:
         phone = simulate_phone_pairing(rc.create_pairing_token()["qr_payload"])
         httpx.post(f"{relay}/v1/messages", headers=phone["headers"], json={"text": "reply"})
-        tools = AgentringTools(RelayClient(relay, API_KEY), Store(tmp_path / "s.db"), agents_file=None)
+        tools = HivepalTools(RelayClient(relay, API_KEY), Store(tmp_path / "s.db"), agents_file=None)
         cancelled = threading.Event()
         cancelled.set()  # the request was cancelled while the thread was fetching
         assert tools._new_replies(cancelled) == []
@@ -586,7 +586,7 @@ def test_hanging_up_leaves_a_phone_call_running(relay: str, start, monkeypatch):
         done.set()
         return {"answered": True}
 
-    monkeypatch.setattr(AgentringTools, "call", call)
+    monkeypatch.setattr(HivepalTools, "call", call)
     monkeypatch.setattr(mcp_http, "DISCONNECT_POLL_S", 0.05)
     s = start(relay_url=relay)
     post_raw(s.url, {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
@@ -625,7 +625,7 @@ def test_open_requests_per_tenant_are_capped_and_released(relay: str, start):
 
 
 def big_catalog(monkeypatch, size: int) -> None:
-    monkeypatch.setattr("agentring.mcp_server.TOOLS", [{"name": "x", "description": "d" * size, "inputSchema": {}}])
+    monkeypatch.setattr("hivepal.mcp_server.TOOLS", [{"name": "x", "description": "d" * size, "inputSchema": {}}])
 
 
 def test_response_size_limit(relay: str, start, monkeypatch):
@@ -639,7 +639,7 @@ def test_streamed_response_size_limit(relay: str, start, monkeypatch):
     async def call(self, reason, context=None, urgent=False):
         return {"transcript": "x" * 5000}
 
-    monkeypatch.setattr(AgentringTools, "call", call)
+    monkeypatch.setattr(HivepalTools, "call", call)
     s = start(relay_url=relay, max_response=2000)
     r = Client(s.url).post({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
                             "params": {"name": "call", "arguments": {"reason": "x"}}})
@@ -666,7 +666,7 @@ def test_a_client_that_stops_reading_is_cut_off_and_its_buffer_freed(relay: str,
 
 
 def test_tenant_lock_is_not_held_during_relay_requests():
-    tools: AgentringTools
+    tools: HivepalTools
 
     class Relay:
         relay_url = NOWHERE
@@ -689,7 +689,7 @@ def test_tenant_lock_is_not_held_during_relay_requests():
             self._note()
 
     relay = Relay()
-    tools = AgentringTools(relay, Store(":memory:"), agents_file=None)
+    tools = HivepalTools(relay, Store(":memory:"), agents_file=None)
     assert [r["text"] for r in tools._new_replies()] == ["hi"]
     assert tools._new_replies() == []  # each reply once
     assert len(relay.held) >= 5 and not any(relay.held)
@@ -713,7 +713,7 @@ def test_concurrent_get_replies_return_each_reply_once(tmp_path: Path):
         def mark_read(self, msg_id):
             pass
 
-    tools = AgentringTools(Relay(), Store(tmp_path / "s.db"), agents_file=None)
+    tools = HivepalTools(Relay(), Store(tmp_path / "s.db"), agents_file=None)
     got: list[str] = []
     threads = [threading.Thread(target=lambda: got.extend(r["text"] for r in tools._new_replies())) for _ in range(8)]
     for t in threads:
@@ -879,24 +879,24 @@ def test_reap_closes_the_pooled_store_first_and_waits_for_requests(tmp_path: Pat
 
 
 def test_new_limit_settings_from_env(monkeypatch, tmp_path: Path):
-    for v in ("AGENTRING_HUB_ADMIN_URL", "AGENTRING_HUB_ADMIN_TOKEN", "AGENTRING_HUB_ADMIN_TOKEN_FILE"):
+    for v in ("HIVEPAL_HUB_ADMIN_URL", "HIVEPAL_HUB_ADMIN_TOKEN", "HIVEPAL_HUB_ADMIN_TOKEN_FILE"):
         monkeypatch.delenv(v, raising=False)
-    monkeypatch.setenv("AGENTRING_RELAY_URL", "http://relay:8080")
-    monkeypatch.setenv("AGENTRING_MCP_MAX_INFLIGHT", "3")
-    monkeypatch.setenv("AGENTRING_MCP_MAX_CONNECTIONS", "9")
-    monkeypatch.setenv("AGENTRING_MCP_MAX_TENANT_CONNECTIONS", "4")
-    monkeypatch.setenv("AGENTRING_MCP_SWEEP_S", "0")
+    monkeypatch.setenv("HIVEPAL_RELAY_URL", "http://relay:8080")
+    monkeypatch.setenv("HIVEPAL_MCP_MAX_INFLIGHT", "3")
+    monkeypatch.setenv("HIVEPAL_MCP_MAX_CONNECTIONS", "9")
+    monkeypatch.setenv("HIVEPAL_MCP_MAX_TENANT_CONNECTIONS", "4")
+    monkeypatch.setenv("HIVEPAL_MCP_SWEEP_S", "0")
     cfg = HttpConfig.from_env()
     assert (cfg.max_inflight, cfg.max_connections, cfg.max_tenant_connections, cfg.sweep_s) == (3, 9, 4, 0.0)
 
 
 def test_mcp_http_refuses_a_public_http_relay(monkeypatch):
-    from agentring.config import ConfigError
+    from hivepal.config import ConfigError
 
-    for v in ("AGENTRING_HUB_ADMIN_URL", "AGENTRING_HUB_ADMIN_TOKEN", "AGENTRING_HUB_ADMIN_TOKEN_FILE"):
+    for v in ("HIVEPAL_HUB_ADMIN_URL", "HIVEPAL_HUB_ADMIN_TOKEN", "HIVEPAL_HUB_ADMIN_TOKEN_FILE"):
         monkeypatch.delenv(v, raising=False)
-    monkeypatch.setenv("AGENTRING_RELAY_URL", "http://relay.example.com")
-    with pytest.raises(ConfigError, match="AGENTRING_RELAY_URL: refusing"):
+    monkeypatch.setenv("HIVEPAL_RELAY_URL", "http://relay.example.com")
+    with pytest.raises(ConfigError, match="HIVEPAL_RELAY_URL: refusing"):
         HttpConfig.from_env()
 
 

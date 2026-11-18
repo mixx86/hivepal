@@ -116,7 +116,7 @@
     <string name="step_of">Paso %1$d de %2$d</string>
     <string name="how_title">¿Cómo quieres conectarte?</string>
     <string name="how_body">Tu móvil habla con tu agente a través de un pequeño servidor llamado relay.</string>
-    <string name="how_cloud_title">agentring cloud</string>
+    <string name="how_cloud_title">hivepal cloud</string>
     <string name="how_cloud_badge">LO MÁS FÁCIL</string>
     <string name="how_cloud_body">Sin instalar nada. Entra en la web y conecta tu agente con un comando.</string>
     <string name="how_self_title">Mi propio servidor</string>
@@ -160,7 +160,7 @@
     <string name="settings_pairing">Emparejamiento</string>
     <string name="settings_more">Más</string>
     <string name="open_dashboard">Abrir mi panel</string>
-    <string name="settings_footer">Hivepal %1$s · basado en agentring (Apache-2.0)</string>
+    <string name="settings_footer">Hivepal %1$s · basado en hivepal (Apache-2.0)</string>
     <string name="perm_notifications_why">Para mostrar mensajes y llamadas entrantes.</string>
     <string name="perm_microphone_why">Para que tu agente te oiga.</string>
     <string name="perm_full_screen_why">Muestra la llamada sobre la pantalla de bloqueo.</string>

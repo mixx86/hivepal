@@ -1,6 +1,6 @@
 # Automatic HTTPS (Let's Encrypt) on one hostname for the relay and LiveKit
 # signalling. WebSockets pass through as-is.
-{$AGENTRING_DOMAIN} {
+{$HIVEPAL_DOMAIN} {
 	encode gzip
 	header Strict-Transport-Security "max-age=31536000"
 	header -Server

@@ -416,7 +416,7 @@ private fun PairPage(setup: Setup, onPaired: () -> Unit) {
                         CommandBlock("docker compose up -d")
                     }
                     NumberedStep(2, stringResource(R.string.pair_self_2), stringResource(R.string.pair_self_2_body)) {
-                        CommandBlock("agentring pair")
+                        CommandBlock("hivepal pair")
                     }
                     NumberedStep(3, stringResource(R.string.pair_scan_step), stringResource(R.string.pair_scan_step_body))
                 }
@@ -479,7 +479,7 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
     }) {
         HeroBadge(rememberVectorPainter(Icons.Filled.Check), size = 88.dp, pulse = true)
         Text(
-            stringResource(R.string.done_title, pairing?.agentName ?: "agentring"),
+            stringResource(R.string.done_title, pairing?.agentName ?: "hivepal"),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.testTag("title"),
@@ -505,10 +505,10 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
                     NumberedStep(1, stringResource(R.string.try_cloud_1), stringResource(R.string.try_cloud_1_body))
                     NumberedStep(2, stringResource(R.string.try_cloud_2), stringResource(R.string.try_cloud_2_body))
                 } else {
-                    NumberedStep(1, stringResource(R.string.try_self_1)) { CommandBlock("agentring msg \"hello\"") }
-                    NumberedStep(2, stringResource(R.string.try_self_2)) { CommandBlock("agentring call \"test\"") }
+                    NumberedStep(1, stringResource(R.string.try_self_1)) { CommandBlock("hivepal msg \"hello\"") }
+                    NumberedStep(2, stringResource(R.string.try_self_2)) { CommandBlock("hivepal call \"test\"") }
                     NumberedStep(3, stringResource(R.string.try_self_3), stringResource(R.string.try_self_3_body)) {
-                        CommandBlock("claude mcp add agentring -- agentring mcp")
+                        CommandBlock("claude mcp add hivepal -- hivepal mcp")
                     }
                 }
             }

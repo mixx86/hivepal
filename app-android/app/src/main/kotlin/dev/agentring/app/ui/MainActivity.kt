@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT), androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         handleIntent(intent)
         setContent {
-            AgentringTheme {
+            HivepalTheme {
                 AppRoot(openRequest)
             }
         }

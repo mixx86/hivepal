@@ -42,13 +42,13 @@ jobs:
         working-directory: deploy
         run: |
           docker compose -f docker-compose.local.yml --env-file .env.local.example config -q
-          AGENTRING_DOMAIN=relay.example.com LIVEKIT_NODE_IP=203.0.113.1 LIVEKIT_API_KEY=lk_x \
+          HIVEPAL_DOMAIN=relay.example.com LIVEKIT_NODE_IP=203.0.113.1 LIVEKIT_API_KEY=lk_x \
             docker compose -f docker-compose.proxy.yml config -q
       - name: Build and start
         working-directory: deploy
         run: |
           cp .env.example .env
-          sed -i 's/^AGENTRING_DOMAIN=.*/AGENTRING_DOMAIN=localhost/' .env
+          sed -i 's/^HIVEPAL_DOMAIN=.*/HIVEPAL_DOMAIN=localhost/' .env
           # Skip STUN discovery: the runner's public IP doesn't matter here.
           sed -i 's/^LIVEKIT_NODE_IP=.*/LIVEKIT_NODE_IP=127.0.0.1/' .env
           docker compose up -d --build

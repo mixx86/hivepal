@@ -3,7 +3,7 @@
 > Status: M1 done and tested on a real phone. M2 (calls) implemented and tested on a
 > Pixel 6 / Android 16; LiveKit in the deploy compose still to do. Voice AI lands in M3.
 
-agentring lets any AI agent (Claude Code, OpenClaw, n8n, plain scripts…) place a
+hivepal lets any AI agent (Claude Code, OpenClaw, n8n, plain scripts…) place a
 VoIP call to the user's phone, send it messages, and receive calls from it. The
 phone rings like a real call, even locked and in Doze. No PSTN, no phone
 numbers, no Twilio.
@@ -35,7 +35,7 @@ F1 scope: one user, one agent, Android only, self-hosted, no accounts.
 | Component | Responsibility | Stack |
 |---|---|---|
 | `relay` | Pairing, device registry, call state machine + ring timeout, message store, event log + fan-out (WS), push (FCM), LiveKit room/token minting, LiveKit webhook. Source of truth for calls and messages. | Node 22, TypeScript, Fastify 5, `@fastify/websocket`, `node:sqlite` (no native deps), `livekit-server-sdk`, `jose`; FCM HTTP v1 over plain `fetch` (no `firebase-admin`) |
-| `daemon` | Agent-side endpoint. CLI, MCP server, local HTTP API, persistent relay connection, voice worker. Mirrors calls/messages into its own SQLite and stores transcripts + summaries. | Python ≥ 3.11, `uv`, typer, httpx, websockets, Starlette/uvicorn, official `mcp` SDK, `livekit` realtime SDK (optional extra `agentring[voice]`) |
+| `daemon` | Agent-side endpoint. CLI, MCP server, local HTTP API, persistent relay connection, voice worker. Mirrors calls/messages into its own SQLite and stores transcripts + summaries. | Python ≥ 3.11, `uv`, typer, httpx, websockets, Starlette/uvicorn, official `mcp` SDK, `livekit` realtime SDK (optional extra `hivepal[voice]`) |
 | `app-android` | Pairing (QR), push handling, self-managed `ConnectionService`, CallStyle + full-screen intent, LiveKit audio, messages thread. | Kotlin, Compose, Material 3, OkHttp, kotlinx.serialization, Room, CameraX + ML Kit barcode, LiveKit Android SDK, Firebase Messaging |
 | `livekit-server` | SFU; handles NAT traversal (ICE/TURN). One room per call. | upstream image, self-hosted |
 | `caddy` | Automatic TLS, reverse proxy. | upstream image |
@@ -63,33 +63,33 @@ F1 scope: one user, one agent, Android only, self-hosted, no accounts.
     generated/              # types generated from /protocol (openapi-typescript), committed
   test/
 /daemon
-  pyproject.toml            # [project.scripts] agentring = "agentring.cli:app"
-  src/agentring/
+  pyproject.toml            # [project.scripts] hivepal = "hivepal.cli:app"
+  src/hivepal/
     cli.py                  # typer: pair, call, msg, replies, status, serve, devices
     config.py               # ~/.agentring/config.yaml + .env
     relay_client.py         # REST (httpx) + WS (websockets) with resume-from-seq
     store.py                # local SQLite mirror + transcripts
     http_api.py             # local HTTP API (Starlette)
     mcp_server.py           # MCP tools + stdio transport
-    mcp_http.py             # MCP over Streamable HTTP, many users (agentring mcp-http)
+    mcp_http.py             # MCP over Streamable HTTP, many users (hivepal mcp-http)
     voice/                  # worker, prompts, consult_agent backends   (extra: [voice])
     models.py               # generated from /protocol (datamodel-code-generator, pydantic v2), committed
   tests/
 /app-android
   settings.gradle.kts  build.gradle.kts  gradle/libs.versions.toml
-  app/src/main/java/dev/agentring/app/
-    AgentringApp.kt
+  app/src/main/java/dev/hivepal/app/
+    HivepalApp.kt
     data/                   # Room DB, repositories, settings (DataStore)
     net/                    # RelayApi (OkHttp), RelaySocket (WS + resume), protocol models (kotlinx.serialization)
-    push/                   # AgentringMessagingService, push signature verification
-    telecom/                # AgentringConnectionService, PhoneAccount registration, CallManager
+    push/                   # HivepalMessagingService, push signature verification
+    telecom/                # HivepalConnectionService, PhoneAccount registration, CallManager
     call/                   # LiveKit session, audio routing
     notify/                 # channels, CallStyle notification, message notifications + RemoteInput reply
     ui/                     # onboarding, home, call, messages, settings (Compose)
 /deploy
   docker-compose.yml        # caddy, relay, livekit (+ optional daemon profile)
   Caddyfile  livekit.yaml  .env.example
-/skills/agentring/SKILL.md
+/skills/hivepal/SKILL.md
 /examples
   claude-code/  openclaw/  n8n-http-workflow.json
 /docs
@@ -148,7 +148,7 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
    itself. While the call is active, any paired phone not on it may join later
    ("join the call", `POST /v1/calls/{id}/join`), e.g. after its ring ended,
    after declining or after hanging up.
-8. **Daemon ↔ relay auth** with a single API key (`AGENTRING_API_KEY`) generated
+8. **Daemon ↔ relay auth** with a single API key (`HIVEPAL_API_KEY`) generated
    by the relay on first start (or set via env). Device auth with a
    long-lived HS256 `device_jwt` checked against the device table on every
    request, so revocation is immediate.
@@ -197,13 +197,13 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
 - **More voice providers** (M3, at the user's request, issue #12): besides Gemini Live
   and OpenAI Realtime, Grok Voice (xAI, same protocol as OpenAI) and Phonic, each one
   `RealtimeBackend` class. One setting picks it for the CLI and the MCP server alike
-  (`--provider` / `AGENTRING_VOICE_PROVIDER`); Gemini stays the default for its free tier.
+  (`--provider` / `HIVEPAL_VOICE_PROVIDER`); Gemini stays the default for its free tier.
 - **MCP server without the `mcp` SDK, stdio only** (M5, at the user's request):
-  `agentring mcp` is a small JSON-RPC loop over stdin/stdout (`mcp_server.py`) with
+  `hivepal mcp` is a small JSON-RPC loop over stdin/stdout (`mcp_server.py`) with
   the tools `send_message`, `get_replies`, `call` and `status`; no new dependencies,
   as for the voice side. Details in [agents.md](agents.md).
-- **Remote MCP server over Streamable HTTP** (for agentring cloud, [cloud.md](cloud.md)):
-  `agentring mcp-http` (`mcp_http.py`) serves the same tools to many users at once,
+- **Remote MCP server over Streamable HTTP** (for hivepal cloud, [cloud.md](cloud.md)):
+  `hivepal mcp-http` (`mcp_http.py`) serves the same tools to many users at once,
   each with their relay API key as bearer token; also without an SDK or web framework
   (a small HTTP/1.1 server on asyncio streams). Both transports share one tools
   implementation in `mcp_server.py`.
@@ -212,8 +212,8 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
   A slow agent's answer reaches the call as a note, or the phone as a message once
   the call is over.
 
-- **agentring cloud: hub mode** (at the user's request, 2026-11-01): the relay can host
-  many isolated tenants (`AGENTRING_HUB=1`), each a full relay instance with its own
+- **hivepal cloud: hub mode** (at the user's request, 2026-11-01): the relay can host
+  many isolated tenants (`HIVEPAL_HUB=1`), each a full relay instance with its own
   SQLite file under `/t/{tenant_id}`, plus an admin API for a control plane and
   per-tenant limits (`402 quota_exceeded`, `end_reason: quota`). This lifts F1's "one
   user, no accounts" for the hosted version only; self-hosted is unchanged. The control

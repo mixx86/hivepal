@@ -38,7 +38,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: agentring-apk
+          name: hivepal-apk
           # The release build type (not debuggable), still signed with the public debug key.
           path: app-android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
@@ -55,9 +55,9 @@ jobs:
           cd relay && npm ci --no-audit --no-fund && npm run build
           mkdir -p "$RUNNER_TEMP/relay-data"
           PORT=8080 HOST=0.0.0.0 \
-          AGENTRING_PUBLIC_URL=http://10.0.2.2:8080 AGENTRING_INSECURE_DEV=1 \
-          AGENTRING_DATA_DIR="$RUNNER_TEMP/relay-data" AGENTRING_API_KEY="$CI_API_KEY" \
-          AGENTRING_AGENT_NAME="CI Agent" \
+          HIVEPAL_PUBLIC_URL=http://10.0.2.2:8080 HIVEPAL_INSECURE_DEV=1 \
+          HIVEPAL_DATA_DIR="$RUNNER_TEMP/relay-data" HIVEPAL_API_KEY="$CI_API_KEY" \
+          HIVEPAL_AGENT_NAME="CI Agent" \
             nohup node --disable-warning=ExperimentalWarning dist/main.js > "$RUNNER_TEMP/relay.log" 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8080/healthz && break; sleep 1; done
 
@@ -88,10 +88,10 @@ jobs:
       - name: Daemon sees the phone's replies
         working-directory: daemon
         run: |
-          export AGENTRING_HOME="$RUNNER_TEMP/agentring-home"
-          uv run agentring init --relay http://127.0.0.1:8080 --api-key "$CI_API_KEY"
-          uv run agentring status
-          uv run agentring replies --all --json | tee "$RUNNER_TEMP/replies.json"
+          export HIVEPAL_HOME="$RUNNER_TEMP/hivepal-home"
+          uv run hivepal init --relay http://127.0.0.1:8080 --api-key "$CI_API_KEY"
+          uv run hivepal status
+          uv run hivepal replies --all --json | tee "$RUNNER_TEMP/replies.json"
           grep -q "respuesta desde la app" "$RUNNER_TEMP/replies.json"
           grep -q "sí, despliega" "$RUNNER_TEMP/replies.json"
 
@@ -117,15 +117,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: agentring-apk
+          name: hivepal-apk
       - name: Replace the android-preview pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          mv app-release.apk agentring.apk
+          mv app-release.apk hivepal.apk
           gh release delete android-preview --cleanup-tag --yes || true
-          gh release create android-preview agentring.apk \
+          gh release create android-preview hivepal.apk \
             --prerelease --target "$GITHUB_SHA" \
             --title "Android preview (${GITHUB_REF_NAME}, ${GITHUB_SHA::7})" \
-            --notes "Preview build of the agentring Android app from ${GITHUB_SHA}, signed with the public debug key (see SECURITY.md). Passed the emulator end-to-end test. Install agentring.apk on your phone (allow installs from unknown sources)."
+            --notes "Preview build of the hivepal Android app from ${GITHUB_SHA}, signed with the public debug key (see SECURITY.md). Passed the emulator end-to-end test. Install hivepal.apk on your phone (allow installs from unknown sources)."

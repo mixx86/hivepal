@@ -189,7 +189,7 @@ describe("reminders that insist", () => {
     });
     b.ctx.reminders!.tick(at + 10);
     expect(await texts(dev.headers)).toEqual(["Gym a las 18:00"]);
-    b.ctx.reminders!.tick(at + 599_000);
+    b.ctx.reminders!.tick(at + 590_000); // sent_at is the real clock (~at - 1000): keep a margin
     expect(await texts(dev.headers)).toHaveLength(1);
     b.ctx.reminders!.tick(at + 601_000);
     expect(await texts(dev.headers)).toEqual(["Gym a las 18:00", "⏰ Gym a las 18:00"]);
@@ -324,5 +324,15 @@ describe("wake-up emails", () => {
     await new Promise((r) => setTimeout(r, 120));
     expect(sent).toEqual(["Hivepal: nubi", "Hivepal: nubi"]);
     wake.stop();
+  });
+});
+
+describe("rename", () => {
+  it("AGENTRING_* settings keep working as HIVEPAL_*", async () => {
+    const { adoptLegacyEnv } = await import("../src/config.js");
+    const e: NodeJS.ProcessEnv = { AGENTRING_DOMAIN: "old.example.com", AGENTRING_PUBLIC_URL: "a", HIVEPAL_PUBLIC_URL: "b" };
+    adoptLegacyEnv(e);
+    expect(e.HIVEPAL_DOMAIN).toBe("old.example.com");
+    expect(e.HIVEPAL_PUBLIC_URL).toBe("b");
   });
 });

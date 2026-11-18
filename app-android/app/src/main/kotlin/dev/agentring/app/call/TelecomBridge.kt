@@ -82,7 +82,7 @@ class TelecomBridge(private val context: Context, private val scope: CoroutineSc
                 manager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
                 val attrs = CallAttributesCompat(
                     displayName = displayName,
-                    address = Uri.fromParts("agentring", callId, null),
+                    address = Uri.fromParts("hivepal", callId, null),
                     direction = direction,
                     callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
                     callCapabilities = 0,

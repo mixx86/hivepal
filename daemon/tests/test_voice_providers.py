@@ -9,12 +9,12 @@ import json
 import pytest
 import websockets
 
-from agentring.voice import GeminiLive
-from agentring.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete
-from agentring.voice.openai_realtime import GrokVoice, LocalRealtime, OpenAIRealtime
-from agentring.voice.phonic import Phonic, strict_schema
-from agentring.voice.providers import VoiceConfigError, resolve_voice
-from agentring.voice.tools import Tool
+from hivepal.voice import GeminiLive
+from hivepal.voice.backend import AudioOut, Interrupted, ToolCalls, ToolResult, Transcript, TurnComplete
+from hivepal.voice.openai_realtime import GrokVoice, LocalRealtime, OpenAIRealtime
+from hivepal.voice.phonic import Phonic, strict_schema
+from hivepal.voice.providers import VoiceConfigError, resolve_voice
+from hivepal.voice.tools import Tool
 
 PCM = b"\x01\x00\x02\x00"
 B64 = base64.b64encode(PCM).decode()
@@ -284,9 +284,9 @@ def test_other_backends_take_the_provenance_argument_and_ignore_it():
 
 @pytest.fixture()
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("AGENTRING_HOME", str(tmp_path))
-    for name in ("AGENTRING_VOICE_PROVIDER", "AGENTRING_VOICE_MODEL", "AGENTRING_VOICE_NAME",
-                 "AGENTRING_VOICE_URL", "AGENTRING_VOICE_KEY", "AGENTRING_VOICE_LANGUAGE",
+    monkeypatch.setenv("HIVEPAL_HOME", str(tmp_path))
+    for name in ("HIVEPAL_VOICE_PROVIDER", "HIVEPAL_VOICE_MODEL", "HIVEPAL_VOICE_NAME",
+                 "HIVEPAL_VOICE_URL", "HIVEPAL_VOICE_KEY", "HIVEPAL_VOICE_LANGUAGE",
                  "GEMINI_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY", "PHONIC_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     return tmp_path
@@ -299,8 +299,8 @@ def test_resolve_voice_defaults_and_settings(home, monkeypatch):
 
     assert c.factory()().voice == "Charon"  # Gemini takes no language setting
 
-    (home / ".env").write_text("AGENTRING_VOICE_PROVIDER=grok\nAGENTRING_VOICE_NAME=eve\nXAI_API_KEY=x\n"
-                               "AGENTRING_VOICE_LANGUAGE=es\n")
+    (home / ".env").write_text("HIVEPAL_VOICE_PROVIDER=grok\nHIVEPAL_VOICE_NAME=eve\nXAI_API_KEY=x\n"
+                               "HIVEPAL_VOICE_LANGUAGE=es\n")
     c = resolve_voice()
     assert (c.provider.name, c.api_key, c.model, c.voice, c.language) == ("grok", "x", "grok-voice-latest", "eve", "es")
     backend = c.factory()()
@@ -316,7 +316,7 @@ def test_language_line_reaches_every_provider(home, monkeypatch):
     monkeypatch.setenv("XAI_API_KEY", "x")
     assert resolve_voice().with_language("Be brief.") == "Be brief."  # unset: no line
 
-    monkeypatch.setenv("AGENTRING_VOICE_LANGUAGE", "es")
+    monkeypatch.setenv("HIVEPAL_VOICE_LANGUAGE", "es")
     line = "Speak es from your first word, unless the user speaks another language."
     gemini = resolve_voice()  # takes_language=False: the instructions are the only way in
     assert gemini.with_language("Be brief.") == f"Be brief.\n\n{line}"
@@ -347,13 +347,13 @@ def test_resolve_local_needs_no_key(home, monkeypatch):
     b = c.factory()()
     assert isinstance(b, LocalRealtime) and b.url == c.url and b.api_key == "local" and b.max_session_s is None
 
-    (home / ".env").write_text("AGENTRING_VOICE_PROVIDER=local\nAGENTRING_VOICE_URL=wss://gpu.lan:9000/v1/realtime\n"
-                               "AGENTRING_VOICE_KEY=s3cret\nAGENTRING_VOICE_MODEL=ministral\n")
+    (home / ".env").write_text("HIVEPAL_VOICE_PROVIDER=local\nHIVEPAL_VOICE_URL=wss://gpu.lan:9000/v1/realtime\n"
+                               "HIVEPAL_VOICE_KEY=s3cret\nHIVEPAL_VOICE_MODEL=ministral\n")
     c = resolve_voice()
     b = c.factory()()
     assert (b.url, b.api_key, b.model) == ("wss://gpu.lan:9000/v1/realtime", "s3cret", "ministral")
 
-    monkeypatch.setenv("AGENTRING_VOICE_URL", "http://127.0.0.1:8765")
+    monkeypatch.setenv("HIVEPAL_VOICE_URL", "http://127.0.0.1:8765")
     with pytest.raises(VoiceConfigError, match="ws://"):
         resolve_voice("local")
     monkeypatch.setenv("GEMINI_API_KEY", "g")

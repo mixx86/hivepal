@@ -11,10 +11,10 @@ import httpx
 import pytest
 from typer.testing import CliRunner
 
-from agentring.cli import app
-from agentring.relay_client import RelayClient
-from agentring.store import Store
-from agentring.sync import run_ws
+from hivepal.cli import app
+from hivepal.relay_client import RelayClient
+from hivepal.store import Store
+from hivepal.sync import run_ws
 
 from .conftest import API_KEY
 from .test_e2e import simulate_phone_pairing
@@ -23,14 +23,14 @@ runner = CliRunner()
 
 
 def cli(home: Path, *args: str) -> str:
-    r = runner.invoke(app, list(args), env={"AGENTRING_HOME": str(home)})
+    r = runner.invoke(app, list(args), env={"HIVEPAL_HOME": str(home)})
     assert r.exit_code == 0, r.output
     return r.output
 
 
 def test_bots_and_groups(relay: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("AGENTRING_RELAY_URL", raising=False)
-    monkeypatch.delenv("AGENTRING_API_KEY", raising=False)
+    monkeypatch.delenv("HIVEPAL_RELAY_URL", raising=False)
+    monkeypatch.delenv("HIVEPAL_API_KEY", raising=False)
     admin, nubi_home, rutina_home = tmp_path / "admin", tmp_path / "nubi", tmp_path / "rutina"
     cli(admin, "init", "--relay", relay, "--api-key", API_KEY)
     phone = simulate_phone_pairing(json.loads(cli(admin, "pair", "--no-wait", "--json"))["qr_payload"])
@@ -68,9 +68,9 @@ def test_bots_and_groups(relay: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert [r["text"] for r in json.loads(cli(nubi_home, "replies", "--group", "todos", "--json"))["replies"]] == ["Apuntado"]
 
     # A bot can't post to a group it isn't in, nor manage agents.
-    r = runner.invoke(app, ["msg", "x", "--group", "otro"], env={"AGENTRING_HOME": str(nubi_home)})
+    r = runner.invoke(app, ["msg", "x", "--group", "otro"], env={"HIVEPAL_HOME": str(nubi_home)})
     assert r.exit_code != 0
-    r = runner.invoke(app, ["bots", "add", "x", "X"], env={"AGENTRING_HOME": str(nubi_home)})
+    r = runner.invoke(app, ["bots", "add", "x", "X"], env={"HIVEPAL_HOME": str(nubi_home)})
     assert r.exit_code != 0 and "403" in r.output
 
     # The phone sees every conversation.
@@ -79,7 +79,7 @@ def test_bots_and_groups(relay: str, tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     # Rotating a key locks the old one out.
     cli(admin, "bots", "key", "rutina")
-    r = runner.invoke(app, ["replies"], env={"AGENTRING_HOME": str(rutina_home)})
+    r = runner.invoke(app, ["replies"], env={"HIVEPAL_HOME": str(rutina_home)})
     assert r.exit_code != 0
 
 

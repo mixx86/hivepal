@@ -1,4 +1,4 @@
-# LiveKit server config for agentring. Nothing secret here: the keys live in
+# LiveKit server config for hivepal. Nothing secret here: the keys live in
 # keys.yaml next to it (mode 0600) and the public IP comes from --node-ip
 # (see docker-compose.proxy.yml).
 port: 7880

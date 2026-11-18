@@ -9,7 +9,7 @@ approach. Security problems: see [SECURITY.md](SECURITY.md), not public issues.
 ```
 protocol/       relay.openapi.yaml (REST + event schemas), examples/ (event fixtures, push signature vector)
 relay/          TypeScript, Fastify 5, node:sqlite, jose, livekit-server-sdk; FCM HTTP v1 without firebase-admin
-daemon/         Python ≥ 3.11 + uv; the `agentring` CLI and the `agentring.voice` library
+daemon/         Python ≥ 3.11 + uv; the `hivepal` CLI and the `hivepal.voice` library
 app-android/    :core = pure Kotlin/JVM (protocol models, PushVerifier, RelayApi, RelaySocket, RelayUrlPolicy)
                 :app  = Compose / Material 3 app, package dev.agentring.app, minSdk 26, targetSdk 35
 deploy/         docker compose files, Caddyfile, LiveKit config, .env.example

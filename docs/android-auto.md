@@ -1,6 +1,6 @@
 # Android Auto
 
-With the phone connected to Android Auto, agentring shows up in the car's app launcher
+With the phone connected to Android Auto, hivepal shows up in the car's app launcher
 with one screen: **Call &lt;your agent&gt;**. Tap it and the call starts. Calls in both
 directions (the agent calling you, you calling the agent) use Android Auto's own in-call
 view, where you answer, decline, mute and hang up, with the audio on the car's speakers
@@ -37,9 +37,9 @@ once on the phone:
 2. Scroll to **Version** and tap it about ten times until it asks to enable developer
    settings. Accept.
 3. In the menu (⋮), open **Developer settings** and turn on **Unknown sources**.
-4. Connect to the car (or start the head unit) again. agentring is now in the launcher.
+4. Connect to the car (or start the head unit) again. hivepal is now in the launcher.
 
-In the agentring app, keep **Settings → Use Android's call system** on (it is on by
+In the hivepal app, keep **Settings → Use Android's call system** on (it is on by
 default). Without it, calls don't reach the car.
 
 ## What works
@@ -68,16 +68,16 @@ agents.
    $ANDROID_HOME/extras/google/auto/desktop-head-unit
    ```
 
-5. Open agentring in the head unit and tap **Call &lt;agent&gt;**. To test an incoming
-   call, run `agentring call "test from the car"` on the computer.
+5. Open hivepal in the head unit and tap **Call &lt;agent&gt;**. To test an incoming
+   call, run `hivepal call "test from the car"` on the computer.
 
 ## For developers
 
-- The car screen lives in `app/src/main/kotlin/dev/agentring/app/car/`. It is a
+- The car screen lives in `app/src/main/kotlin/dev/hivepal/app/car/`. It is a
   `CarAppService` in the `androidx.car.app.category.CALLING` category, with a single
   `ListTemplate`.
 - It is declared in the manifest of the `:auto` module, which has no code. Debug builds
-  always depend on it. Release builds depend on it only with `-PagentringAndroidAuto=true`.
+  always depend on it. Release builds depend on it only with `-PhivepalAndroidAuto=true`.
   The release workflow passes that flag for the GitHub APK and checks the manifest.
   Plain `bundleRelease` for Play leaves it out.
 - Calls reach the car because they are Telecom calls (`TelecomBridge`, Jetpack

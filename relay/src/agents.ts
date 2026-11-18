@@ -50,7 +50,7 @@ interface GroupRow {
 
 /**
  * Agents with their own API keys, and group conversations (multi-agent fork).
- * `main` is the relay API key's agent; its name defaults to AGENTRING_AGENT_NAME until renamed.
+ * `main` is the relay API key's agent; its name defaults to HIVEPAL_AGENT_NAME until renamed.
  */
 export class Agents {
   constructor(

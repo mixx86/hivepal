@@ -10,11 +10,11 @@ import time
 import httpx
 from typer.testing import CliRunner
 
-from agentring.cli import app
-from agentring.config import load_settings
-from agentring.relay_client import RelayClient
-from agentring.store import Store
-from agentring.sync import run_ws
+from hivepal.cli import app
+from hivepal.config import load_settings
+from hivepal.relay_client import RelayClient
+from hivepal.store import Store
+from hivepal.sync import run_ws
 
 from .conftest import API_KEY
 
@@ -41,7 +41,7 @@ def simulate_phone_pairing(qr_payload: str) -> dict:
     return d
 
 
-def test_m1_flow(relay: str, agentring_home):
+def test_m1_flow(relay: str, hivepal_home):
     out = cli("init", "--relay", relay, "--api-key", API_KEY)
     assert "Connected to relay rly_" in out
 
@@ -88,7 +88,7 @@ def test_m1_flow(relay: str, agentring_home):
     assert httpx.get(f"{relay}/v1/status", headers=phone["headers"]).status_code == 401
 
 
-def test_serve_receives_replies_live(relay: str, agentring_home):
+def test_serve_receives_replies_live(relay: str, hivepal_home):
     cli("init", "--relay", relay, "--api-key", API_KEY)
     phone = simulate_phone_pairing(json.loads(cli("pair", "--no-wait", "--json"))["qr_payload"])
     s = load_settings()

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepares /opt/agentring on the server for docker-compose.proxy.yml. Run as root
+# Prepares /opt/hivepal on the server for docker-compose.proxy.yml. Run as root
 # on the server itself, so the LiveKit secret is generated there and never leaves it.
 #
 #   prepare-host.sh <dir with firebase-service-account.json and google-services.json>
@@ -11,7 +11,7 @@ umask 077
 
 FIREBASE_DIR=${1:?usage: prepare-host.sh <firebase dir>}
 HERE=$(cd "$(dirname "$0")" && pwd)
-BASE=/opt/agentring
+BASE=/opt/hivepal
 RELAY_UID=1000      # "node" in the relay image
 LIVEKIT_UID=65534   # "nobody", as set in docker-compose.proxy.yml
 

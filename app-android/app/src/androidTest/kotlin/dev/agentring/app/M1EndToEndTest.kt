@@ -92,7 +92,7 @@ class M1EndToEndTest {
     private fun screenshot(name: String) {
         compose.waitForIdle()
         // The shell user can write to /data/local/tmp; CI pulls these files.
-        shell("screencap -p /data/local/tmp/agentring-$name.png")
+        shell("screencap -p /data/local/tmp/hivepal-$name.png")
     }
 
     private fun waitForTag(tag: String, text: String? = null, timeoutMs: Long = 15_000) {
@@ -117,7 +117,7 @@ class M1EndToEndTest {
 
     @Test
     fun pairMessageReplyAndPush() {
-        // 1. Pair through the UI with a code from the relay (what `agentring pair` prints).
+        // 1. Pair through the UI with a code from the relay (what `hivepal pair` prints).
         val qr = agent("POST", "/v1/pairing-tokens", "{}")["qr_payload"]!!.jsonPrimitive.content
         compose.onNodeWithTag("get_started").performClick()
         // Setup tutorial: "cloud or own server" (only when the build links a cloud), then the pairing page.
@@ -198,7 +198,7 @@ class M1EndToEndTest {
         val notification = nm.activeNotifications.firstOrNull { it.id == Notifications.ID_MESSAGES }
         shell("cmd statusbar expand-notifications")
         Thread.sleep(1500)
-        shell("screencap -p /data/local/tmp/agentring-05-notification.png")
+        shell("screencap -p /data/local/tmp/hivepal-05-notification.png")
         shell("cmd statusbar collapse")
 
         // 6. Inline reply from the notification, through the real PendingIntent.

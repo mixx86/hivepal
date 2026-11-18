@@ -1,6 +1,6 @@
-# agentring cloud (hosted mode)
+# hivepal cloud (hosted mode)
 
-agentring stays self-hosted and free. **agentring cloud** is the same software run by
+hivepal stays self-hosted and free. **hivepal cloud** is the same software run by
 the maintainer for people who don't want to run a server: install the app, sign in on
 the web, scan a QR code, add one MCP URL to your agent. No Firebase project, no VPS,
 no LiveKit, no voice API key.
@@ -10,8 +10,8 @@ Three pieces, two repositories:
 | Piece | Where | License |
 |---|---|---|
 | **Hub mode** of the relay: many isolated tenants in one relay process | this repo, `relay/src/hub/` | Apache-2.0 |
-| **Remote MCP server** (Streamable HTTP) with hosted voice AI | this repo, `daemon/` (`agentring mcp-http`) | Apache-2.0 |
-| **Control plane**: landing, waitlist, accounts, dashboard, Stripe billing | private repo `agentring-cloud` | proprietary |
+| **Remote MCP server** (Streamable HTTP) with hosted voice AI | this repo, `daemon/` (`hivepal mcp-http`) | Apache-2.0 |
+| **Control plane**: landing, waitlist, accounts, dashboard, Stripe billing | private repo `hivepal-cloud` | proprietary |
 
 Hub mode and the remote MCP server are useful on their own to self-hosters (a team
 relay with one tenant per person; one MCP URL instead of a local daemon).
@@ -21,20 +21,20 @@ relay with one tenant per person; one MCP URL instead of a local daemon).
  agent (daemon) ─────▶ /t/{tenant_id}/v1/...  ├─ relay in hub mode ── tenants/{id}/relay.db
  control plane ──────▶ /admin/v1/...          ┘        │ shared FCM + LiveKit
  LiveKit ────────────▶ /v1/livekit/webhook (routed by room name)
- agent (MCP client) ─▶ /mcp  ── agentring mcp-http ── /t/{tenant_id}/v1/... (tenant API key)
+ agent (MCP client) ─▶ /mcp  ── hivepal mcp-http ── /t/{tenant_id}/v1/... (tenant API key)
 ```
 
 ## Hub mode (relay)
 
-Enabled with `AGENTRING_HUB=1`. Each tenant is a full relay instance (its own SQLite
+Enabled with `HIVEPAL_HUB=1`. Each tenant is a full relay instance (its own SQLite
 file, relay id, JWT secret, API key, event log, calls) mounted under a path:
 
-- **Tenant base URL:** `{AGENTRING_PUBLIC_URL}/t/{tenant_id}`. Everything under it is
+- **Tenant base URL:** `{HIVEPAL_PUBLIC_URL}/t/{tenant_id}`. Everything under it is
   the normal relay API from `protocol/relay.openapi.yaml`, unchanged. The QR code's
   `relay_url` is the tenant base URL, so the app and the daemon need no changes.
 - **Tenant id:** `tnt_` + ULID (`^tnt_[0-9A-HJKMNP-TV-Z]{26}$`).
-- **Data:** `{AGENTRING_DATA_DIR}/hub.db` (tenant registry, usage) and
-  `{AGENTRING_DATA_DIR}/tenants/{tenant_id}/relay.db`.
+- **Data:** `{HIVEPAL_DATA_DIR}/hub.db` (tenant registry, usage) and
+  `{HIVEPAL_DATA_DIR}/tenants/{tenant_id}/relay.db`.
 - **Shared services:** one FCM project (the operator's; `push_config` comes back in
   the pair response as today) and one LiveKit server. LiveKit room names are
   `{tenant_id}.{call_id}`; the hub receives the LiveKit webhook at
@@ -62,8 +62,8 @@ the cut (`Prompts.minutes_low`).
 
 ### Admin API
 
-`Authorization: Bearer {admin token}` (`AGENTRING_HUB_ADMIN_TOKEN_FILE`, or
-`AGENTRING_HUB_ADMIN_TOKEN`; at least 32 characters). Only meant for the control
+`Authorization: Bearer {admin token}` (`HIVEPAL_HUB_ADMIN_TOKEN_FILE`, or
+`HIVEPAL_HUB_ADMIN_TOKEN`; at least 32 characters). Only meant for the control
 plane on an internal network: requests that came through the public proxy
 (`X-Forwarded-For` present) get 404, like the LiveKit webhook. Errors use the relay's
 `{"error": {"code", "message"}}` shape.
@@ -89,43 +89,43 @@ Tenant  = { tenant_id, base_url, agent_name, limits: Limits, disabled: bool, cre
 
 **Agent tokens** let the control plane act as a tenant's agent without keeping its API
 key (e.g. "send me a test message" / "call me now" buttons): `Authorization: Bearer at_…`
-works on the tenant's relay API and on `agentring mcp-http` exactly like the key, quotas
+works on the tenant's relay API and on `hivepal mcp-http` exactly like the key, quotas
 included, until it expires. Only their SHA-256 is kept, in memory: rotating the key,
 deleting the tenant or restarting the relay revokes them.
 
 ## Remote MCP server
 
-`agentring mcp-http` serves the same tools as `agentring mcp` (`send_message`,
+`hivepal mcp-http` serves the same tools as `hivepal mcp` (`send_message`,
 `get_replies`, `call`, `status`) over MCP Streamable HTTP at `POST /mcp`.
 
 - **Auth:** `Authorization: Bearer ak_…` (the tenant's relay API key, or an agent token
   `at_…` from the admin API); anything else
   gets `401` with `WWW-Authenticate: Bearer`.
-- **Which relay:** with `AGENTRING_HUB_ADMIN_URL` + admin token
-  (`AGENTRING_HUB_ADMIN_TOKEN_FILE` or `AGENTRING_HUB_ADMIN_TOKEN`), the key is resolved
+- **Which relay:** with `HIVEPAL_HUB_ADMIN_URL` + admin token
+  (`HIVEPAL_HUB_ADMIN_TOKEN_FILE` or `HIVEPAL_HUB_ADMIN_TOKEN`), the key is resolved
   to `{tenant_id, base_url}` with `POST /admin/v1/resolve-key` (positive answers cached
   5 minutes by a hash of the key; `404` → `401` to the client; the hub unreachable or
   refusing the admin token → `503`). The admin URL must be the relay's internal
-  address (the admin API hides from proxied requests). If `AGENTRING_RELAY_URL` is also
-  set, tenants are reached at `{AGENTRING_RELAY_URL}/t/{tenant_id}` (internal) instead
+  address (the admin API hides from proxied requests). If `HIVEPAL_RELAY_URL` is also
+  set, tenants are reached at `{HIVEPAL_RELAY_URL}/t/{tenant_id}` (internal) instead
   of the public `base_url`. Without a hub, every key is checked against the one relay
-  in `AGENTRING_RELAY_URL` with `GET /v1/status` (self-hosted).
+  in `HIVEPAL_RELAY_URL` with `GET /v1/status` (self-hosted).
 - **Voice:** `call` runs the voice AI on the server (provider and key from the server's
-  environment, as for `agentring call --ai`), with a global cap on concurrent calls
-  (`AGENTRING_MCP_MAX_CALLS`, default 4; over it the tool error is `busy`). The
+  environment, as for `hivepal call --ai`), with a global cap on concurrent calls
+  (`HIVEPAL_MCP_MAX_CALLS`, default 4; over it the tool error is `busy`). The
   relay's own one-call-per-tenant rule still applies. `agents.yaml` is never used.
-- **Plan limits:** a `quota_exceeded` tool error ends with "The user's agentring plan
-  limit is reached" and, with `AGENTRING_UPGRADE_URL` set, the link to upgrade; a call
+- **Plan limits:** a `quota_exceeded` tool error ends with "The user's hivepal plan
+  limit is reached" and, with `HIVEPAL_UPGRADE_URL` set, the link to upgrade; a call
   the relay ended for minutes (`end_reason: quota`) returns a `note` saying so. Shortly
   before that cut, the voice AI says the minutes are running out and, with
-  `AGENTRING_UPGRADE_URL` set, names the site to get more.
+  `HIVEPAL_UPGRADE_URL` set, names the site to get more.
 - **Long requests:** `call` and a waiting `get_replies` answer as `text/event-stream`
   with an SSE keep-alive comment every 15 s.
 - **State:** per tenant, the daemon's usual SQLite mirror (`Store`, synced with the
-  REST events API) in `{AGENTRING_MCP_DATA_DIR}/tenants/{tenant_id}.db`; it records
+  REST events API) in `{HIVEPAL_MCP_DATA_DIR}/tenants/{tenant_id}.db`; it records
   which replies `get_replies` already returned, shared by all the tenant's sessions.
   When a tenant is deleted, its mirror goes too: as soon as a request finds the tenant
-  gone, or else at the next hourly sweep (`AGENTRING_MCP_SWEEP_S`, 0 = off), which asks
+  gone, or else at the next hourly sweep (`HIVEPAL_MCP_SWEEP_S`, 0 = off), which asks
   `GET /admin/v1/tenants/{tid}` for each mirror on disk. Only that call's own
   `404 Tenant not found` deletes anything; a network error, a 5xx or any other 404
   leaves the mirror and stops the sweep until the next one.
@@ -135,12 +135,12 @@ deleting the tenant or restarting the relay revokes them.
   tenant's.
 - **Limits**, so that one tenant can't take the server from the others: 32 messages in
   a batch (`400`); 16 tool calls running at once per tenant
-  (`AGENTRING_MCP_MAX_INFLIGHT`; `429` with `Retry-After`); 512 connections in all
-  (`AGENTRING_MCP_MAX_CONNECTIONS`; `503`) and 32 with a request open per tenant
-  (`AGENTRING_MCP_MAX_TENANT_CONNECTIONS`; `429`); 8 MiB in a response (a JSON-RPC
+  (`HIVEPAL_MCP_MAX_INFLIGHT`; `429` with `Retry-After`); 512 connections in all
+  (`HIVEPAL_MCP_MAX_CONNECTIONS`; `503`) and 32 with a request open per tenant
+  (`HIVEPAL_MCP_MAX_TENANT_CONNECTIONS`; `429`); 8 MiB in a response (a JSON-RPC
   error instead); and a client that stops reading is cut off after 30 s.
 - Install in Claude Code:
-  `claude mcp add --transport http agentring https://{domain}/mcp --header "Authorization: Bearer ak_…"`
+  `claude mcp add --transport http hivepal https://{domain}/mcp --header "Authorization: Bearer ak_…"`
 
 All options: [agents.md](agents.md#remote-mcp-http). OAuth (for claude.ai custom
 connectors) is a later step.
@@ -167,6 +167,6 @@ messages_per_day: 2000}`.
 
 ## Deploy
 
-One Coolify project: relay (hub mode), LiveKit, `agentring mcp-http` and the control
+One Coolify project: relay (hub mode), LiveKit, `hivepal mcp-http` and the control
 plane, on one hostname: `/t/*`, `/v1/livekit/webhook` (internal only) → relay;
 `/rtc*` → LiveKit; `/mcp` → MCP server; everything else → control plane.
