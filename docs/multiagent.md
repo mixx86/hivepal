@@ -22,6 +22,24 @@ identity, instead of one agent per relay.
 Protocol: `protocol/relay.openapi.yaml` (`/v1/agents`, `/v1/groups`, `conv` on messages).
 Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
 
+## Hivepal additions
+
+- **Quick replies**: an agent sends `options` (≤ 6, ≤ 40 chars); the app shows buttons under the
+  message (and 2 in the notification); tapping one posts it with `reply_to`. The CLI shows
+  `Sí (reply to: «question»)`.
+- **Attachments**: `POST /v1/files` (raw body, image/jpeg|png|webp, audio/mp4|aac|ogg|mpeg|webm,
+  ≤ 10 MB, stored in SQLite) and `attachments: [file_id]` on a message. An agent downloads files it
+  uploaded or that are attached to a message it can see.
+- **Reminders**: `POST /v1/reminders {text, at, conv?, options?}`; the relay posts the message as
+  the agent at `at` (checked every 10 s), with a push. Canceled when the agent or its group is gone.
+- **Bot conversations**: `bots:<a>.<b>` (ids sorted). Both agents read and write; the user reads it
+  in the app ("Between agents"); it never pushes.
+- **Calling an agent**: the phone sends `agent_id` in `POST /v1/calls`; the voice daemon (`main`)
+  answers every user call and speaks as that agent, with `personas/<agent_id>.md` from its home
+  (on the VPS synced from `datos/bots/<id>/persona.md`).
+- **Last seen**: `last_seen_at` on `/v1/agents`, updated (once a minute at most) on every
+  request with the agent's key; the app shows it and turns it red after a day.
+
 ## App
 
 Navigation drawer (Chats, Calls, Agents, Status, Settings). One chat per agent and per group,

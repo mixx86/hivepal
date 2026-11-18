@@ -1,3 +1,34 @@
+# Hivepal (private fork of agentring) — read this first
+
+This repo is **Hivepal**, the user's private fork (`mixx86/hivepal`, local folder still
+`~/Docs/dev/agentring`, `upstream` = mutonby/agentring). Everything below the line is the
+upstream notes, still valid for the parts it describes. Fork specifics:
+
+- **Multi-agent**: agents with their own `ak_` keys, conversations `agent:<id>` / `group:<id>` /
+  `bots:<a>.<b>`, quick replies (`options`), attachments (`/v1/files`), reminders sent by the relay
+  (`/v1/reminders`), calls to a specific agent with a voice persona, `last_seen_at` per agent.
+  Design and API: `docs/multiagent.md`; contract: `protocol/relay.openapi.yaml`.
+- **CLI**: `hivepal` (alias `agentring`): `bots`, `groups`, `msg --group/--to/-o/-f`, `remind`,
+  `reminders`, `file`, `replies`. Version in `daemon/pyproject.toml` (`0.3.0+hivepalN`).
+- **App**: name Hivepal, package still `dev.agentring.app` (Firebase is registered for it), icon from
+  `tools/hivepal_icon.py`. Drawer: Chats, Calls, Agents, Reminders, Status, Settings; widget.
+- **Tests**: relay `npm test` (87+), daemon `uv run --extra voice pytest -q` (needs `relay/dist`),
+  app `./gradlew :core:test :app:assembleRelease`. Don't run the instrumented tests on the user's
+  phone: they re-pair it.
+- **Deploy (VPS vps.example.com, user `ssh`)**: the VPS can't read the private repo, so:
+  `git bundle create fork.bundle main` → copy to `~/agentring-fork.bundle` → on the VPS
+  `cd ~/agentring && git fetch ~/agentring-fork.bundle main && git reset --hard FETCH_HEAD` →
+  `cd deploy && docker compose --profile daemon up -d --build relay daemon`. Back up the DB first
+  (`VACUUM INTO`); nightly backups go to `~/backups` (support-system `vps/backup_relay.sh`).
+- **Phone**: `./gradlew :app:assembleRelease -PversionName=… -PversionCode=…` (signed with the
+  repo's debug key) and `adb install -r`; it keeps the pairing.
+- **Bots**: the user's Grok bots use the CLI from `~/datos/software` (install with
+  `sh ~/datos/software/instalar.sh`); new wheels go there. Their folders: `datos/bots/<id>/`.
+  Adding a bot: `support-system/tools/nuevo-bot`.
+- GitHub Actions are disabled on the fork. Commit as 227920566+mixx86@users.noreply.github.com.
+
+---
+
 # agentring — notes for Claude Code sessions
 
 Open-source project (Apache-2.0) that lets any AI agent (Claude Code, OpenClaw,
