@@ -273,33 +273,39 @@ describe("wake-up emails", () => {
     }
   });
 
-  it("the user's messages ring the agent (and group members) once per gap, with a trailing ring", async () => {
+  it("one email per address per gap, its subject naming the agents it's for", async () => {
     const { Wake } = await import("../src/wake.js");
     b = await setup();
     await addAgent("nubi", "Nubi");
     await addAgent("rutina", "Rutina");
     await addAgent("casa", "Casa");
-    b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
-    b.ctx.agents.setWake("rutina", "rutina@mail.example.com");
+    await addAgent("otro", "Otro");
+    // Grok gives one address per account: nubi and rutina share it.
+    b.ctx.agents.setWake("nubi", "bots@mail.example.com");
+    b.ctx.agents.setWake("rutina", "bots@mail.example.com");
+    b.ctx.agents.setWake("otro", "otro@mail.example.com");
     let now = 1_000_000;
-    const sent: string[] = [];
-    const wake = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 60_000, () => now);
+    const sent: Array<[string, string]> = [];
+    const mailer = { send: async (to: string, subject: string) => void sent.push([to, subject]) };
     const ev = (conv: string, from: "user" | "agent" = "user") =>
       ({ type: "msg.new", from, conv, msg_id: "m", text: "t", id: "e", ts: now }) as never;
+    const wake = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
     wake.handle(ev("agent:nubi"));
     wake.handle(ev("agent:casa")); // no address: nothing
     wake.handle(ev("agent:nubi", "agent")); // agents don't ring
-    expect(sent).toEqual(["nubi@mail.example.com"]);
-    wake.handle(ev("agent:nubi")); // within the gap: one trailing ring is scheduled
-    wake.handle(ev("agent:nubi"));
+    expect(sent).toEqual([["bots@mail.example.com", "Hivepal: nubi"]]);
+    wake.handle(ev("agent:rutina")); // within the gap: waits for the trailing email
     expect(sent.length).toBe(1);
     wake.stop();
-    // A group message rings every member that has an address.
-    b.ctx.agents.createGroup("g", "G", ["nubi", "rutina", "casa"]);
+    // A group message: one email per address, listing its members.
+    b.ctx.agents.createGroup("g", "G", ["nubi", "rutina", "casa", "otro"]);
     now += 61_000;
-    const w2 = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 60_000, () => now);
+    const w2 = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
     w2.handle(ev("group:g"));
-    expect(sent.slice(1).sort()).toEqual(["nubi@mail.example.com", "rutina@mail.example.com"]);
+    expect(sent.slice(1).sort()).toEqual([
+      ["bots@mail.example.com", "Hivepal: nubi rutina"],
+      ["otro@mail.example.com", "Hivepal: otro"],
+    ]);
     w2.stop();
   });
 
@@ -309,14 +315,14 @@ describe("wake-up emails", () => {
     await addAgent("nubi", "Nubi");
     b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
     const sent: string[] = [];
-    const wake = new Wake(b.ctx.agents, { send: async (to) => void sent.push(to) }, b.app.log, 50);
+    const wake = new Wake(b.ctx.agents, { send: async (_to, subject) => void sent.push(subject) }, b.app.log, 50);
     const ev = { type: "msg.new", from: "user", conv: "agent:nubi", msg_id: "m", text: "t", id: "e", ts: 0 } as never;
     wake.handle(ev);
     wake.handle(ev);
     wake.handle(ev);
     expect(sent.length).toBe(1);
     await new Promise((r) => setTimeout(r, 120));
-    expect(sent.length).toBe(2);
+    expect(sent).toEqual(["Hivepal: nubi", "Hivepal: nubi"]);
     wake.stop();
   });
 });

@@ -904,7 +904,8 @@ def bots_wake(
 ) -> None:
     """Wake an agent by email when the user writes to it (for agents that only run on a trigger).
 
-    The email never carries the message; the agent reads it from the relay as usual. At most one
+    The email never carries the message, only the agent ids in its subject ("Hivepal: casa nubi"), since
+    several agents may share an address; each reads its messages from the relay as usual. At most one
     a minute. Needs the relay's API key and HIVEPAL_SMTP_URL on the relay."""
     s = _settings()
     with _client(s) as c:

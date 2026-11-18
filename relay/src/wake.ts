@@ -28,9 +28,16 @@ export function smtpMailer(url: string, from?: string): Mailer {
   };
 }
 
+/**
+ * Several agents may share one address (Grok gives one per account, not per bot): the relay sends one
+ * email per address, and its subject lists the agents it is for ("Hivepal: casa nubi"), so each agent
+ * checks whether it's meant and the others stop at once.
+ */
 export class Wake {
   private readonly last = new Map<string, number>();
   private readonly pending = new Map<string, NodeJS.Timeout>();
+  /** Agents waiting for the next email to each address. */
+  private readonly queued = new Map<string, Set<string>>();
 
   constructor(
     private readonly agents: Agents,
@@ -44,32 +51,41 @@ export class Wake {
     if (e.type !== "msg.new" || e.from !== "user") return;
     const c = parseConv(e.conv ?? "agent:main");
     const targets = c?.kind === "agent" ? [c.id] : c?.kind === "group" ? (this.agents.group(c.id)?.members ?? []) : [];
-    for (const id of targets) this.ring(id);
+    const touched = new Set<string>();
+    for (const id of targets) {
+      const to = this.agents.wakeEmail(id);
+      if (!to) continue;
+      const q = this.queued.get(to) ?? new Set<string>();
+      q.add(id);
+      this.queued.set(to, q);
+      touched.add(to);
+    }
+    for (const to of touched) this.ring(to);
   }
 
-  private ring(agentId: string): void {
-    if (!this.agents.wakeEmail(agentId) || this.pending.has(agentId)) return;
-    const wait = (this.last.get(agentId) ?? -Infinity) + this.gapMs - this.now();
+  private ring(to: string): void {
+    if (this.pending.has(to)) return;
+    const wait = (this.last.get(to) ?? -Infinity) + this.gapMs - this.now();
     if (wait <= 0) {
-      this.send(agentId);
+      this.send(to);
       return;
     }
     const t = setTimeout(() => {
-      this.pending.delete(agentId);
-      this.send(agentId);
+      this.pending.delete(to);
+      this.send(to);
     }, wait);
     t.unref?.();
-    this.pending.set(agentId, t);
+    this.pending.set(to, t);
   }
 
-  private send(agentId: string): void {
-    const to = this.agents.wakeEmail(agentId);
-    if (!to) return;
-    this.last.set(agentId, this.now());
-    const name = this.agents.nameOf(agentId);
+  private send(to: string): void {
+    const ids = [...(this.queued.get(to) ?? [])].sort();
+    this.queued.delete(to);
+    if (ids.length === 0) return;
+    this.last.set(to, this.now());
     this.mailer
-      .send(to, "Hivepal", `Tienes mensajes nuevos en Hivepal, ${name}. Léelos con: hivepal replies`)
-      .catch((err: unknown) => this.log.warn({ err, agentId }, "wake email failed"));
+      .send(to, `Hivepal: ${ids.join(" ")}`, `Mensajes nuevos en Hivepal para: ${ids.join(", ")}. Léelos con: hivepal replies`)
+      .catch((err: unknown) => this.log.warn({ err, to }, "wake email failed"));
   }
 
   stop(): void {
