@@ -112,6 +112,12 @@ class RelayApi(
         }
     }
 
+    @Serializable
+    private data class TranscriptBody(val text: String)
+
+    /** Hivepal: a voice note as text (the relay transcribes it once). */
+    fun transcript(fileId: String): String = call("GET", "/v1/files/$fileId/transcript", null, TranscriptBody.serializer()).text
+
     fun listReminders(): List<Reminder> = call("GET", "/v1/reminders", null, ReminderList.serializer()).reminders
 
     fun cancelReminder(remId: String) {

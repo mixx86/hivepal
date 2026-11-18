@@ -766,5 +766,22 @@ private fun AttachmentView(a: Attachment, mine: Boolean) {
             val shown = if (playing || position > 0) position else total
             Text("%d:%02d".format(shown / 60000, (shown / 1000) % 60), style = MaterialTheme.typography.labelMedium)
         }
+        // What the voice note says (transcribed once by the relay), so it can be read too.
+        var transcript by remember(a.fileId) { mutableStateOf<String?>(Attachments.cachedTranscript(a.fileId)) }
+        LaunchedEffect(a.fileId) {
+            if (transcript == null) {
+                transcript = withContext(Dispatchers.IO) {
+                    runCatching { Graph.api()!!.transcript(a.fileId) }.getOrNull()?.also { Attachments.cacheTranscript(a.fileId, it) }
+                }
+            }
+        }
+        transcript?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                color = (if (mine) scheme.onPrimary else scheme.onSurface).copy(alpha = 0.85f),
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 10.dp).widthIn(max = 260.dp),
+            )
+        }
     }
 }

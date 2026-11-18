@@ -406,9 +406,11 @@ def msg(
     to: Annotated[Optional[str], typer.Option("--to", help="Write to another agent (a bots: conversation the user can "
                                               "read but that doesn't wake the phone).")] = None,
     option: Annotated[Optional[list[str]], typer.Option("--option", "-o", help="A quick reply the user can tap "
-                                                        "(repeatable, up to 6). The answer comes back as a reply.")] = None,
+                                                        "(repeatable, up to 10). The answer comes back as a reply.")] = None,
     file: Annotated[Optional[list[str]], typer.Option("--file", "-f", help="Attach a photo (jpg/png/webp) or audio "
-                                                      "(m4a/aac/ogg/mp3) (repeatable, up to 4).")] = None,
+                                                      "(m4a/aac/ogg/mp3/wav) (repeatable, up to 4).")] = None,
+    voice: Annotated[bool, typer.Option("--voice", help="Also send the text as a voice note (spoken by Gemini).")] = False,
+    voice_name: Annotated[Optional[str], typer.Option("--voice-name", help="--voice: a Gemini voice (default Kore).")] = None,
     json_out: JsonOpt = False,
 ) -> None:
     """Send a message to the phone. Prints the msg_id."""
@@ -424,6 +426,8 @@ def msg(
                     raise _fail("--to: that's you")
                 conv = "bots:" + ".".join(sorted([me, to]))
             ids = [_upload(c, f)["file_id"] for f in file or []]
+            if voice:
+                ids.append(c.tts(text, voice_name)["file_id"])
             m = c.post_message(text, reply_to=reply_to, conv=conv, options=option or None, attachments=ids or None)
         except RelayError as e:
             raise _fail(str(e)) from None
@@ -439,7 +443,7 @@ def msg(
 
 _MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
          ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".aac": "audio/aac", ".ogg": "audio/ogg", ".opus": "audio/ogg",
-         ".mp3": "audio/mpeg", ".webm": "audio/webm"}
+         ".mp3": "audio/mpeg", ".webm": "audio/webm", ".wav": "audio/wav"}
 _EXT = {v: k for k, v in reversed(list(_MIME.items()))}
 
 
@@ -487,14 +491,27 @@ def remind(
     in_: Annotated[Optional[str], typer.Option("--in", help="From now: 30m, 2h, 1d.")] = None,
     group: Annotated[Optional[str], typer.Option("--group", "-g", help="Send it in this group.")] = None,
     option: Annotated[Optional[list[str]], typer.Option("--option", "-o", help="Quick reply (repeatable).")] = None,
+    insist: Annotated[Optional[str], typer.Option("--insist", help="If he hasn't answered after this long (e.g. 15m), "
+                                                  "send it again.")] = None,
+    call: Annotated[bool, typer.Option("--call", help="--insist: and if still no answer after as long again, ring "
+                                       "the phone.")] = False,
     json_out: JsonOpt = False,
 ) -> None:
     """Schedule a message: the relay sends it at that time as you, with a push, even if you aren't running then."""
     when = _when(at, in_)
+    insist_s = None
+    if insist:
+        m = _DURATION.match(insist.strip())
+        if not m:
+            raise typer.BadParameter("--insist: e.g. 10m, 1h")
+        insist_s = int(m.group(1)) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
+    elif call:
+        raise _fail("--call needs --insist")
     s = _settings()
     with _client(s) as c:
         try:
-            r = c.create_reminder(text, when, conv=f"group:{group}" if group else None, options=option or None)
+            r = c.create_reminder(text, when, conv=f"group:{group}" if group else None, options=option or None,
+                                  insist_s=insist_s, call=call)
         except RelayError as e:
             raise _fail(str(e)) from None
     if json_out:
@@ -597,6 +614,8 @@ def replies(
         return names.get(f"agent:{aid}", aid)
 
     out = []
+    tc = _client(s)
+    out = []
     for r in rows:
         item: dict[str, Any] = {"msg_id": r["msg_id"], "text": r["text"], "created_at": r["created_at"],
                                 "reply_to": r["reply_to"]}
@@ -610,6 +629,13 @@ def replies(
             item.update(conv=conv, author=who(r) if r["sender"] == "agent" else "user", agent_id=r["agent_id"])
         if r["attachments"]:
             item["attachments"] = json.loads(r["attachments"])
+            for a in item["attachments"]:
+                # Voice notes as text, for agents that can't listen (transcribed once by the relay).
+                if a.get("mime", "").startswith("audio/") and r["sender"] == "user":
+                    try:
+                        a["transcript"] = tc.transcript(a["file_id"])
+                    except RelayError:
+                        pass
         if r["options"]:
             item["options"] = json.loads(r["options"])
         if r["reply_to"]:
@@ -618,6 +644,7 @@ def replies(
             if orig is not None:
                 item["reply_to_text"] = orig["text"]
         out.append(item)
+    tc.close()
     store.close()
     if json_out:
         _emit_json({"replies": out})
@@ -632,7 +659,10 @@ def replies(
             prefix = f"[{r['author']} → you] "
         else:
             prefix = ""
-        files = "".join(f" [{a['mime'].split('/')[0]}: {a['file_id']}]" for a in r.get("attachments", []))
+        files = "".join(
+            f" [{a['mime'].split('/')[0]}: {a['file_id']}]" + (f" «{a['transcript']}»" if a.get("transcript") else "")
+            for a in r.get("attachments", [])
+        )
         quoted = r.get("reply_to_text")
         answer = f" (reply to: «{quoted[:80] + ('…' if len(quoted) > 80 else '')}»)" if quoted else ""
         typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}{files}{answer}")
@@ -823,7 +853,8 @@ def bots_list(ctx: typer.Context, json_out: JsonOpt = False) -> None:
         _emit_json({"agents": agents})
         return
     for a in agents:
-        typer.echo(f"{a['agent_id']:<16} {a['name']:<24} {'online' if a.get('online') else ''}")
+        seen = "online" if a.get("online") else (f"seen {_fmt_ts(a['last_seen_at'])}" if a.get("last_seen_at") else "")
+        typer.echo(f"{a['agent_id']:<16} {a['name']:<24} {seen}")
 
 
 def _bot_key_out(r: dict, json_out: bool) -> None:

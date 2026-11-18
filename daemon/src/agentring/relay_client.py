@@ -168,8 +168,18 @@ class RelayClient:
             raise RelayError(r.status_code, "not_found" if r.status_code == 404 else "error", r.text[:300])
         return r.content, r.headers.get("content-type", "application/octet-stream")
 
-    def create_reminder(self, text: str, at_ms: int, *, conv: str | None = None, options: list[str] | None = None) -> dict:
+    def transcript(self, file_id: str) -> str:
+        return self._request("GET", f"/v1/files/{file_id}/transcript")["text"]
+
+    def tts(self, text: str, voice: str | None = None) -> dict:
+        return self._request("POST", "/v1/tts", json={"text": text, **({"voice": voice} if voice else {})})
+
+    def create_reminder(self, text: str, at_ms: int, *, conv: str | None = None, options: list[str] | None = None,
+                        insist_s: int | None = None, call: bool = False) -> dict:
         body: dict[str, Any] = {"text": text, "at": at_ms}
+        if insist_s:
+            body["insist_s"] = insist_s
+            body["call"] = call
         if conv:
             body["conv"] = conv
         if options:

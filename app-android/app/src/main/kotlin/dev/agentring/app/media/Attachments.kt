@@ -57,6 +57,14 @@ object Attachments {
         }
     }
 
+    private val transcripts = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun cachedTranscript(fileId: String): String? = transcripts[fileId]
+
+    fun cacheTranscript(fileId: String, text: String) {
+        transcripts[fileId] = text
+    }
+
     /** Remembers an upload we already have locally, so it shows without downloading it again. */
     fun keep(context: Context, fileId: String, bytes: ByteArray) {
         File(dir(context), fileId).writeBytes(bytes)

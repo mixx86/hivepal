@@ -97,3 +97,12 @@ def test_personas(tmp_path: Path):
     (tmp_path / "personas").mkdir()
     (tmp_path / "personas" / "nubi.md").write_text("Soy Nubi, directa y breve.")
     assert run(CallInfo("c1", direction="user_to_agent", agent_id="nubi")) == "Soy Nubi, directa y breve.\n\nBASE"
+
+
+def test_insisting_reminder_and_last_seen(hive):
+    out = cli(hive["rutina"], "remind", "A dormir", "--in", "1h", "--insist", "15m", "--call", "--json")
+    r = json.loads(out)
+    assert r["insist_s"] == 900 and r["call"] is True
+    r = runner.invoke(app, ["remind", "x", "--in", "1h", "--call"], env={"AGENTRING_HOME": str(hive["rutina"])})
+    assert r.exit_code != 0
+    assert "seen" in cli(hive["admin"], "bots")
