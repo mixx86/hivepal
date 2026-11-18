@@ -148,11 +148,15 @@ class M1EndToEndTest {
         waitForTag("relay_status", context.getString(R.string.connected), timeoutMs = 20_000)
         screenshot("03-home")
 
-        // 3. Agent message arrives live in the thread (WebSocket path).
+        // 3. Agent message arrives live in the thread (WebSocket path). The relay API key is the
+        // Centralita (`main`), which has no chat of its own in the list, so the test talks in a group
+        // whose only member is `main` (the daemon step in CI reads the replies with that same key).
+        agent("POST", "/v1/groups", """{"group_id":"ci","name":"CI","members":["main"]}""")
         compose.onNodeWithTag("open_menu").performClick()
         compose.onNodeWithTag("nav_chats").performClick()
-        compose.onNodeWithTag("chat_agent:main").performClick()
-        val agentMsg = agent("POST", "/v1/messages", """{"text":"hola desde CI 👋"}""")
+        waitForTag("chat_group:ci", timeoutMs = 20_000)
+        compose.onNodeWithTag("chat_group:ci").performClick()
+        val agentMsg = agent("POST", "/v1/messages", """{"text":"hola desde CI 👋","conv":"group:ci"}""")
         val agentMsgId = agentMsg["msg_id"]!!.jsonPrimitive.content
         waitForText("hola desde CI")
         // Opening the thread sends a read receipt.
@@ -171,7 +175,7 @@ class M1EndToEndTest {
         compose.onNodeWithTag("open_menu").performClick()
         compose.onNodeWithTag("nav_status").performClick()
         compose.waitForIdle()
-        val pushed = agent("POST", "/v1/messages", """{"text":"¿Despliego a producción?"}""")
+        val pushed = agent("POST", "/v1/messages", """{"text":"¿Despliego a producción?","conv":"group:ci"}""")
         val event = agent("GET", "/v1/events?after_seq=0&limit=500")["events"]!!.jsonArray
             .map { it.jsonObject }
             .first { it["msg_id"]?.jsonPrimitive?.content == pushed["msg_id"]!!.jsonPrimitive.content }
