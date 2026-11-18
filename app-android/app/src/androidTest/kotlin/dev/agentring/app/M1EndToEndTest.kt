@@ -197,9 +197,9 @@ class M1EndToEndTest {
         // NotificationManagerService enqueues asynchronously: the notification shows up in
         // activeNotifications a moment after notify() returns (slow on CI emulators).
         waitFor(timeoutMs = 5_000, what = "message notification posted") {
-            nm.activeNotifications.any { it.id == Notifications.ID_MESSAGES }
+            nm.activeNotifications.any { it.id == Notifications.notificationId("group:ci") }
         }
-        val notification = nm.activeNotifications.firstOrNull { it.id == Notifications.ID_MESSAGES }
+        val notification = nm.activeNotifications.firstOrNull { it.id == Notifications.notificationId("group:ci") }
         shell("cmd statusbar expand-notifications")
         Thread.sleep(1500)
         shell("screencap -p /data/local/tmp/hivepal-05-notification.png")
