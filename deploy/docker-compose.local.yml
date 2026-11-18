@@ -30,6 +30,9 @@ services:
       HIVEPAL_API_KEY: ${HIVEPAL_API_KEY:-}
       FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-}
       FCM_GOOGLE_SERVICES_FILE: ${FCM_GOOGLE_SERVICES_FILE:-}
+      # Hivepal: voice-note transcripts and text-to-speech (Gemini), and wake-up emails to agents.
+      GEMINI_API_KEY: ${HIVEPAL_GEMINI_API_KEY:-}
+      HIVEPAL_SMTP_URL: ${HIVEPAL_SMTP_URL:-}
       LIVEKIT_URL: ws://${HIVEPAL_HOST_IP}:7880
       LIVEKIT_API_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-hivepal}

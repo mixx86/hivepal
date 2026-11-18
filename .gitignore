@@ -27,3 +27,6 @@ uv.lock.bak
 !.env.local.example
 service-account*.json
 *-firebase-adminsdk-*.json
+
+# APKs built by scripts/build-app.sh
+/hivepal-*.apk
