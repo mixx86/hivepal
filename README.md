@@ -85,6 +85,12 @@ Each agent runs the CLI with its own key (`hivepal init --relay … --api-key ak
 server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([docs/agents.md](docs/agents.md)).
 The full multi-agent design and API: [docs/multiagent.md](docs/multiagent.md).
 
+## Documentation
+
+Step-by-step guides (quickstart, server, app, agents, and [building a hive of personal
+agents](docs/guide/hive.md)), how it works with diagrams, and the reference:
+**[docs/](docs/README.md)**, also on the [website](https://mixx86.github.io/hivepal-site/).
+
 ## How it works
 
 A small **relay** (Node, SQLite) holds the conversations and pushes them to the phone (WebSocket while

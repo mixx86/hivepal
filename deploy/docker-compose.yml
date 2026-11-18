@@ -45,6 +45,7 @@ services:
       HIVEPAL_API_KEY: ${HIVEPAL_API_KEY:-}
       FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-}
       FCM_GOOGLE_SERVICES_FILE: ${FCM_GOOGLE_SERVICES_FILE:-}
+      HIVEPAL_ANDROID_PACKAGE: ${HIVEPAL_ANDROID_PACKAGE:-dev.agentring.app}
       # Hivepal: voice-note transcripts and text-to-speech (Gemini), and wake-up emails to agents.
       GEMINI_API_KEY: ${HIVEPAL_GEMINI_API_KEY:-}
       HIVEPAL_SMTP_URL: ${HIVEPAL_SMTP_URL:-}

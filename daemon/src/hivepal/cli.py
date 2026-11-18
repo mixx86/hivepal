@@ -34,12 +34,12 @@ agents_app = typer.Typer(help="Your agents the voice AI can consult (agents.yaml
 app.add_typer(agents_app, name="agents")
 voice_app = typer.Typer(help="Voice AI tools.", no_args_is_help=True)
 app.add_typer(voice_app, name="voice")
-bots_app = typer.Typer(help="Agents with their own key and conversation on the relay (multi-agent fork).",
+bots_app = typer.Typer(help="Agents with their own key and conversation on the relay.",
                        no_args_is_help=False)
 app.add_typer(bots_app, name="bots")
 groups_app = typer.Typer(help="Group conversations: the user and several agents, who all read them.", no_args_is_help=False)
 app.add_typer(groups_app, name="groups")
-subs_app = typer.Typer(help="Your subscriptions and when each renews (read from each service's billing page).",
+subs_app = typer.Typer(help="Your subscriptions and when each renews (the app reads each service's billing page).",
                        no_args_is_help=False, invoke_without_command=True)
 app.add_typer(subs_app, name="subs")
 

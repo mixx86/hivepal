@@ -38,6 +38,7 @@ export interface LiveKitConfig {
   apiSecret: string;
 }
 
+/** The app's package name (upstream's; a build with -PhivepalApplicationId sets HIVEPAL_ANDROID_PACKAGE to match). */
 export const ANDROID_PACKAGE = "dev.agentring.app";
 
 /** Renamed from agentring: AGENTRING_* settings keep working (servers set up before the rename). */
@@ -122,7 +123,7 @@ export function loadConfig(): Config {
     }
     fcm = {
       serviceAccountFile: saFile,
-      client: parseGoogleServices(JSON.parse(readFileSync(gsFile, "utf8"))),
+      client: parseGoogleServices(JSON.parse(readFileSync(gsFile, "utf8")), env("HIVEPAL_ANDROID_PACKAGE", ANDROID_PACKAGE)),
       apiBase: env("FCM_API_BASE", "https://fcm.googleapis.com")!,
     };
   }
