@@ -109,7 +109,8 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   app.get("/v1/groups", { preHandler: anyone }, async (req) => {
     const p = principal(req);
-    return { groups: agents.groups(p.kind === "agent" ? p.agentId : undefined) };
+    // The relay's own key (main) manages groups, so it sees all of them.
+    return { groups: agents.groups(p.kind === "agent" && p.agentId !== MAIN ? p.agentId : undefined) };
   });
 
   app.post<{ Body: { group_id: string; name: string; members: string[] } }>(

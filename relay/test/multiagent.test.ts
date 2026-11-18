@@ -164,6 +164,7 @@ describe("multi-agent: conversations", () => {
     expect(await inGroup(bearer(casa))).toEqual([]);
     expect((await events(b.app, bearer(casa))).filter((e) => e.type === "msg.new")).toHaveLength(0);
 
+    expect((await b.app.inject({ method: "GET", url: "/v1/groups", headers: AGENT })).json().groups).toHaveLength(1);
     const groups = await b.app.inject({ method: "GET", url: "/v1/groups", headers: bearer(casa) });
     expect(groups.json().groups).toEqual([]);
     expect((await b.app.inject({ method: "GET", url: "/v1/groups", headers: bearer(nubi) })).json().groups[0].members).toEqual(["nubi", "rutina"]);
