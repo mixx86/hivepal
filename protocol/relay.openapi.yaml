@@ -150,6 +150,39 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /v1/device/unifiedpush:
+    post:
+      tags: [devices]
+      operationId: setUnifiedPushEndpoint
+      summary: >-
+        Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay
+        POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the
+        same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. A 404 or 410 answer
+        forgets the endpoint. Only `https://` endpoints on a public host are accepted.
+      security: [{ deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [endpoint]
+              properties:
+                endpoint: { type: string, format: uri, maxLength: 2048 }
+      responses:
+        "204": { description: Set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [devices]
+      operationId: clearUnifiedPushEndpoint
+      summary: "Hivepal: back to FCM for this device (if it has a token)."
+      security: [{ deviceJwt: [] }]
+      responses:
+        "204": { description: Cleared. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /v1/devices:
     get:
       tags: [devices]
@@ -1477,6 +1510,10 @@ components:
         last_seen_at: { $ref: "#/components/schemas/Timestamp" }
         revoked_at: { $ref: "#/components/schemas/Timestamp" }
         has_push_token: { type: boolean }
+        push_via:
+          description: "Hivepal: how the relay wakes this device: `unifiedpush`, `fcm`, or `none`."
+          type: string
+          enum: [unifiedpush, fcm, none]
 
     # ---------- calls ----------
     CreateCallRequest:

@@ -63,6 +63,16 @@ class RelayApi(
     fun pair(req: PairRequest): PairResponse =
         call("POST", "/v1/pair", body(PairRequest.serializer(), req), PairResponse.serializer(), auth = false)
 
+    /** Hivepal: wake this device through UnifiedPush (the distributor's endpoint) instead of FCM. */
+    fun setUnifiedPush(endpoint: String) {
+        call<Unit>("POST", "/v1/device/unifiedpush", """{"endpoint":${ProtocolJson.encodeToString(kotlinx.serialization.serializer<String>(), endpoint)}}""".toRequestBody(JSON), null)
+    }
+
+    /** Hivepal: back to FCM for this device. */
+    fun clearUnifiedPush() {
+        call<Unit>("DELETE", "/v1/device/unifiedpush", null, null)
+    }
+
     fun updateFcmToken(token: String) {
         call<Unit>("POST", "/v1/device/fcm", body(FcmBody.serializer(), FcmBody(token)), null)
     }

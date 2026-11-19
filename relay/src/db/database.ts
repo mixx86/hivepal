@@ -162,6 +162,10 @@ const MIGRATIONS: string[] = [
     checked_at INTEGER NOT NULL
   );
   `,
+  `
+  -- Hivepal: a device woken through UnifiedPush (its endpoint) instead of FCM.
+  ALTER TABLE devices ADD COLUMN up_endpoint TEXT;
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

@@ -168,6 +168,13 @@
     <string name="settings_more">Más</string>
     <string name="open_dashboard">Abrir mi panel</string>
     <string name="settings_footer">Hivepal %1$s · basado en agentring (Apache-2.0)</string>
+    <string name="push_channel">Notificaciones</string>
+    <string name="push_via_fcm">El relay despierta este móvil a través de Firebase (Google).</string>
+    <string name="push_via_up">El relay despierta este móvil a través de UnifiedPush (tu app distribuidora), sin Google.</string>
+    <string name="push_use_up">Usar UnifiedPush</string>
+    <string name="push_use_fcm">Volver a Firebase</string>
+    <string name="push_up_none">No hay ningún distribuidor de UnifiedPush en este móvil: instala uno como ntfy (F-Droid o Play Store) y vuelve a intentarlo.</string>
+    <string name="push_up_waiting">Hecho. Mándate un mensaje de prueba para comprobar que llega con la app cerrada.</string>
     <string name="updates">Actualizaciones</string>
     <string name="updates_installed">Instalada: Hivepal %1$s</string>
     <string name="updates_check">Buscar actualizaciones</string>

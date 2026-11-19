@@ -35,6 +35,8 @@ export interface BuildOptions {
   logger?: FastifyServerOptions["logger"];
   /** Inject a push provider (tests). Defaults to FCM when configured. */
   pushProvider?: PushProvider;
+  /** Hivepal: the UnifiedPush sender (tests pass a fake). */
+  unifiedPush?: PushProvider;
   /** Inject LiveKit (tests). Defaults to the configured server, if any. */
   livekit?: LiveKitService;
   /** A pino-compatible logger to use instead of creating one (hub mode: a child per tenant). */
@@ -143,10 +145,17 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     return true;
   });
 
-  const dispatcher = new PushDispatcher(db, provider, relayId, app.log, (id) => {
-    const c = calls.get(id);
-    return c && { direction: c.direction, device_ids: targetsOf(c) };
-  });
+  const dispatcher = new PushDispatcher(
+    db,
+    provider,
+    relayId,
+    app.log,
+    (id) => {
+      const c = calls.get(id);
+      return c && { direction: c.direction, device_ids: targetsOf(c) };
+    },
+    opts.unifiedPush,
+  );
   events.onEvent((e) => dispatcher.handle(e));
   const smtp = process.env.HIVEPAL_SMTP_URL;
   const wake = smtp ? new Wake(agents, smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM), app.log) : undefined;

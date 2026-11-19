@@ -15,9 +15,10 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - "Ring me in 10 s" at the end of the app's setup and in Settings: the relay rings the phone as a call
   from the switchboard after a delay, so you can lock it and see it ring (`POST /v1/calls/test`,
   phones only).
-
-### Added
-
+- Notifications without Google: the app can use UnifiedPush (a distributor app such as ntfy) instead of
+  Firebase, in Settings → Notifications; the relay sends the same signed pushes to its endpoint
+  (`POST /v1/device/unifiedpush`; https on a public host only). Firebase stays the default, and a relay
+  without Firebase works with UnifiedPush phones.
 - App, Settings → Updates: the installed version, a check for a newer release when you tap it (no
   background calls) and a one-tap link to add Hivepal to Obtainium for automatic updates.
 - A web panel in the relay (`/admin`, log in with the relay's key, kept in the tab only): the status of

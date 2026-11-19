@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from "fastify";
 import type { Db } from "../db/database.js";
 import type { Event } from "../protocol.js";
 import type { PushPayload, PushProvider } from "./push-provider.js";
+import { UnifiedPushProvider } from "./unifiedpush.js";
 
 /** FCM data payloads are capped at 4096 bytes; leave room for the other keys. */
 const MAX_EVENT_BYTES = 3000;
@@ -79,34 +80,41 @@ export class PushDispatcher {
     private readonly relayId: string,
     private readonly log: FastifyBaseLogger,
     private readonly getCall: CallLookup = () => undefined,
+    /** Hivepal: devices with a UnifiedPush endpoint are woken through it, FCM or not. */
+    private readonly unifiedPush: PushProvider = new UnifiedPushProvider(),
   ) {}
 
   handle(event: Event): void {
-    if (!this.provider) return;
     const rule = ruleFor(event, this.getCall);
     if (!rule) return;
     const devices = this.db
-      .prepare("SELECT device_id, push_secret, fcm_token FROM devices WHERE revoked_at IS NULL AND fcm_token IS NOT NULL")
-      .all() as Array<{ device_id: string; push_secret: string; fcm_token: string }>;
+      .prepare(
+        "SELECT device_id, push_secret, fcm_token, up_endpoint FROM devices WHERE revoked_at IS NULL AND (fcm_token IS NOT NULL OR up_endpoint IS NOT NULL)",
+      )
+      .all() as Array<{ device_id: string; push_secret: string; fcm_token: string | null; up_endpoint: string | null }>;
     // A targeted call's pushes only go to the phones it targets.
     const targets = event.type.startsWith("call.") ? this.getCall((event as { call_id: string }).call_id)?.device_ids : undefined;
     for (const d of devices) {
       if (targets && !targets.includes(d.device_id)) continue;
       // The phone that joined already knows.
       if (event.type === "call.accept" && event.device_id === d.device_id) continue;
+      // UnifiedPush when the phone chose it, otherwise FCM (when this relay has it).
+      const viaUp = d.up_endpoint !== null;
+      const provider = viaUp ? this.unifiedPush : this.provider;
+      const token = viaUp ? d.up_endpoint! : d.fcm_token;
+      if (!provider || !token) continue;
+      const column = viaUp ? "up_endpoint" : "fcm_token";
       const payload = buildPayload(this.relayId, d.push_secret, event);
-      void this.provider
-        .send({ deviceId: d.device_id, token: d.fcm_token }, payload, rule)
+      void provider
+        .send({ deviceId: d.device_id, token }, payload, rule)
         .then((res) => {
           if (res.ok) {
             this.log.debug({ device: d.device_id, event: event.type }, "push sent");
             return;
           }
-          this.log.warn({ device: d.device_id, event: event.type, error: res.error }, "push failed");
+          this.log.warn({ device: d.device_id, event: event.type, via: provider.name, error: res.error }, "push failed");
           if (res.unregistered) {
-            this.db
-              .prepare("UPDATE devices SET fcm_token = NULL WHERE device_id = ? AND fcm_token = ?")
-              .run(d.device_id, d.fcm_token);
+            this.db.prepare(`UPDATE devices SET ${column} = NULL WHERE device_id = ? AND ${column} = ?`).run(d.device_id, token);
           }
         })
         .catch((e: unknown) => this.log.error({ err: e, device: d.device_id }, "push error"));

@@ -72,6 +72,14 @@ Long-press the home screen → Widgets → **Hivepal**: unread messages and a bu
 The app speaks English and Spanish: **Settings → Language** (or on the welcome screen before pairing).
 On Android 13+ it's also in the system's per-app language setting.
 
+## Notifications without Google
+
+By default the relay wakes the phone through Firebase. To do without Google, install a UnifiedPush
+distributor such as [ntfy](https://ntfy.sh) (F-Droid or Play Store) and tap **Settings → Notifications
+→ Use UnifiedPush**: the app registers with it and gives the relay its address, and pushes, ringing
+calls included, go through it. **Back to Firebase** undoes it. A relay without Firebase works this way
+too.
+
 ## Updates
 
 **Settings → Updates** shows the installed version and, when you tap **Check for updates**, whether a
