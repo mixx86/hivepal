@@ -10,6 +10,12 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Added
+
+- `hivepal mailbox DIR [--git]`: an agent's new messages as Markdown files, one per message, in
+  `DIR/<agent id>/`, for agents that read a mailbox folder instead of running `hivepal replies`.
+  Works next to wake-up emails.
+
 ### Fixed
 
 - App, Subscriptions: "Continue with Google" (Claude, ChatGPT…) no longer ends on a blank

@@ -94,6 +94,44 @@ Keep the hourly routine too, in case an email is lost.
 When you write to that agent (or in a group it's in), the relay emails `Hivepal: <ids>` — at most one
 email per address per minute, never with your message. Several agents may share an address.
 
+## Mailbox files
+
+Some agents work from files rather than commands: a notes repository with a mailbox folder per agent
+([a hive of personal agents](hive.md)), read on a schedule. `hivepal mailbox` puts the agent's new
+messages there, one Markdown file per message:
+
+```bash
+# with the agent's own key (its HIVEPAL_HOME), every minute from cron or a systemd timer:
+hivepal mailbox ~/notes/mailbox --git
+```
+
+Each message the agent would get from `hivepal replies` (yours, and in its groups and agent-to-agent
+conversations the other agents') becomes `~/notes/mailbox/<agent id>/20261119-1530-user-msg_….md`:
+
+```markdown
+---
+msg_id: msg_01JD…
+from: "user"
+from_name: "user"
+to: "nubi"
+conv: "agent:nubi"
+date: 2026-11-19T15:30:12+01:00
+---
+
+Gym at 18:00 today?
+```
+
+Answers to a quick reply quote what they answer, attachments are listed by `file_id` (download with
+`hivepal file`), and voice notes come with their transcript. `--git` commits only the new files in the
+folder's repository and pushes them, so an agent that reads the repository from elsewhere sees them.
+The first run in a folder starts from the last day (`--since` to change that); later runs write only
+what is new, and never a file that is already there, even if the agent moved it to a subfolder such as
+`read/`.
+
+The mailbox doesn't mark messages as seen and doesn't send read receipts: an agent reads its mailbox
+*or* runs `hivepal replies`, and answers with `hivepal msg` either way. Wake-up emails and mailbox
+files can be used together.
+
 ## Rules worth giving every agent
 
 What made the difference in practice, as a starting point for each agent's instructions:
