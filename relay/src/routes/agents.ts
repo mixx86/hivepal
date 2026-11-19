@@ -125,6 +125,24 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
   );
 
   app.post<{ Params: { agent_id: string } }>(
+    "/v1/agents/:agent_id/wake/test",
+    { preHandler: mainKey, schema: { params: AGENT_PARAMS } },
+    async (req, reply) => {
+      const { agent_id } = req.params;
+      if (!agents.exists(agent_id)) throw notFound("Agent");
+      if (!ctx.wake) throw new ApiError(400, "invalid_request", "This relay can't send email: set HIVEPAL_SMTP_URL");
+      if (!agents.wakeEmail(agent_id)) throw new ApiError(400, "invalid_request", "This agent has no wake-up address");
+      try {
+        await ctx.wake.test(agent_id);
+      } catch (e) {
+        req.log.warn({ err: e, agent_id }, "test wake email failed");
+        throw new ApiError(502, "email_failed", `The mail server said: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  app.post<{ Params: { agent_id: string } }>(
     "/v1/agents/:agent_id/key",
     { preHandler: mainKey, schema: { params: AGENT_PARAMS } },
     async (req) => {

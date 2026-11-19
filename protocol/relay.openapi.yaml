@@ -731,6 +731,35 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/agents/{agent_id}/wake/test:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    post:
+      tags: [agents]
+      operationId: testAgentWake
+      summary: >-
+        Hivepal: send the agent's wake-up email now, as if the user had written to it (the same subject, so
+        the agent's routine runs too), and wait for the mail server's answer. Relay API key only.
+      security: [{ agentKey: [] }]
+      responses:
+        "204": { description: The mail server accepted it. }
+        "400":
+          description: "`invalid_request`: this relay has no mail server (HIVEPAL_SMTP_URL) or the agent has no address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502":
+          description: "`email_failed`: the mail server refused it or couldn't be reached; the message says why."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /v1/agents/{agent_id}/key:
     parameters:
       - name: agent_id
@@ -1391,7 +1420,7 @@ components:
           properties:
             code:
               type: string
-              examples: [invalid_request, exists, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, internal]
+              examples: [invalid_request, exists, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, email_failed, internal]
             message: { type: string }
 
     # ---------- system ----------

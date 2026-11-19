@@ -217,6 +217,9 @@ class RelayClient:
     def set_agent_wake(self, agent_id: str, email: str | None) -> dict:
         return self._request("PUT", f"/v1/agents/{agent_id}/wake", json={"email": email})
 
+    def test_agent_wake(self, agent_id: str) -> None:
+        self._request("POST", f"/v1/agents/{agent_id}/wake/test")
+
     def rotate_agent_key(self, agent_id: str) -> dict:
         return self._request("POST", f"/v1/agents/{agent_id}/key")
 

@@ -48,6 +48,9 @@ Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
   re-checked after DNS; `DELETE` goes back to FCM). The relay POSTs the same signed `PushData` there,
   encrypted for the app with RFC 8291 when it gave keys; 404/410 forget it. `Device.push_via` says
   `unifiedpush`, `fcm` or `none`. Accepted deviation: [architecture](architecture.md#accepted-deviations).
+- **Wake-up emails**: `PUT /v1/agents/{id}/wake {email}` (relay key; the address never shows in
+  views, only `wakes`), and `POST /v1/agents/{id}/wake/test`, which sends it now and answers `204` or
+  `502 email_failed` with what the mail server said.
 - **What a relay is configured for**: `Status.features {calls, voice, wake_email}`, to agents (used by
   `hivepal doctor` and the web panel).
 - **Web panel**: `GET /admin`, a static page that uses the REST API with the relay's key pasted into

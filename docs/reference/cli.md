@@ -55,7 +55,7 @@ take `--json` for machine-readable output.
 | `hivepal bots` | Every agent and when it was last seen (✉ = wakes by email). |
 | `hivepal bots add <id> <Name>` | A new agent; prints its key once. |
 | `hivepal bots rename <id> <Name>` · `bots key <id>` · `bots remove <id>` | Rename, new key, revoke. |
-| `hivepal bots wake <id> <email\|off>` | Email this address when the user writes to the agent. |
+| `hivepal bots wake <id> <email\|off>` | Email this address when the user writes to the agent; `--test` sends one now and reports the mail server's answer. |
 | `hivepal groups` · `groups add <id> <Name> --members a,b` · `groups set` · `groups remove` | Groups. |
 | `hivepal subs` · `subs set …` · `subs rm <id>` | Subscriptions (the app writes them; these are for scripts). |
 

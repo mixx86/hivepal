@@ -126,13 +126,20 @@ def test_bots_wake_sets_and_clears(monkeypatch):
             calls.append((agent_id, email))
             return {"agent_id": agent_id, "name": "Casa", "wakes": email is not None}
 
+        def test_agent_wake(self, agent_id):
+            calls.append((agent_id, "test"))
+
     monkeypatch.setattr(cli, "_settings", lambda: object())
     monkeypatch.setattr(cli, "_client", lambda s: FakeClient())
     r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "x@mail.grokbot.com"])
-    assert r.exit_code == 0 and "woken by email" in r.output
+    assert r.exit_code == 0 and "woken by email" in r.output and "--test" in r.output
     r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "OFF"])
     assert r.exit_code == 0 and "no wake-up email" in r.output
-    assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None)]
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "--test"])
+    assert r.exit_code == 0 and "test email sent" in r.output
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa"])
+    assert r.exit_code != 0
+    assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None), ("casa", "test")]
 
 
 def test_legacy_agentring_env_is_adopted():

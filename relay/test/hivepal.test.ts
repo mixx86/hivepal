@@ -273,6 +273,31 @@ describe("wake-up emails", () => {
     }
   });
 
+  it("a test email goes out now and reports the mail server's answer", async () => {
+    const { Wake } = await import("../src/wake.js");
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const test = (headers: Record<string, string>, id = "nubi") =>
+      b!.app.inject({ method: "POST", url: `/v1/agents/${id}/wake/test`, headers });
+    expect((await test(AGENT)).json().error.message).toMatch(/HIVEPAL_SMTP_URL/); // no mail server
+    const sent: Array<[string, string]> = [];
+    let fail = false;
+    const mailer = { send: async (to: string, subject: string) => { if (fail) throw new Error("535 Username and Password not accepted"); sent.push([to, subject]); } };
+    b.ctx.wake = new Wake(b.ctx.agents, mailer, b.app.log);
+    expect((await test(AGENT)).statusCode).toBe(400); // no address yet
+    b.ctx.agents.setWake("nubi", "bots@mail.example.com");
+    expect((await test(bearer(nubi))).statusCode).toBe(403);
+    expect((await test(AGENT, "nadie")).statusCode).toBe(404);
+    expect((await test(AGENT)).statusCode).toBe(204);
+    expect(sent).toEqual([["bots@mail.example.com", "Hivepal: nubi"]]);
+    fail = true;
+    const r = await test(AGENT);
+    expect(r.statusCode).toBe(502);
+    expect(r.json().error).toMatchObject({ code: "email_failed" });
+    expect(r.json().error.message).toMatch(/535/);
+    b.ctx.wake.stop();
+  });
+
   it("one email per address per gap, its subject naming the agents it's for", async () => {
     const { Wake } = await import("../src/wake.js");
     b = await setup();

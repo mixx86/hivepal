@@ -527,6 +527,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{agent_id}/wake/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: send the agent's wake-up email now, as if the user had written to it (the same subject, so the agent's routine runs too), and wait for the mail server's answer. Relay API key only. */
+        post: operations["testAgentWake"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{agent_id}/key": {
         parameters: {
             query?: never;
@@ -942,6 +961,7 @@ export interface components {
                  * @example rate_limited
                  * @example quota_exceeded
                  * @example tenant_disabled
+                 * @example email_failed
                  * @example internal
                  */
                 code: string;
@@ -2305,6 +2325,47 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    testAgentWake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The mail server accepted it. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `invalid_request`: this relay has no mail server (HIVEPAL_SMTP_URL) or the agent has no address. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `email_failed`: the mail server refused it or couldn't be reached; the message says why. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     rotateAgentKey: {
