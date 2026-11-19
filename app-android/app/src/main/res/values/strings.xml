@@ -172,6 +172,16 @@
     <string name="settings_more">More</string>
     <string name="open_dashboard">Open my dashboard</string>
     <string name="settings_footer">Hivepal %1$s · based on agentring (Apache-2.0)</string>
+    <string name="updates">Updates</string>
+    <string name="updates_installed">Installed: Hivepal %1$s</string>
+    <string name="updates_check">Check for updates</string>
+    <string name="updates_checking">Checking…</string>
+    <string name="updates_up_to_date">Hivepal %1$s is the latest version.</string>
+    <string name="updates_newer">Hivepal %1$s is out.</string>
+    <string name="updates_download">Get %1$s</string>
+    <string name="updates_failed">Installed: Hivepal %1$s. Couldn\'t reach GitHub to check.</string>
+    <string name="updates_not_release">This is a preview or self-built app (%1$s): it updates from the same place (android-preview or scripts/build-app.sh), not from releases.</string>
+    <string name="updates_obtainium">Get updates automatically with Obtainium</string>
     <string name="perm_notifications_why">To show messages and incoming calls.</string>
     <string name="perm_microphone_why">So your agent can hear you.</string>
     <string name="perm_full_screen_why">Shows the call screen over the lock screen.</string>
