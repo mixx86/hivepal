@@ -38,6 +38,7 @@ It asks for:
 | Voice AI | `gemini` | Who talks on AI calls: `gemini` (free tier, recommended), `openai`, `grok`, `phonic`, `openrouter`, `local` (your own OpenAI-Realtime-compatible server) or `none`. See [voice](../voice.md). |
 | Its API key | `AIza…` | Optional. Without one there are no AI calls. For `local`, the server's address instead (and a key only if it asks for one). |
 | Gemini key for transcripts | `AIza…` | Only asked when the voice AI isn't Gemini, and optional: the relay transcribes voice notes with Gemini. |
+| Wake-up email account | `bots.hive@gmail.com` | Optional: the account the relay emails [wake-up emails](agents.md#wake-up-emails) from, with its (app) password; the mail server is guessed for common providers. Later: `./install.sh --email`. |
 | Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional: without it the phone uses UnifiedPush (ntfy). |
 
 Then it writes `deploy/.env` (keep it private: it holds the relay's API key), starts everything, configures the daemon inside Docker and shows the QR code to pair the phone.

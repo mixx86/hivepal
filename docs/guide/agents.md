@@ -81,9 +81,12 @@ screen shows when each agent was last seen: red after a day means its routine st
 An hourly check means up to an hour before an agent answers. If the platform can start the agent when
 an email arrives (Grok bots can), Hivepal rings it instead:
 
-1. Give the relay a mail server: `HIVEPAL_SMTP_URL` in `deploy/.env`
-   (Gmail: `smtps://you%40gmail.com:APP_PASSWORD@smtp.gmail.com:465`, with an
-   [app password](https://myaccount.google.com/apppasswords)).
+1. Give the relay an email account to send from: the installer asks for one, or later on the server
+   `./install.sh --email` (`--local --email` on your own computer). It asks for the address and its
+   password (for Gmail an [app password](https://myaccount.google.com/apppasswords); a spare account is
+   best), knows the mail server of Gmail, iCloud, Yahoo, Fastmail, GMX and Zoho, asks for any other,
+   and restarts the relay. By hand: `HIVEPAL_SMTP_URL` in `deploy/.env`
+   (`smtps://you%40gmail.com:APP_PASSWORD@smtp.gmail.com:465`, URL-encoded).
 2. Tell the relay the agent's address: `hivepal bots wake nubi <address>` (`off` to stop).
 3. On the platform, a routine that runs on each email:
 

@@ -6,6 +6,7 @@
 #                           LiveKit in Docker, the daemon (the `hivepal` CLI) installed with uv
 #   --images                use this release's published images (ghcr.io/mixx86/hivepal-*) and CLI
 #                           instead of building them here (what scripts/get.sh, the one-line install, does)
+#   --email                 set up (or change) the mail account for agents' wake-up emails, then restart
 #
 # It asks only what it can't guess. Answers can come from the environment instead (then add --yes):
 #   HIVEPAL_DOMAIN, HIVEPAL_HOST_IP (--local), HIVEPAL_AGENT_NAME,
@@ -13,7 +14,8 @@
 #   HIVEPAL_VOICE_API_KEY (that provider's key; for gemini, HIVEPAL_GEMINI_API_KEY), HIVEPAL_VOICE_URL
 #   (local), HIVEPAL_GEMINI_API_KEY (voice-note transcripts with any provider),
 #   HIVEPAL_FIREBASE_DIR (a folder with firebase-service-account.json and google-services.json),
-#   HIVEPAL_SMTP_URL.
+#   HIVEPAL_WAKE_EMAIL (the account wake-up emails are sent from) with HIVEPAL_WAKE_EMAIL_PASSWORD and,
+#   for an unknown provider, HIVEPAL_SMTP_SERVER (host:port), or HIVEPAL_SMTP_URL directly.
 # Running it again keeps the existing configuration and just updates and restarts everything.
 set -euo pipefail
 
@@ -22,12 +24,14 @@ DEPLOY="$ROOT/deploy"
 MODE=server
 YES=0
 IMAGES=0
+EMAIL=0
 for a in "$@"; do
   case "$a" in
     --local) MODE=local ;;
+    --email) EMAIL=1 ;;
     --yes | -y) YES=1 ;;
     --images) IMAGES=1 ;;
-    -h | --help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $a (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -100,12 +104,58 @@ merge_env() {
   umask 022
 }
 
+# Percent-encodes a URL part (byte by byte, so any character in a password works).
+urlencode() {
+  local LC_ALL=C s=$1 out="" c h i
+  for ((i = 0; i < ${#s}; i++)); do
+    c=${s:i:1}
+    case "$c" in [A-Za-z0-9._~-]) out+=$c ;; *) printf -v h '%%%02X' "'$c"; out+=$h ;; esac
+  done
+  printf '%s' "$out"
+}
+
+# The SMTP server of well-known providers, as smtps://host:465 or smtp://host:587 (STARTTLS).
+smtp_for() {
+  case "${1##*@}" in
+    gmail.com | googlemail.com) echo smtps://smtp.gmail.com:465 ;;
+    icloud.com | me.com | mac.com) echo smtp://smtp.mail.me.com:587 ;;
+    yahoo.com | yahoo.es | ymail.com) echo smtps://smtp.mail.yahoo.com:465 ;;
+    fastmail.com | fastmail.fm) echo smtps://smtp.fastmail.com:465 ;;
+    gmx.com | gmx.net | gmx.es | gmx.de) echo smtps://mail.gmx.net:465 ;;
+    zoho.com | zohomail.com) echo smtps://smtp.zoho.com:465 ;;
+  esac
+}
+
+# Asks for the account wake-up emails are sent from and sets HIVEPAL_SMTP_URL (empty = none).
+ask_email() {
+  [[ -n "${HIVEPAL_SMTP_URL:-}" ]] && return 0
+  ask HIVEPAL_WAKE_EMAIL "Wake-up emails, optional: an email account the relay sends them from, to start agents that run on an email (a spare Gmail works; empty = none)" ""
+  [[ -n "${HIVEPAL_WAKE_EMAIL:-}" ]] || return 0
+  [[ $HIVEPAL_WAKE_EMAIL == *@*.* ]] || die "not an email address: $HIVEPAL_WAKE_EMAIL"
+  local server; server=$(smtp_for "$HIVEPAL_WAKE_EMAIL")
+  if [[ -z "$server" ]]; then
+    ask HIVEPAL_SMTP_SERVER "Its SMTP server, host:port (465 = TLS, 587 = STARTTLS)" "smtp.${HIVEPAL_WAKE_EMAIL##*@}:465"
+    local hp=$HIVEPAL_SMTP_SERVER
+    [[ $hp == *:* ]] || hp="$hp:465"
+    if [[ ${hp##*:} == 465 ]]; then server="smtps://$hp"; else server="smtp://$hp"; fi
+  fi
+  local hint="its password"
+  [[ $server == *gmail* ]] && hint="an app password for it (https://myaccount.google.com/apppasswords; needs 2-step verification)"
+  [[ $server == *me.com* ]] && hint="an app-specific password (https://account.apple.com)"
+  [[ $server == *yahoo* ]] && hint="an app password (Yahoo account security)"
+  ask HIVEPAL_WAKE_EMAIL_PASSWORD "Password for $HIVEPAL_WAKE_EMAIL: $hint" "" secret
+  [[ -n "${HIVEPAL_WAKE_EMAIL_PASSWORD:-}" ]] || die "a password is needed to send email (or leave the account empty)"
+  HIVEPAL_SMTP_URL="${server%%://*}://$(urlencode "$HIVEPAL_WAKE_EMAIL"):$(urlencode "$HIVEPAL_WAKE_EMAIL_PASSWORD")@${server#*://}"
+}
+
 # set_env VAR VALUE: writes VAR=VALUE in the env file (replacing it); set_env VAR removes it.
 set_env() {
-  local tmp="$ENV_FILE.tmp"
+  local tmp="$ENV_FILE.tmp" um
+  um=$(umask); umask 077 # it holds secrets, even for a moment
   grep -v "^$1=" "$ENV_FILE" > "$tmp" || true
   [[ $# -gt 1 ]] && echo "$1=$2" >> "$tmp"
   cat "$tmp" > "$ENV_FILE" && rm -f "$tmp"
+  umask "$um"
 }
 
 if [[ $MODE == server ]]; then
@@ -125,6 +175,13 @@ if [[ -f "$ENV_FILE" ]]; then
   set -a; . "$ENV_FILE"; set +a
   API_KEY=${HIVEPAL_API_KEY:-${AGENTRING_API_KEY:-}}
   [[ -n "$API_KEY" ]] || die "$ENV_FILE has no HIVEPAL_API_KEY: add one (ak_...) or move the file away to start over"
+  if [[ $EMAIL == 1 ]]; then
+    step "Wake-up emails"
+    unset HIVEPAL_SMTP_URL
+    ask_email
+    if [[ -n "${HIVEPAL_SMTP_URL:-}" ]]; then set_env HIVEPAL_SMTP_URL "$HIVEPAL_SMTP_URL"; echo "Saved; the relay restarts with it."
+    else set_env HIVEPAL_SMTP_URL ""; echo "No account: wake-up emails are off."; fi
+  fi
 else
   step "Configuration"
   if [[ $MODE == server ]]; then
@@ -160,6 +217,7 @@ else
   if [[ $HIVEPAL_VOICE_PROVIDER != gemini ]]; then
     ask HIVEPAL_GEMINI_API_KEY "Gemini API key for voice-note transcripts (optional; free at https://aistudio.google.com/apikey)" "" secret
   fi
+  ask_email
   ask HIVEPAL_FIREBASE_DIR "Folder with firebase-service-account.json and google-services.json (optional; empty = phones use UnifiedPush through ntfy)" ""
   API_KEY=$(new_key)
 
@@ -267,6 +325,7 @@ Next:
   2. Pair the phone: ${HIVEPAL[*]} pair   and scan the QR with the app
   3. Try it: ${HIVEPAL[*]} msg \"hello\"
   4. An agent with its own chat and key: ${HIVEPAL[*]} bots add nubi Nubi
+$([[ -n "${HIVEPAL_SMTP_URL:-}" ]] && echo "     Wake it by email: give it an address in the panel (Agents) and Send a test" || echo "     Wake-up emails for agents: ./install.sh$([[ $MODE == local ]] && echo " --local") --email")
 $([[ $MODE == local ]] && voice_ready && echo "  5. Answer calls with the voice AI ($HIVEPAL_VOICE_PROVIDER): $BIN serve --ai   (keep it running)")
 "
 if [[ $YES == 0 && -t 0 ]]; then
