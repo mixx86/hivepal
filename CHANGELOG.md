@@ -14,6 +14,10 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 - App, Settings → Updates: the installed version, a check for a newer release when you tap it (no
   background calls) and a one-tap link to add Hivepal to Obtainium for automatic updates.
+- A web panel in the relay (`/admin`, log in with the relay's key, kept in the tab only): the status of
+  each piece, paired phones and a pairing QR, agents with ready-to-copy setup for the CLI, Claude Code
+  and other harnesses or HTTP, and a test message and a test call. It adds no API: it uses the REST API
+  with your key. The installer prints its address.
 - One-line install: `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh`
   (`sh -s -- --local` on your own computer) downloads the latest release and runs its installer with
   the published images, so nothing is built on the machine. `install.sh --images` does that from a

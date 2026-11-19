@@ -68,7 +68,8 @@ curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh 
 
 That downloads the latest release into `~/hivepal` and uses its published images (nothing is built).
 From a clone, `./install.sh` (or `--local`) does the same but builds the images from the source.
-No domain? On a server with a public IP it offers `<ip>.sslip.io`.
+No domain? On a server with a public IP it offers `<ip>.sslip.io`. Once it's running, the relay has a
+web panel at `/admin`: status, pairing, agents with ready-to-copy setup, and a test call.
 
 It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
 [Gemini key](https://aistudio.google.com/apikey) for voice, and an optional

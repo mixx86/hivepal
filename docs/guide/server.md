@@ -53,6 +53,15 @@ from the [releases](https://github.com/mixx86/hivepal/releases). Then, on the se
 cd deploy && docker compose exec daemon hivepal pair
 ```
 
+## The web panel
+
+Open `https://hive.example.com/admin` and paste the relay's API key (`HIVEPAL_API_KEY` in
+`deploy/.env`; it stays in that browser tab only). It shows whether each piece works (push, calls,
+voice, wake-up emails), the paired phones and when they were last seen, and the agents. From there you
+can **pair a phone** (a QR for the phone's camera), **add an agent** and copy its setup for the CLI,
+Claude Code and the other harnesses, or HTTP, and **send a test message or ring your phone**. The page
+itself holds nothing: everything goes through the same API as the CLI, with your key.
+
 ## 3. Your agents
 
 Agents talk to `https://hive.example.com` with their own keys:
