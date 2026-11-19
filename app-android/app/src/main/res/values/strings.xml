@@ -26,6 +26,7 @@
     <string name="push_no_distributor">Install a notification distributor to continue.</string>
     <string name="push_install_hint">ntfy is a free distributor. After installing it, return here and Hivepal will finish automatically.</string>
     <string name="push_install_ntfy">Install ntfy</string>
+    <string name="push_later">Skip for now (Settings → Notifications later)</string>
     <string name="push_registering_up">Connecting the notification distributor…</string>
     <string name="push_checking">Checking that this relay can wake your phone…</string>
     <string name="push_ready">Notifications are ready.</string>

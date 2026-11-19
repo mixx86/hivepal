@@ -229,6 +229,13 @@ private fun PushSetupPage(onReady: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(56.dp).testTag("retry_unifiedpush"),
             ) { Text(stringResource(R.string.push_retry), style = MaterialTheme.typography.titleMedium) }
         }
+        // Never a dead end: without push the app still works while it's open, and
+        // Settings → Notifications can set it up later.
+        if (!ready) {
+            TextButton(onClick = onReady, modifier = Modifier.testTag("push_later")) {
+                Text(stringResource(R.string.push_later))
+            }
+        }
     }) {
         HeroBadge(rememberVectorPainter(Icons.Filled.Notifications), size = 88.dp, pulse = registering || checking)
         Text(stringResource(R.string.push_setup_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
