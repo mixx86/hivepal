@@ -78,6 +78,13 @@ export class Wake {
     this.pending.set(to, t);
   }
 
+  /** Sends the agent's wake-up email now (a test from the panel or the CLI); throws what the mail server said. */
+  async test(agentId: string): Promise<void> {
+    const to = this.agents.wakeEmail(agentId);
+    if (!to) throw new Error("no address");
+    await this.mailer.send(to, `Hivepal: ${agentId}`, `Test from Hivepal: the wake-up email for ${agentId} works. Read new messages with: hivepal replies`);
+  }
+
   private send(to: string): void {
     const ids = [...(this.queued.get(to) ?? [])].sort();
     this.queued.delete(to);

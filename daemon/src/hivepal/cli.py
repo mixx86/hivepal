@@ -1011,20 +1011,34 @@ def bots_rename(
 @bots_app.command("wake")
 def bots_wake(
     agent_id: Annotated[str, typer.Argument()],
-    email: Annotated[str, typer.Argument(help="Address to email when the user writes to this agent, or 'off'.")],
+    email: Annotated[
+        Optional[str], typer.Argument(help="Address to email when the user writes to this agent, or 'off'.")
+    ] = None,
+    test: Annotated[bool, typer.Option("--test", help="Send the wake-up email now and report what the mail server said.")] = False,
 ) -> None:
     """Wake an agent by email when the user writes to it (for agents that only run on a trigger).
 
     The email never carries the message, only the agent ids in its subject ("Hivepal: casa nubi"), since
     several agents may share an address; each reads its messages from the relay as usual. At most one
-    a minute. Needs the relay's API key and HIVEPAL_SMTP_URL on the relay."""
+    a minute. Needs the relay's API key and a mail server on the relay (HIVEPAL_SMTP_URL).
+    `--test` sends one now (with an address: right after setting it)."""
+    if email is None and not test:
+        raise _fail("give an address, 'off', or --test")
     s = _settings()
     with _client(s) as c:
         try:
-            a = c.set_agent_wake(agent_id, None if email.lower() == "off" else email)
+            if email is not None:
+                a = c.set_agent_wake(agent_id, None if email.lower() == "off" else email)
+                typer.echo(f"{a['agent_id']}: " + ("woken by email" if a.get("wakes") else "no wake-up email"))
+                if not a.get("wakes"):
+                    return
+            if test:
+                c.test_agent_wake(agent_id)
+                typer.echo(f"{agent_id}: test email sent (check that its routine ran; look in spam too)")
+            elif email is not None:
+                typer.echo(f"Check it arrives: hivepal bots wake {agent_id} --test")
         except RelayError as e:
             raise _fail(str(e)) from None
-    typer.echo(f"{a['agent_id']}: " + ("woken by email" if a.get("wakes") else "no wake-up email"))
 
 
 @bots_app.command("key")

@@ -37,6 +37,8 @@ export interface BuildOptions {
   pushProvider?: PushProvider;
   /** Hivepal: the UnifiedPush sender (tests pass a fake). */
   unifiedPush?: PushProvider;
+  /** Hivepal: the wake-up email sender (tests pass a fake). Defaults to HIVEPAL_SMTP_URL's server. */
+  mailer?: import("./wake.js").Mailer;
   /** Inject LiveKit (tests). Defaults to the configured server, if any. */
   livekit?: LiveKitService;
   /** A pino-compatible logger to use instead of creating one (hub mode: a child per tenant). */
@@ -158,8 +160,10 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   );
   events.onEvent((e) => dispatcher.handle(e));
   const smtp = process.env.HIVEPAL_SMTP_URL;
-  const wake = smtp ? new Wake(agents, smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM), app.log) : undefined;
+  const mailer = opts.mailer ?? (smtp ? smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM) : undefined);
+  const wake = mailer ? new Wake(agents, mailer, app.log) : undefined;
   if (wake) events.onEvent((e) => wake.handle(e));
+  ctx.wake = wake;
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ApiError) {

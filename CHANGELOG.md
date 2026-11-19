@@ -15,13 +15,15 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - Installer: asks (optionally) for the email account wake-up emails are sent from and its password,
   knows the mail server of common providers and builds `HIVEPAL_SMTP_URL` itself (no hand
   URL-encoding); `./install.sh --email` sets it up or changes it on an existing install.
-
 - Installer: asks which voice AI answers calls (Gemini, recommended for its free tier, OpenAI, Grok,
   Phonic, OpenRouter, your own server, or none) and that provider's key, and configures the daemon
   for it; with another provider than Gemini it offers a Gemini key for voice-note transcripts.
   Unattended: `HIVEPAL_VOICE_PROVIDER`, `HIVEPAL_VOICE_API_KEY`, `HIVEPAL_VOICE_URL`.
 - `hivepal mailbox DIR --install`: runs it every minute from now on with this agent's key (one line in
   your crontab per agent and folder, replaced when installed again), then once; `--uninstall` stops it.
+- Wake-up emails are set up and tested from the relay's web panel: each agent gets an address field,
+  **Send a test** and **Turn off** (`POST /v1/agents/{id}/wake/test` sends it now and reports what the
+  mail server said). In the CLI: `hivepal bots wake <id> --test`.
 - App, Settings → Updates on a preview build: compares it with the latest `android-preview` build and
   offers its APK, which installs over the app and keeps everything (before, previews were only told
   they're another channel). The Obtainium link shows only on release builds, which it can update.
@@ -36,6 +38,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Fixed
 
+- Web panel: it said that without Firebase the phone only gets messages while the app is open; phones
+  then use UnifiedPush. Each phone now shows how it's woken, and warns when it has no push yet.
 - Installer: without a Firebase folder it said "no push"; phones then use UnifiedPush (ntfy). The
   voice question asks for a voice AI key (Gemini, free tier) instead of only "Gemini".
 - `hivepal doctor` judges push per phone: on a relay without Firebase it no longer warns that nothing

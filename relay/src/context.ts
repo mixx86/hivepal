@@ -29,6 +29,8 @@ export interface Ctx {
   speech?: import("./gemini.js").Speech;
   /** Scheduled messages (Hivepal). */
   reminders?: import("./routes/reminders.js").Reminders;
+  /** Hivepal: wake-up emails, when the relay has a mail server. */
+  wake?: import("./wake.js").Wake;
   /** The tenant's current limits (hub mode); unlimited on a self-hosted relay. */
   limits: () => Limits;
   /** Prefix of LiveKit room names ("" self-hosted, "{tenant_id}." in hub mode: one LiveKit for all tenants). */

@@ -4,7 +4,7 @@
  * A static page: it holds no data and adds no API. You paste the relay's API key (kept in this tab's
  * sessionStorage only) and the page uses the same REST API as the CLI with it: the status of each
  * piece, the paired phones and a pairing QR, the agents with ready-to-copy setup for each harness,
- * and a test message and a test call. Everything is drawn with textContent; the CSP allows only this
+ * wake-up emails per agent (with a test email), and a test message and a test call. Everything is drawn with textContent; the CSP allows only this
  * page's own script (by hash) and data: images (the QR).
  */
 import { createHash } from "node:crypto";
@@ -59,22 +59,54 @@ async function load() {
     const f = st.features || {};
     $("status").replaceChildren(
       row("ok", "Relay " + st.version, location.origin),
-      row(st.push_provider === "none" ? "warn" : "ok", "Push", st.push_provider === "none" ? "No Firebase: the phone gets messages only while the app is open" : st.push_provider + " configured"),
+      row("ok", "Push", st.push_provider === "none" ? "No Firebase: phones are woken through UnifiedPush (the ntfy app), set up by the app" : "Firebase configured; phones may use UnifiedPush (ntfy) instead"),
       row(f.calls ? "ok" : "warn", "Calls", f.calls ? "LiveKit configured (UDP 50000-50100 open to the phone)" : "LiveKit isn't configured"),
       row(f.voice ? "ok" : "warn", "Voice", f.voice ? "Voice notes and transcripts" : "No Gemini key: no voice notes or transcripts"),
-      row(f.wake_email ? "ok" : "off", "Wake-up emails", f.wake_email ? "SMTP configured" : "Not set up (optional)"));
+      row(f.wake_email ? "ok" : "off", "Wake-up emails", f.wake_email ? "Mail server configured: give agents an address below" : "Optional: to email agents that run on a trigger, give the relay a mail server (HIVEPAL_SMTP_URL in deploy/.env)"));
+    wakeOn = !!f.wake_email;
     const devices = await api("GET", "/v1/devices");
     $("devices").replaceChildren(...(devices.devices || devices).map((d) =>
-      row(d.has_push_token || st.push_provider === "none" ? "ok" : "warn", d.name, "seen " + ago(d.last_seen_at) + (d.app_version ? " · app " + d.app_version : ""))));
+      row(d.push_via === "none" ? "warn" : "ok", d.name, "seen " + ago(d.last_seen_at) + (d.app_version ? " · app " + d.app_version : "") +
+          (d.push_via === "unifiedpush" ? " · UnifiedPush" : d.push_via === "fcm" ? " · Firebase" : d.push_via === "none" ? " · no push yet: open the app, Settings → Notifications" : ""))));
     if (!$("devices").children.length) $("devices").append(row("fail", "No phone paired", "Pair one below"));
     const agents = await api("GET", "/v1/agents");
-    $("agents").replaceChildren(...(agents.agents || agents).map((a) =>
-      row(a.last_seen_at && Date.now() - a.last_seen_at < 86400000 ? "ok" : "warn", a.name + " (" + a.agent_id + ")",
-          "last seen " + ago(a.last_seen_at) + (a.wakes ? " · wake-up email" : ""))));
+    $("agents").replaceChildren(...(agents.agents || agents).map((a) => {
+      const r = row(a.last_seen_at && Date.now() - a.last_seen_at < 86400000 ? "ok" : "warn", a.name + " (" + a.agent_id + ")",
+          "last seen " + ago(a.last_seen_at) + (a.wakes ? " · wake-up email on" : ""));
+      if (wakeOn) r.lastChild.append(wakeForm(a));
+      return r;
+    }));
   } catch (e) {
     if (/401|key|Unauthorized/i.test(String(e.message))) { store.set(null); key = null; $("panel").hidden = true; $("login").hidden = false; }
     $("error").textContent = e.message;
   }
+}
+
+let wakeOn = false;
+/** An agent's wake-up email: set or change it (the relay never shows it back), turn it off, send a test. */
+function wakeForm(a) {
+  const input = el("input", { type: "email", placeholder: a.wakes ? "on · new address to change it" : "address that starts it (optional)", autocomplete: "off" });
+  const out = el("small");
+  const say = (t) => { out.textContent = t; };
+  const save = el("button", { class: "ghost small", type: "submit", textContent: "Save" });
+  const test = el("button", { class: "ghost small", type: "button", textContent: "Send a test", hidden: !a.wakes });
+  const off = el("button", { class: "ghost small", type: "button", textContent: "Turn off", hidden: !a.wakes });
+  const f = el("form", { class: "wake" }, input, save, test, off);
+  f.onsubmit = async (ev) => {
+    ev.preventDefault();
+    try { await api("PUT", "/v1/agents/" + a.agent_id + "/wake", { email: input.value.trim() }); input.value = ""; test.hidden = off.hidden = false; say("Saved. Send a test to check it arrives."); }
+    catch (e) { say(e.message); }
+  };
+  test.onclick = async () => {
+    say("Sending…");
+    try { await api("POST", "/v1/agents/" + a.agent_id + "/wake/test"); say("Sent: the agent's routine should run now (check its inbox, and spam)."); }
+    catch (e) { say(e.message); }
+  };
+  off.onclick = async () => {
+    try { await api("PUT", "/v1/agents/" + a.agent_id + "/wake", { email: null }); test.hidden = off.hidden = true; say("Off."); }
+    catch (e) { say(e.message); }
+  };
+  return el("div", {}, f, out);
 }
 
 $("loginForm").onsubmit = (ev) => { ev.preventDefault(); key = $("key").value.trim(); store.set(key); $("error").textContent = ""; load(); };
@@ -161,6 +193,8 @@ const PAGE = `<!doctype html>
   img { background: #fff; border-radius: 12px; padding: 8px; max-width: 100%; }
   #error { color: #FF6B8B; }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  form.wake { margin-top: .35rem; } form.wake input { flex: 1 1 12rem; padding: .3rem .6rem; font-size: .85rem; }
+  .row > div { flex: 1; min-width: 0; }
 </style>
 </head>
 <body>

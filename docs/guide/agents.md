@@ -87,7 +87,10 @@ an email arrives (Grok bots can), Hivepal rings it instead:
    best), knows the mail server of Gmail, iCloud, Yahoo, Fastmail, GMX and Zoho, asks for any other,
    and restarts the relay. By hand: `HIVEPAL_SMTP_URL` in `deploy/.env`
    (`smtps://you%40gmail.com:APP_PASSWORD@smtp.gmail.com:465`, URL-encoded).
-2. Tell the relay the agent's address: `hivepal bots wake nubi <address>` (`off` to stop).
+2. Tell the relay the agent's address, in the relay's web panel (`/admin`, **Agents**: the address,
+   **Save**, then **Send a test**) or with the CLI: `hivepal bots wake nubi <address>` (`off` to stop),
+   then `hivepal bots wake nubi --test`. The test sends the same email a real message would, right
+   away, and says what the mail server answered if it fails.
 3. On the platform, a routine that runs on each email:
 
 ```text
