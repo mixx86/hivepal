@@ -11,8 +11,11 @@ cloud, the phone works on mobile data, and calls ring wherever you are. The smal
   Without one, the installer offers `<your-ip>.sslip.io`, a name that resolves to the server's public
   IP (from the free [sslip.io](https://sslip.io) service), and Caddy gets it a certificate all the same.
 - These **ports open**: TCP 80 and 443 (HTTPS), TCP 7881 and UDP 50000–50100 (call audio).
-- Recommended: a [Firebase project](../firebase.md) (pushes and ringing when the app is closed) and a
-  [Gemini API key](https://aistudio.google.com/apikey) (voice AI, voice-note transcripts).
+- Recommended: an API key for a **voice AI** (the voice on calls, voice-note transcripts). We suggest
+  [Gemini](https://aistudio.google.com/apikey): it has a free tier and does both. OpenAI, Grok, Phonic,
+  OpenRouter or a local model also work for calls ([voice](../voice.md)); transcripts need Gemini.
+- Optional: a [Firebase project](../firebase.md). Without it the phone is woken through UnifiedPush
+  with the free ntfy app, which the app sets up when you pair it.
 
 ## 1. Install
 
@@ -32,8 +35,8 @@ It asks for:
 |---|---|---|
 | Domain | `hive.example.com` | Caddy gets a Let's Encrypt certificate for it. Offers `<ip>.sslip.io` when the server's IP is public. |
 | Switchboard name | `Switchboard` | The voice that answers your calls. |
-| Gemini key | `AIza…` | Optional. Without it there are no AI calls and no transcripts. |
-| Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional, but without it the phone only gets messages while the app is open. |
+| Voice AI key | `AIza…` | Optional. A Gemini key (free tier); for another provider leave it empty and see [voice](../voice.md). Without one there are no AI calls and no transcripts. |
+| Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional: without it the phone uses UnifiedPush (ntfy). |
 
 Then it writes `deploy/.env` (keep it private: it holds the relay's API key), starts everything, configures the daemon inside Docker and shows the QR code to pair the phone.
 

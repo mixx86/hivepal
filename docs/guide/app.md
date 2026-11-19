@@ -86,6 +86,15 @@ On Android 13+ it's also in the system's per-app language setting.
 When the relay has no Firebase, the setup offers ntfy (and finishes by itself once it's installed),
 with Firebase as the alternative; **Skip for now** goes on without push.
 
+## Backup
+
+**Settings → Backup → Save settings to a file** keeps the app's own settings in a file: language,
+pinned and muted chats, call settings and the connected subscription services. **Restore from a file**
+puts them back and restarts the app. It's for moving between the release and `android-preview` APKs
+(another signing key means uninstalling) or to another phone. The pairing isn't in the file: pair
+again with the QR, and your conversations come back from the relay
+([how](../faq.md#an-update-wont-install-over-the-app-app-not-installed)).
+
 ## Updates
 
 **Settings → Updates** shows the installed version and, when you tap **Check for updates**, whether a

@@ -26,6 +26,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Fixed
 
+- Installer: without a Firebase folder it said "no push"; phones then use UnifiedPush (ntfy). The
+  voice question asks for a voice AI key (Gemini, free tier) instead of only "Gemini".
 - `hivepal doctor` judges push per phone: on a relay without Firebase it no longer warns that nothing
   can be pushed (phones may use UnifiedPush); it warns for each phone that has no push channel, says
   how to fix it, and shows how each phone is woken.

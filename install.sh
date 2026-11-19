@@ -101,8 +101,8 @@ else
     [[ -n "${HIVEPAL_HOST_IP:-}" ]] || die "an IP is needed"
   fi
   ask HIVEPAL_AGENT_NAME "Name of the voice switchboard that answers your calls" "Centralita"
-  ask HIVEPAL_GEMINI_API_KEY "Gemini API key for voice (https://aistudio.google.com/apikey; empty = no voice AI)" "" secret
-  ask HIVEPAL_FIREBASE_DIR "Folder with firebase-service-account.json and google-services.json (empty = no push: see docs/firebase.md)" ""
+  ask HIVEPAL_GEMINI_API_KEY "API key for the voice AI: Gemini, free tier at https://aistudio.google.com/apikey (empty = no voice AI, or another provider later: docs/voice.md)" "" secret
+  ask HIVEPAL_FIREBASE_DIR "Folder with firebase-service-account.json and google-services.json (optional; empty = phones use UnifiedPush through ntfy)" ""
   API_KEY=$(new_key)
 
   FCM_LINES="#FCM_SERVICE_ACCOUNT_FILE=/secrets/firebase-service-account.json
