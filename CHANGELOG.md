@@ -16,6 +16,12 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
   it's there. "Skip for now" goes on without push (Settings → Notifications later).
 
+### Fixed
+
+- `hivepal doctor` judges push per phone: on a relay without Firebase it no longer warns that nothing
+  can be pushed (phones may use UnifiedPush); it warns for each phone that has no push channel, says
+  how to fix it, and shows how each phone is woken.
+
 ## [0.6.0] - 2026-11-19
 
 ### Security

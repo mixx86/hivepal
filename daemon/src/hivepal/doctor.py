@@ -94,12 +94,11 @@ def check_status(c: RelayClient, now_ms: int) -> list[Check]:
     else:
         out.append(Check(OK, "Versions", f"relay and CLI {version}"))
 
+    # Push is per phone: Firebase when the relay has it, or UnifiedPush (a distributor app) without it.
     if st.get("push_provider", "none") == "none":
-        out.append(Check(WARN, "Push", "no Firebase on the relay: the phone gets messages only while the app is open, "
-                         "and calls don't ring a locked phone",
-                         "Set it up: docs/firebase.md, then run the installer again and pair the phone again"))
+        out.append(Check(OK, "Push", "no Firebase on the relay: phones are woken through UnifiedPush (each phone below)"))
     else:
-        out.append(Check(OK, "Push", f"{st['push_provider']} configured"))
+        out.append(Check(OK, "Push", f"{st['push_provider']} configured, and UnifiedPush for phones that choose it"))
 
     features = st.get("features")
     if isinstance(features, dict):
@@ -129,14 +128,19 @@ def check_status(c: RelayClient, now_ms: int) -> list[Check]:
         return out
     for d in devices:
         seen = d.get("last_seen_at")
+        via = d.get("push_via") or ("fcm" if d.get("has_push_token") else "none")
         detail = f"{d.get('name', d['device_id'])}: last seen {_ago(seen, now_ms) if seen else 'never'}"
-        if st.get("push_provider", "none") != "none" and not d.get("has_push_token"):
-            out.append(Check(WARN, "Phone", detail + ", no push token yet",
-                             "Open the app once with notifications allowed; Status in the app says why if it stays"))
+        if via == "none":
+            fix = ("Open the app once with notifications allowed; Status in the app says why if it stays"
+                   if st.get("push_provider", "none") != "none" else
+                   "In the app: Settings → Notifications → Use UnifiedPush (with ntfy installed), or set up "
+                   "Firebase (docs/firebase.md)")
+            out.append(Check(WARN, "Phone", detail + ", no push channel: messages only while the app is open, "
+                             "and calls don't ring it when locked", fix))
         elif seen and now_ms - seen > 7 * DAY_MS:
             out.append(Check(WARN, "Phone", detail, "Open the app: if it can't connect, Status in the app says why"))
         else:
-            out.append(Check(OK, "Phone", detail))
+            out.append(Check(OK, "Phone", f"{detail}, woken through {'UnifiedPush' if via == 'unifiedpush' else 'Firebase'}"))
     return out
 
 
