@@ -495,37 +495,86 @@ private fun UpdatesCard() {
 private fun PushChannelCard() {
     val ctx = LocalContext.current
     val setup = dev.agentring.app.push.UnifiedPushSetup
+    // Firebase only works when the relay announced it at pairing (its own project, set up on the relay).
+    val fcmAvailable = Graph.pairing.current?.pushConfig != null
     var usingUp by remember { mutableStateOf(setup.endpoint(ctx) != null) }
     var note by remember { mutableStateOf<String?>(null) }
     val noDistributor = stringResource(R.string.push_up_none)
     val waiting = stringResource(R.string.push_up_waiting)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            stringResource(if (usingUp) R.string.push_via_up else R.string.push_via_fcm),
+            stringResource(
+                when {
+                    usingUp -> R.string.push_via_up
+                    fcmAvailable -> R.string.push_via_fcm
+                    else -> R.string.push_via_none
+                },
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (usingUp) {
-            OutlinedButton(
-                onClick = {
-                    kotlin.concurrent.thread { setup.disable(ctx) }
-                    usingUp = false
-                    note = null
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("push_use_fcm"),
-            ) { Text(stringResource(R.string.push_use_fcm)) }
-        } else {
-            OutlinedButton(
-                onClick = {
-                    val activity = ctx as? android.app.Activity ?: return@OutlinedButton
-                    setup.enable(activity) { ok ->
-                        usingUp = ok
-                        note = if (ok) waiting else noDistributor
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("push_use_up"),
-            ) { Text(stringResource(R.string.push_use_up)) }
+        PushOption(
+            title = stringResource(R.string.push_option_up),
+            badge = stringResource(R.string.push_recommended),
+            body = stringResource(R.string.push_option_up_body),
+            action = if (usingUp) null else stringResource(R.string.push_use_up),
+            tag = "push_use_up",
+        ) {
+            val activity = ctx as? android.app.Activity ?: return@PushOption
+            setup.enable(activity) { ok ->
+                usingUp = ok
+                note = if (ok) waiting else noDistributor
+            }
+        }
+        PushOption(
+            title = stringResource(R.string.push_option_fcm),
+            badge = null,
+            body = stringResource(if (fcmAvailable) R.string.push_option_fcm_body else R.string.push_option_fcm_missing),
+            action = when {
+                !fcmAvailable -> stringResource(R.string.push_fcm_howto)
+                usingUp -> stringResource(R.string.push_use_fcm)
+                else -> null
+            },
+            tag = "push_use_fcm",
+        ) {
+            if (!fcmAvailable) {
+                open(FIREBASE_GUIDE)
+            } else {
+                kotlin.concurrent.thread { setup.disable(ctx) }
+                usingUp = false
+                note = null
+            }
         }
         note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+/** Where the website explains setting up Firebase on the relay. */
+internal const val FIREBASE_GUIDE = "https://mixx86.github.io/hivepal-web/firebase/"
+
+/** One way to wake the phone: what it is, why, and its button (none when it's the one in use). */
+@Composable
+internal fun PushOption(title: String, badge: String?, body: String, action: String?, tag: String, onAction: () -> Unit) {
+    BrandCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                badge?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (action != null) {
+                OutlinedButton(onClick = onAction, modifier = Modifier.fillMaxWidth().height(44.dp).testTag(tag)) { Text(action) }
+            } else {
+                Text(stringResource(R.string.push_in_use), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+        }
     }
 }

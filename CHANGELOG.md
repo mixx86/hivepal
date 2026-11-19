@@ -15,17 +15,19 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - The app picks how it's woken: Firebase when the relay has it; without Firebase, the setup turns on
   UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
   it's there. "Skip for now" goes on without push (Settings → Notifications later).
-
-### Changed
-
 - App: screen titles ("Chats", "Settings"…) and "Hivepal" in the menu in solid brand blue instead of a
   gradient.
+- App, Settings → Notifications: both ways side by side, UnifiedPush (ntfy) marked recommended and
+  Firebase explained (on a relay without it, a link to setting it up); the setup's push step offers
+  Firebase as the alternative too.
 
 ### Fixed
 
 - `hivepal doctor` judges push per phone: on a relay without Firebase it no longer warns that nothing
   can be pushed (phones may use UnifiedPush); it warns for each phone that has no push channel, says
   how to fix it, and shows how each phone is woken.
+- App: Settings said the phone was woken through Firebase on a relay without Firebase; it now says
+  there's no push channel yet.
 
 ## [0.6.0] - 2026-11-19
 
