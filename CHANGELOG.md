@@ -12,6 +12,10 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- Installer: asks (optionally) for the email account wake-up emails are sent from and its password,
+  knows the mail server of common providers and builds `HIVEPAL_SMTP_URL` itself (no hand
+  URL-encoding); `./install.sh --email` sets it up or changes it on an existing install.
+
 - Installer: asks which voice AI answers calls (Gemini, recommended for its free tier, OpenAI, Grok,
   Phonic, OpenRouter, your own server, or none) and that provider's key, and configures the daemon
   for it; with another provider than Gemini it offers a Gemini key for voice-note transcripts.
