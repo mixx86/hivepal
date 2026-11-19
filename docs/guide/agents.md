@@ -35,6 +35,9 @@ hivepal bots remove nubi            # revoke its key (its messages stay)
     claude mcp add nubi -e HIVEPAL_HOME=$HOME/.hivepal-nubi -- hivepal mcp --agent-name Nubi
     ```
 
+    Or let hivepal do it: `hivepal connect claude-code` (also `codex`, `cursor`, `openclaw`,
+    `hermes`) registers the MCP server, installs the skill and lets the voice AI consult it on a call.
+
     The agent then has tools to message you, wait for your answer, schedule reminders and call you.
     More harnesses: [MCP recipes](../agents.md#recipes-by-harness).
 

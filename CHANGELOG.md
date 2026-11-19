@@ -18,6 +18,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   each piece, paired phones and a pairing QR, agents with ready-to-copy setup for the CLI, Claude Code
   and other harnesses or HTTP, and a test message and a test call. It adds no API: it uses the REST API
   with your key. The installer prints its address.
+- `hivepal connect claude-code|codex|cursor`, like `openclaw` and `hermes`: the MCP server (Claude
+  Code at user scope, Codex in `config.toml` keeping the rest, Cursor in `mcp.json`), the skill for
+  Claude Code, and consulting Claude Code or Codex from a call.
 - One-line install: `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh`
   (`sh -s -- --local` on your own computer) downloads the latest release and runs its installer with
   the published images, so nothing is built on the machine. `install.sh --images` does that from a

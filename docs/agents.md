@@ -213,8 +213,9 @@ you, and anything you can run as a command can be consulted from a call.
 
 | Harness | Setup |
 |---|---|
-| Claude Code | `claude mcp add hivepal -- hivepal mcp` |
-| Codex | `codex mcp add hivepal -- hivepal mcp`, then `tool_timeout_sec = 1800` under `[mcp_servers.hivepal]` in `~/.codex/config.toml` |
+| Claude Code | `hivepal connect claude-code`, or by hand: `claude mcp add hivepal -- hivepal mcp` |
+| Codex | `hivepal connect codex`, or by hand: `codex mcp add hivepal -- hivepal mcp`, then `tool_timeout_sec = 1800` under `[mcp_servers.hivepal]` in `~/.codex/config.toml` |
+| Cursor | `hivepal connect cursor` (writes `~/.cursor/mcp.json`) |
 | opencode | `opencode.json`: `"mcp": {"hivepal": {"type": "local", "command": ["hivepal", "mcp"], "timeout": 1800000}}` |
 | OpenClaw | `hivepal connect openclaw`, or by hand: `openclaw mcp set hivepal '{"command":"hivepal","args":["mcp"],"requestTimeoutMs":1800000}'` |
 | Hermes | `hivepal connect hermes`, or by hand in `~/.hermes/config.yaml`: `mcp_servers: {hivepal: {command: hivepal, args: [mcp], timeout: 1800}}` |
@@ -224,12 +225,12 @@ you, and anything you can run as a command can be consulted from a call.
 Add [`skills/hivepal`](../skills/hivepal) where the harness reads skills, so the
 agent knows when to message and when to call (`hivepal connect` does it for you).
 
-### `hivepal connect` (OpenClaw, Hermes)
+### `hivepal connect` (Claude Code, Codex, Cursor, OpenClaw, Hermes)
 
-One command sets up the whole thing for OpenClaw or Hermes, and is safe to run again:
+One command sets up the whole thing, and is safe to run again:
 
 ```bash
-hivepal connect openclaw                     # or: hivepal connect hermes
+hivepal connect claude-code                  # or: codex, cursor, openclaw, hermes
 hivepal connect hermes --dry-run             # show what would change
 HIVEPAL_API_KEY=ak_... hivepal connect hermes --url https://agentring.io/mcp   # hosted MCP server
 ```
@@ -241,10 +242,14 @@ HIVEPAL_API_KEY=ak_... hivepal connect hermes --url https://agentring.io/mcp   #
    as long as the conversation. With `--url`, the remote server instead: the key goes to
    the harness's `.env` (`~/.openclaw/.env`, `~/.hermes/.env`, mode 0600) and the config
    only says `Bearer ${HIVEPAL_API_KEY}`.
+   Claude Code: `claude mcp add-json hivepal … --scope user` (every project). Codex: the
+   `[mcp_servers.hivepal]` table in `~/.codex/config.toml` (the rest of the file is kept).
+   Cursor: `~/.cursor/mcp.json`. `--url` is for OpenClaw and Hermes only.
 2. **Skill.** Installs [`skills/hivepal`](../skills/hivepal) (OpenClaw: `openclaw skills
-   install --global`; Hermes: `~/.hermes/skills/hivepal`). `--no-skill` skips it.
-3. **Consult from a call.** Adds the harness to `~/.agentring/agents.yaml` with the
-   recipe below (comments in the file are kept). Not with `--url`: a remote server never
+   install --global`; Hermes: `~/.hermes/skills/hivepal`; Claude Code: `~/.claude/skills/hivepal`).
+   Codex and Cursor read the MCP server's own instructions. `--no-skill` skips it.
+3. **Consult from a call.** Adds the harness to `~/.agentring/agents.yaml` (Claude Code:
+   `claude -p`, Codex: `codex exec`; not Cursor) with the recipe below (comments in the file are kept). Not with `--url`: a remote server never
    runs commands. `--no-consult` skips it.
 
 Then OpenClaw picks the server up on the next turn (`openclaw mcp probe hivepal`
