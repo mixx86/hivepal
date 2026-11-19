@@ -63,9 +63,19 @@ class RelayApi(
     fun pair(req: PairRequest): PairResponse =
         call("POST", "/v1/pair", body(PairRequest.serializer(), req), PairResponse.serializer(), auth = false)
 
-    /** Hivepal: wake this device through UnifiedPush (the distributor's endpoint) instead of FCM. */
-    fun setUnifiedPush(endpoint: String) {
-        call<Unit>("POST", "/v1/device/unifiedpush", """{"endpoint":${ProtocolJson.encodeToString(kotlinx.serialization.serializer<String>(), endpoint)}}""".toRequestBody(JSON), null)
+    /**
+     * Hivepal: wake this device through UnifiedPush (the distributor's endpoint) instead of FCM. With
+     * the app's Web Push keys ([p256dh], [auth]) the relay encrypts every push for it (RFC 8291).
+     */
+    fun setUnifiedPush(endpoint: String, p256dh: String? = null, auth: String? = null) {
+        val body = kotlinx.serialization.json.buildJsonObject {
+            put("endpoint", kotlinx.serialization.json.JsonPrimitive(endpoint))
+            if (p256dh != null && auth != null) {
+                put("p256dh", kotlinx.serialization.json.JsonPrimitive(p256dh))
+                put("auth", kotlinx.serialization.json.JsonPrimitive(auth))
+            }
+        }
+        call<Unit>("POST", "/v1/device/unifiedpush", body.toString().toRequestBody(JSON), null)
     }
 
     /** Hivepal: back to FCM for this device. */

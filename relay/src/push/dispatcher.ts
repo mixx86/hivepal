@@ -89,9 +89,16 @@ export class PushDispatcher {
     if (!rule) return;
     const devices = this.db
       .prepare(
-        "SELECT device_id, push_secret, fcm_token, up_endpoint FROM devices WHERE revoked_at IS NULL AND (fcm_token IS NOT NULL OR up_endpoint IS NOT NULL)",
+        "SELECT device_id, push_secret, fcm_token, up_endpoint, up_p256dh, up_auth FROM devices WHERE revoked_at IS NULL AND (fcm_token IS NOT NULL OR up_endpoint IS NOT NULL)",
       )
-      .all() as Array<{ device_id: string; push_secret: string; fcm_token: string | null; up_endpoint: string | null }>;
+      .all() as Array<{
+      device_id: string;
+      push_secret: string;
+      fcm_token: string | null;
+      up_endpoint: string | null;
+      up_p256dh: string | null;
+      up_auth: string | null;
+    }>;
     // A targeted call's pushes only go to the phones it targets.
     const targets = event.type.startsWith("call.") ? this.getCall((event as { call_id: string }).call_id)?.device_ids : undefined;
     for (const d of devices) {
@@ -106,7 +113,15 @@ export class PushDispatcher {
       const column = viaUp ? "up_endpoint" : "fcm_token";
       const payload = buildPayload(this.relayId, d.push_secret, event);
       void provider
-        .send({ deviceId: d.device_id, token }, payload, rule)
+        .send(
+          {
+            deviceId: d.device_id,
+            token,
+            ...(viaUp && d.up_p256dh && d.up_auth ? { webPush: { p256dh: d.up_p256dh, auth: d.up_auth } } : {}),
+          },
+          payload,
+          rule,
+        )
         .then((res) => {
           if (res.ok) {
             this.log.debug({ device: d.device_id, event: event.type }, "push sent");

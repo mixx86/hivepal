@@ -125,7 +125,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. A 404 or 410 answer forgets the endpoint. Only `https://` endpoints on a public host are accepted. */
+        /** Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. With `p256dh` and `auth` (the app's Web Push keys) the body is encrypted for the app (RFC 8291, `aes128gcm`), so the distributor's server can't read it; without them it's sent as plain JSON. A 404 or 410 answer forgets the endpoint. Only `https://` endpoints on a public host are accepted. */
         post: operations["setUnifiedPushEndpoint"];
         /** Hivepal: back to FCM for this device (if it has a token). */
         delete: operations["clearUnifiedPushEndpoint"];
@@ -1623,6 +1623,10 @@ export interface operations {
                 "application/json": {
                     /** Format: uri */
                     endpoint: string;
+                    /** @description The app's P-256 public key, uncompressed, base64url (Web Push `p256dh`). */
+                    p256dh?: string;
+                    /** @description The app's 16-byte authentication secret, base64url (Web Push `auth`). */
+                    auth?: string;
                 };
             };
         };

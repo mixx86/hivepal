@@ -10,6 +10,11 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Security
+
+- UnifiedPush pushes are encrypted for the app (Web Push, RFC 8291), so the distributor's server (ntfy.sh,
+  say) can't read them: the app gives the relay its Web Push keys along with the endpoint.
+
 ### Added
 
 - "Ring me in 10 s" at the end of the app's setup and in Settings: the relay rings the phone as a call
