@@ -20,7 +20,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   Phonic, OpenRouter, your own server, or none) and that provider's key, and configures the daemon
   for it; with another provider than Gemini it offers a Gemini key for voice-note transcripts.
   Unattended: `HIVEPAL_VOICE_PROVIDER`, `HIVEPAL_VOICE_API_KEY`, `HIVEPAL_VOICE_URL`.
-
+- `hivepal mailbox DIR --install`: runs it every minute from now on with this agent's key (one line in
+  your crontab per agent and folder, replaced when installed again), then once; `--uninstall` stops it.
 - App, Settings → Updates on a preview build: compares it with the latest `android-preview` build and
   offers its APK, which installs over the app and keeps everything (before, previews were only told
   they're another channel). The Obtainium link shows only on release builds, which it can update.

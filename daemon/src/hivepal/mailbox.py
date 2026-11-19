@@ -161,3 +161,48 @@ def git_publish(root: Path, files: list[Path], message: str) -> None:
     git("commit", "-q", "-m", message, "--", *rel)
     git("pull", "-q", "--rebase", "--autostash")
     git("push", "-q")
+
+
+# ---------- running it every minute (crontab) ----------
+
+_MARK = "# hivepal mailbox: "
+
+
+def cron_line(hivepal_bin: str, home: Path, root: Path, git: bool) -> str:
+    """The crontab line that runs `hivepal mailbox` every minute for this agent and folder, logging
+    to the agent's home. Its trailing marker names the home and folder, so installing again replaces it."""
+    import shlex
+
+    q = shlex.quote
+    cmd = (f"HIVEPAL_HOME={q(str(home))} {q(hivepal_bin)} mailbox {q(str(root))}{' --git' if git else ''}"
+           f" >> {q(str(home / 'mailbox.log'))} 2>&1")
+    # cron reads % as a newline unless escaped.
+    return f"* * * * * {cmd.replace('%', chr(92) + '%')} {_MARK}{home} -> {root}"
+
+
+def with_line(crontab: str, line: str | None, home: Path, root: Path) -> str:
+    """The crontab with this agent and folder's line replaced by `line` (removed when None); the rest kept."""
+    mark = f"{_MARK}{home} -> {root}"
+    kept = [ln for ln in crontab.splitlines() if not ln.endswith(mark)]
+    if line:
+        kept.append(line)
+    return "\n".join(kept) + ("\n" if kept else "")
+
+
+def _crontab() -> str:
+    r = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    # No crontab yet: `crontab -l` fails with "no crontab for <user>".
+    return r.stdout if r.returncode == 0 else ""
+
+
+def set_cron(line: str | None, home: Path, root: Path) -> None:
+    """Installs (or, with None, removes) the line in the user's crontab. Raises OSError without cron."""
+    import shutil
+
+    if not shutil.which("crontab"):
+        raise OSError("there's no crontab command here: install cron, or run the line above from a timer")
+    new = with_line(_crontab(), line, home, root)
+    r = subprocess.run(["crontab", "-"], input=new, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise OSError(r.stderr.strip() or "crontab refused the new table")
+

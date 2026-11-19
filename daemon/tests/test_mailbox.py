@@ -140,3 +140,25 @@ def test_mailbox_command_against_the_relay(relay: str, tmp_path: Path, monkeypat
     assert "No new messages." in cli(nubi, "mailbox", str(box))
     # The mailbox doesn't take the message away from `hivepal replies`.
     assert [r["text"] for r in json.loads(cli(nubi, "replies", "--json"))["replies"]] == ["para Nubi"]
+
+
+def test_cron_line_replaces_its_own_entry_only(tmp_path):
+    from pathlib import Path
+
+    from hivepal import mailbox as mb
+
+    home, root = Path("/home/me/.hivepal-nubi"), Path("/home/me/notes/mailbox")
+    line = mb.cron_line("/home/me/.local/bin/hivepal", home, root, git=True)
+    assert line.startswith("* * * * * HIVEPAL_HOME=/home/me/.hivepal-nubi /home/me/.local/bin/hivepal mailbox /home/me/notes/mailbox --git")
+    assert ">> /home/me/.hivepal-nubi/mailbox.log 2>&1" in line
+    other = "0 3 * * * backup.sh"
+    tab = mb.with_line(other + "\n", line, home, root)
+    assert tab == f"{other}\n{line}\n"
+    # Installing again replaces it, another agent's line stays, and uninstalling removes only it.
+    coach = mb.cron_line("/usr/bin/hivepal", Path("/home/me/.hivepal-coach"), root, git=False)
+    tab = mb.with_line(tab, coach, Path("/home/me/.hivepal-coach"), root)
+    tab = mb.with_line(tab, line.replace(" --git", ""), home, root)
+    assert tab.count("hivepal-nubi /") == 1 and "--git >>" not in tab.split(coach)[1] and coach in tab
+    assert mb.with_line(tab, None, home, root) == f"{other}\n{coach}\n"
+    # Spaces in paths are quoted for the shell.
+    assert "'/home/me/my notes'" in mb.cron_line("/usr/bin/hivepal", home, Path("/home/me/my notes"), git=False)
