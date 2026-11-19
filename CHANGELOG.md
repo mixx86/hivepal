@@ -35,6 +35,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - Pairing from the phone's camera: `hivepal pair` shows a link (`<relay>/pair#<code>`, the new
   `qr_url`) whose page offers to install the app and opens it with the code; the app shows which relay
   and asks before pairing (`hivepal://pair` links). The app still reads the old QR and pasted codes.
+- `hivepal doctor`: checks the relay (reachable, HTTPS certificate, clock), the key, versions, push,
+  calls, voice and the paired phones, and says how to fix each problem. The relay's status now says
+  what it's configured for (`features`: calls, voice, wake-up emails) to agents.
 
 ### Fixed
 

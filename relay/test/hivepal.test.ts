@@ -410,3 +410,13 @@ describe("web panel", () => {
     expect(r.headers["x-robots-tag"]).toBe("noindex");
   });
 });
+
+describe("status features", () => {
+  it("an agent learns what the relay is configured for; a phone doesn't", async () => {
+    b = await setup();
+    const st = (await b.app.inject({ method: "GET", url: "/v1/status", headers: AGENT })).json();
+    expect(st.features).toEqual({ calls: expect.any(Boolean), voice: expect.any(Boolean), wake_email: expect.any(Boolean) });
+    const dev = await pairDevice(b);
+    expect((await b.app.inject({ method: "GET", url: "/v1/status", headers: dev.headers })).json().features).toBeUndefined();
+  });
+});

@@ -733,6 +733,26 @@ def mailbox(
 
 
 @app.command()
+def doctor(json_out: JsonOpt = False) -> None:
+    """Check that everything works (relay, HTTPS, key, push, calls, voice, phones) and say how to fix what doesn't."""
+    from . import doctor as dr
+
+    checks = dr.run()
+    if json_out:
+        _emit_json(dr.as_json(checks))
+    else:
+        mark = {dr.OK: ("✓", typer.colors.GREEN), dr.WARN: ("!", typer.colors.YELLOW), dr.FAIL: ("✗", typer.colors.RED)}
+        for c in checks:
+            sym, color = mark[c.status]
+            typer.secho(f"{sym} ", fg=color, nl=False)
+            typer.echo(f"{c.name}: {c.detail}")
+            if c.fix and c.status != dr.OK:
+                typer.echo(f"    → {c.fix}")
+    if any(c.status == dr.FAIL for c in checks):
+        raise typer.Exit(1)
+
+
+@app.command()
 def status(json_out: JsonOpt = False) -> None:
     """Relay connection and paired devices."""
     s = _settings()

@@ -1364,6 +1364,17 @@ components:
         device_count:
           description: Only returned to the agent.
           type: integer
+        features:
+          description: >-
+            Hivepal, only returned to an agent: what this relay is configured for. `calls`: LiveKit is
+            set up. `voice`: Gemini is set up (voice notes, transcripts). `wake_email`: SMTP is set up
+            (wake-up emails). Push is `push_provider`.
+          type: object
+          required: [calls, voice, wake_email]
+          properties:
+            calls: { type: boolean }
+            voice: { type: boolean }
+            wake_email: { type: boolean }
         self:
           description: Only returned to an agent; the agent the key belongs to.
           type: object
