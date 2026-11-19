@@ -26,6 +26,7 @@ take `--json` for machine-readable output.
 | `  --reply-to msg_…` | Answer a specific message. |
 | `hivepal replies` | New answers from the user (and from groups/agents), with voice-note transcripts. `--peek` doesn't mark them seen. |
 | `hivepal file <file_id>` | Download a photo or audio the user sent. |
+| `hivepal mailbox DIR` | Write new messages as Markdown files in `DIR/<agent id>/`, one per message ([mailbox files](../guide/agents.md#mailbox-files)). `--git` commits and pushes them; `--since` sets where a new mailbox starts (default `1d`). |
 
 ## Reminders
 

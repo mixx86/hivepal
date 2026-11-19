@@ -672,6 +672,66 @@ def replies(
 
 
 @app.command()
+def mailbox(
+    folder: Annotated[str, typer.Argument(help="The mailboxes folder: each agent's files go in <folder>/<agent id>/.")],
+    since: Annotated[
+        str, typer.Option("--since", help="On the first run in this folder, start from: 10m, 2h, 1d, epoch ms or ISO date.")
+    ] = "1d",
+    git: Annotated[bool, typer.Option("--git", help="Commit the new files in the folder's git repository and push.")] = False,
+    json_out: JsonOpt = False,
+) -> None:
+    """Write your new messages as Markdown files, one per message, in your mailbox folder.
+
+    For agents that read a folder (a notes repo, say) instead of running `hivepal replies`. Run it
+    from cron or a timer. It doesn't mark messages as seen for `replies`."""
+    from pathlib import Path
+
+    from . import mailbox as mb
+
+    s = _settings()
+    root = Path(folder).expanduser()
+    store = Store(s.db_path)
+    names: dict[str, str] = {}
+    try:
+        with _client(s) as c:
+            try:
+                catch_up(c, store)
+            except RelayError as e:
+                raise _fail(str(e)) from None
+            rows = mb.pending(store, root, parse_since(since))
+            if any((r["conv"] or "").startswith(("group:", "bots:")) for r in rows):
+                try:
+                    names = {f"agent:{a['agent_id']}": a["name"] for a in c.list_agents()}
+                    names.update({f"group:{g['group_id']}": g["name"] for g in c.list_groups()})
+                except RelayError:
+                    pass  # names are cosmetic; ids are shown instead
+
+            def transcript(file_id: str) -> str | None:
+                try:
+                    return c.transcript(file_id)
+                except RelayError:
+                    return None
+
+            written = mb.write(store, root, rows, names, transcript)
+        me = store.self_agent_id
+    finally:
+        store.close()
+    if git and written:
+        try:
+            mb.git_publish(root, [w.path for w in written],
+                           f"mailbox/{me}: {len(written)} message{'s' if len(written) != 1 else ''}")
+        except (mb.GitError, OSError) as e:
+            raise _fail(f"the files are written, but publishing them failed: {e}") from None
+    if json_out:
+        _emit_json({"written": [{"msg_id": w.msg_id, "path": str(w.path)} for w in written]})
+        return
+    for w in written:
+        typer.echo(str(w.path))
+    if not written:
+        typer.echo("No new messages.")
+
+
+@app.command()
 def status(json_out: JsonOpt = False) -> None:
     """Relay connection and paired devices."""
     s = _settings()

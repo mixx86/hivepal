@@ -79,6 +79,8 @@ You are Planner, one of my support agents. Your job: <one or two sentences>.
 ## 4. Routines that work
 
 - **Hourly**: `hivepal replies`, read your mailbox, answer. Nothing to do → do nothing.
+  `hivepal mailbox` can also drop what you write to an agent into its mailbox as files
+  ([mailbox files](agents.md#mailbox-files)).
 - **Plans with buttons**: `hivepal msg "Gym at 18:00?" -o "Yes" -o "Move it"` — one tap beats typing.
 - **Insist only where it matters**: `hivepal remind --at 17:45 "Gym in 15" --insist 10m --call`.
 - **Wake-up emails** so an agent answers in seconds instead of within the hour:

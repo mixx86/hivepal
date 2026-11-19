@@ -121,8 +121,9 @@ class Store:
         self.db.execute("UPDATE messages SET read_at = COALESCE(read_at, ?) WHERE msg_id = ?", (ts, msg_id))
 
     def replies(self, *, since: int | None = None, undelivered_only: bool = False, limit: int = 100,
-                conv: str | None = None) -> list[dict[str, Any]]:
-        """Messages for this agent: the user's, and in a group also the other agents'."""
+                conv: str | None = None, after: str | None = None) -> list[dict[str, Any]]:
+        """Messages for this agent: the user's, and in a group also the other agents'.
+        `after`: only messages with a later id (ids sort by time)."""
         me = self.self_agent_id
         # Not our own messages, and not another agent's conversation: a mirror that was filled with
         # the relay's shared key (before this agent had its own) holds those, as agent:main.
@@ -136,6 +137,9 @@ class Store:
         if since is not None:
             q += " AND created_at >= ?"
             args.append(since)
+        if after is not None:
+            q += " AND msg_id > ?"
+            args.append(after)
         if undelivered_only:
             q += " AND delivered_at IS NULL"
         q += " ORDER BY msg_id LIMIT ?"
