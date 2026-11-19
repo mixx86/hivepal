@@ -15,7 +15,6 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - Installer: asks (optionally) for the email account wake-up emails are sent from and its password,
   knows the mail server of common providers and builds `HIVEPAL_SMTP_URL` itself (no hand
   URL-encoding); `./install.sh --email` sets it up or changes it on an existing install.
-
 - Installer: asks which voice AI answers calls (Gemini, recommended for its free tier, OpenAI, Grok,
   Phonic, OpenRouter, your own server, or none) and that provider's key, and configures the daemon
   for it; with another provider than Gemini it offers a Gemini key for voice-note transcripts.
@@ -25,6 +24,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - App, Settings → Updates on a preview build: compares it with the latest `android-preview` build and
   offers its APK, which installs over the app and keeps everything (before, previews were only told
   they're another channel). The Obtainium link shows only on release builds, which it can update.
+- App, Settings → Backup: save the app's settings to a file and restore them (language, pinned and
+  muted chats, call settings, connected subscription services), for moving between the preview and
+  release builds or to another phone. The pairing isn't in the file: pair again with the QR.
 - The app picks how it's woken: Firebase when the relay has it; without Firebase, the setup turns on
   UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
   it's there. "Skip for now" goes on without push (Settings → Notifications later).

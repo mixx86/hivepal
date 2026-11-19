@@ -219,6 +219,12 @@
     <string name="updates_failed">Installed: Hivepal %1$s. Couldn\'t reach GitHub to check.</string>
     <string name="updates_not_release">This app was built with local changes (%1$s): update it the way you built it (scripts/build-app.sh).</string>
     <string name="updates_obtainium">Get updates automatically with Obtainium</string>
+    <string name="backup">Backup</string>
+    <string name="backup_body">Your settings in a file: language, chat pins and mutes, call settings and connected subscription services. Not the pairing (pair again with the QR) and not the logins inside Subscriptions.</string>
+    <string name="backup_save">Save settings to a file</string>
+    <string name="backup_restore">Restore from a file</string>
+    <string name="backup_saved">Saved. Keep the file somewhere you can reach from the new install.</string>
+    <string name="backup_failed">Couldn\'t do it: %1$s</string>
     <string name="perm_notifications_why">To show messages and incoming calls.</string>
     <string name="perm_microphone_why">So your agent can hear you.</string>
     <string name="perm_full_screen_why">Shows the call screen over the lock screen.</string>

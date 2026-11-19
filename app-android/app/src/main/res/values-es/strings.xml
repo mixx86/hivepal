@@ -208,6 +208,12 @@
     <string name="updates_failed">Instalada: Hivepal %1$s. No se pudo consultar GitHub.</string>
     <string name="updates_not_release">Esta app se compiló con cambios locales (%1$s): actualízala igual que la compilaste (scripts/build-app.sh).</string>
     <string name="updates_obtainium">Actualizaciones automáticas con Obtainium</string>
+    <string name="backup">Copia de seguridad</string>
+    <string name="backup_body">Tus ajustes en un archivo: idioma, chats fijados y silenciados, ajustes de llamadas y servicios de suscripción conectados. No el emparejamiento (vuelve a emparejar con el QR) ni los inicios de sesión de Suscripciones.</string>
+    <string name="backup_save">Guardar ajustes en un archivo</string>
+    <string name="backup_restore">Restaurar desde un archivo</string>
+    <string name="backup_saved">Guardado. Deja el archivo donde puedas abrirlo desde la nueva instalación.</string>
+    <string name="backup_failed">No se pudo: %1$s</string>
     <string name="perm_notifications_why">Para mostrar mensajes y llamadas entrantes.</string>
     <string name="perm_microphone_why">Para que tu agente te oiga.</string>
     <string name="perm_full_screen_why">Muestra la llamada sobre la pantalla de bloqueo.</string>
