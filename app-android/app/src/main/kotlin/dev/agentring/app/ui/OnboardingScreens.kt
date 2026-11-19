@@ -545,6 +545,7 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
         OutlinedButton(onClick = { Notifications.showTest(ctx) }, modifier = Modifier.fillMaxWidth().testTag("test_notification")) {
             Text(stringResource(R.string.test_notification))
         }
+        TestCallButton()
     }
 }
 

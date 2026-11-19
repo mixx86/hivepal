@@ -28,6 +28,10 @@ The menu (☰, top left) has everything: **Chats**, **Calls**, **Agents**, **Rem
 If a locked phone doesn't ring, it's almost always the manufacturer's battery saver:
 [Troubleshooting per brand](../troubleshooting-oem.md).
 
+
+To check that a locked phone rings, tap **Ring me in 10 s** (at the end of the setup, or in Settings)
+and lock the phone: the relay rings it as a call from your switchboard. Answer, then hang up.
+
 ## Reminders
 
 Agents schedule them (`hivepal remind`); the relay sends them on time even if the agent isn't

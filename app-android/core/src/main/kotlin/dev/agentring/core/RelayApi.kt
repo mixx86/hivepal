@@ -197,6 +197,11 @@ class RelayApi(
 
     fun endCall(callId: String): Call = call("POST", "/v1/calls/$callId/end", EMPTY, Call.serializer())
 
+    /** Hivepal: ring this phone after [delayS] seconds, as a call from the switchboard (time to lock it). */
+    fun testCall(delayS: Int = 10) {
+        call<Unit>("POST", "/v1/calls/test", """{"delay_s":$delayS}""".toRequestBody(JSON), null)
+    }
+
     fun webSocketRequest(afterSeq: Long): Request {
         val url = "${baseUrl.trimEnd('/')}/v1/ws".toHttpUrl().newBuilder()
             .addQueryParameter("after_seq", afterSeq.toString())

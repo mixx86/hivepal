@@ -189,6 +189,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calls/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal, device only: ring this phone after `delay_s` seconds, as a call from the main agent (the switchboard), so the user can lock it first and see it ring like a real call. Nobody else joins: hang up when done. The usual rules apply when it starts (one call at a time, limits). */
+        post: operations["testCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/calls/{call_id}": {
         parameters: {
             query?: never;
@@ -1684,6 +1701,55 @@ export interface operations {
             };
             429: components["responses"]["RateLimited"];
             /** @description `agent_offline` (device caller, no daemon connected) or `calls_unavailable` (LiveKit is not configured on this relay). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    testCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default 10 */
+                    delay_s?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description It will ring at `at`. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        at: components["schemas"]["Timestamp"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Another call is ringing or active. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Calls are not configured on this relay. */
             503: {
                 headers: {
                     [name: string]: unknown;

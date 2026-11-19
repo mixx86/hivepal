@@ -71,6 +71,9 @@
     <string name="settings_agent">Agent</string>
     <string name="settings_device">Device ID</string>
     <string name="test_notification">Send a test notification</string>
+    <string name="test_call">Ring me in 10 s</string>
+    <string name="test_call_armed">Lock the phone now: it rings in 10 seconds, like a real call. Answer, then hang up.</string>
+    <string name="test_call_unavailable">Calls aren\'t set up on the relay (LiveKit).</string>
     <string name="unpair">Unpair this phone</string>
     <string name="unpair_confirm">Forget the pairing on this phone? To also revoke it on the relay run: hivepal devices revoke %1$s</string>
     <string name="cancel">Cancel</string>

@@ -27,7 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -164,5 +166,42 @@ fun CallReadinessCard(modifier: Modifier = Modifier, showHeader: Boolean = true)
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
+    }
+}
+
+
+/**
+ * Hivepal: "Ring me in 10 s". The relay rings this phone as a call from the switchboard after the
+ * delay, so the user can lock it and see that a locked phone rings like a real call.
+ */
+@Composable
+fun TestCallButton(modifier: Modifier = Modifier) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var state by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val armed = stringResource(R.string.test_call_armed)
+    val unavailable = stringResource(R.string.test_call_unavailable)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        androidx.compose.material3.OutlinedButton(
+            enabled = !busy,
+            onClick = {
+                busy = true
+                scope.launch {
+                    state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            dev.agentring.app.Graph.api()?.testCall(10)
+                            armed
+                        } catch (e: dev.agentring.core.RelayException) {
+                            if (e.status == 503) unavailable else e.message
+                        } catch (e: Exception) {
+                            e.message ?: e.javaClass.simpleName
+                        }
+                    }
+                    busy = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("test_call"),
+        ) { Text(stringResource(R.string.test_call)) }
+        state?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

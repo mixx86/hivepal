@@ -440,4 +440,31 @@ describe("calls", () => {
       expect(replay.map((f) => f.type)).toEqual(["ws.hello", "msg.new", "agent.presence"]);
     });
   });
+
+  it("test call: a phone asks, and after the delay only that phone rings, from the switchboard", async () => {
+    const b = await app();
+    const a = await pairDevice(b, "Pixel");
+    const other = await pairDevice(b, "Tablet", "fcm-tok-2");
+    expect((await b.app.inject({ method: "POST", url: "/v1/calls/test", headers: AGENT, payload: {} })).statusCode).toBe(403);
+    const r = await b.app.inject({ method: "POST", url: "/v1/calls/test", headers: a.headers, payload: { delay_s: 0 } });
+    expect(r.statusCode).toBe(202);
+    const invite = eventsOf(b).find((e) => e.type === "call.invite") as { device_ids?: string[]; agent_id: string; reason: string };
+    expect(invite.device_ids).toEqual([a.device_id]);
+    expect(invite.agent_id).toBe("main");
+    expect(invite.reason).toMatch(/Test call/);
+    expect(other.device_id).not.toBe(a.device_id);
+    // One call at a time.
+    expect((await b.app.inject({ method: "POST", url: "/v1/calls/test", headers: a.headers, payload: { delay_s: 0 } })).statusCode).toBe(409);
+  });
+
+  it("test call: waits for the delay", async () => {
+    const b = await app();
+    const a = await pairDevice(b);
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    const r = await b.app.inject({ method: "POST", url: "/v1/calls/test", headers: a.headers, payload: { delay_s: 10 } });
+    expect(r.statusCode).toBe(202);
+    expect(eventsOf(b).some((e) => e.type === "call.invite")).toBe(false);
+    vi.advanceTimersByTime(10_000);
+    expect(eventsOf(b).some((e) => e.type === "call.invite")).toBe(true);
+  });
 });

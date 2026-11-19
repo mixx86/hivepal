@@ -9,7 +9,8 @@ phone. **Status** in the app says whether pushes work.
 
 1. In the app: **Settings → Calls** shows what's missing (notifications, full-screen calls, battery).
 2. The manufacturer's battery saver kills it: [per brand](troubleshooting-oem.md).
-3. Test: `hivepal call "test"` with the screen off.
+3. Test: **Ring me in 10 s** (at the end of the setup, or in Settings), then lock the phone; or
+   `hivepal call "test"` with the screen off.
 
 ## "refusing plain http://"
 
