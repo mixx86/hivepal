@@ -8,7 +8,10 @@
 #                           instead of building them here (what scripts/get.sh, the one-line install, does)
 #
 # It asks only what it can't guess. Answers can come from the environment instead (then add --yes):
-#   HIVEPAL_DOMAIN, HIVEPAL_HOST_IP (--local), HIVEPAL_AGENT_NAME, HIVEPAL_GEMINI_API_KEY,
+#   HIVEPAL_DOMAIN, HIVEPAL_HOST_IP (--local), HIVEPAL_AGENT_NAME,
+#   HIVEPAL_VOICE_PROVIDER (gemini, openai, grok, phonic, openrouter, local or none; default gemini),
+#   HIVEPAL_VOICE_API_KEY (that provider's key; for gemini, HIVEPAL_GEMINI_API_KEY), HIVEPAL_VOICE_URL
+#   (local), HIVEPAL_GEMINI_API_KEY (voice-note transcripts with any provider),
 #   HIVEPAL_FIREBASE_DIR (a folder with firebase-service-account.json and google-services.json),
 #   HIVEPAL_SMTP_URL.
 # Running it again keeps the existing configuration and just updates and restarts everything.
@@ -24,7 +27,7 @@ for a in "$@"; do
     --local) MODE=local ;;
     --yes | -y) YES=1 ;;
     --images) IMAGES=1 ;;
-    -h | --help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $a (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -59,6 +62,42 @@ is_public() {
   case "$1" in
     "" | 10.* | 127.* | 169.254.* | 192.168.* | 172.1[6-9].* | 172.2[0-9].* | 172.3[01].* | 100.6[4-9].* | 100.[7-9][0-9].* | 100.1[01][0-9].* | 100.12[0-7].*) return 1 ;;
   esac
+}
+
+# The daemon's variable for each voice provider's key (the local server's is optional).
+voice_key_var() {
+  case "$1" in
+    gemini) echo GEMINI_API_KEY ;; openai) echo OPENAI_API_KEY ;; grok) echo XAI_API_KEY ;;
+    phonic) echo PHONIC_API_KEY ;; openrouter) echo OPENROUTER_API_KEY ;; local) echo HIVEPAL_VOICE_KEY ;;
+  esac
+}
+
+# The voice lines for the daemon's .env (secrets: printed for a pipe, never passed as arguments).
+voice_env() {
+  local p=${HIVEPAL_VOICE_PROVIDER:-gemini} key=${HIVEPAL_VOICE_API_KEY:-}
+  [[ $p == none ]] && p=""
+  [[ -n "${HIVEPAL_GEMINI_API_KEY:-}" ]] && echo "GEMINI_API_KEY=$HIVEPAL_GEMINI_API_KEY"
+  [[ -z "$p" ]] && return 0
+  if [[ $p == gemini ]]; then key=${HIVEPAL_GEMINI_API_KEY:-}; else [[ -n "$key" ]] && echo "$(voice_key_var "$p")=$key"; fi
+  [[ -n "$key" || $p == local ]] || return 0
+  echo "HIVEPAL_VOICE_PROVIDER=$p"
+  [[ $p == local && -n "${HIVEPAL_VOICE_URL:-}" ]] && echo "HIVEPAL_VOICE_URL=$HIVEPAL_VOICE_URL"
+  return 0
+}
+
+# Whether a voice AI is set up (so `serve --ai` can answer calls).
+voice_ready() { voice_env | grep -q '^HIVEPAL_VOICE_PROVIDER='; }
+
+# Merges KEY=value lines from stdin into the env file $1 (replacing those keys, keeping the rest).
+merge_env() {
+  local f=$1 new; new=$(cat)
+  [[ -z "$new" ]] && return 0
+  local pat; pat=$(printf '%s\n' "$new" | sed 's/=.*//; s/^/^/; s/$/=/')
+  mkdir -p "$(dirname "$f")"
+  umask 077
+  { grep -v -f <(printf '%s\n' "$pat") "$f" 2>/dev/null || true; printf '%s\n' "$new"; } > "$f.new"
+  mv "$f.new" "$f"
+  umask 022
 }
 
 # set_env VAR VALUE: writes VAR=VALUE in the env file (replacing it); set_env VAR removes it.
@@ -101,7 +140,26 @@ else
     [[ -n "${HIVEPAL_HOST_IP:-}" ]] || die "an IP is needed"
   fi
   ask HIVEPAL_AGENT_NAME "Name of the voice switchboard that answers your calls" "Centralita"
-  ask HIVEPAL_GEMINI_API_KEY "API key for the voice AI: Gemini, free tier at https://aistudio.google.com/apikey (empty = no voice AI, or another provider later: docs/voice.md)" "" secret
+  # The voice AI: Gemini by default (free tier, and the relay uses it for voice-note transcripts).
+  while :; do
+    ask HIVEPAL_VOICE_PROVIDER "Voice AI for calls: gemini (free tier, recommended), openai, grok, phonic, openrouter, local (your own server) or none" "gemini"
+    case "$HIVEPAL_VOICE_PROVIDER" in gemini | openai | grok | phonic | openrouter | local | none) break ;; esac
+    [[ $YES == 1 || ! -t 0 ]] && die "unknown voice provider: $HIVEPAL_VOICE_PROVIDER"
+    echo "Pick one of the list."; unset HIVEPAL_VOICE_PROVIDER
+  done
+  case "$HIVEPAL_VOICE_PROVIDER" in
+    gemini) ask HIVEPAL_GEMINI_API_KEY "Gemini API key (free at https://aistudio.google.com/apikey; empty = no voice AI)" "" secret ;;
+    openai) ask HIVEPAL_VOICE_API_KEY "OpenAI API key (https://platform.openai.com/api-keys)" "" secret ;;
+    grok) ask HIVEPAL_VOICE_API_KEY "xAI API key (https://console.x.ai)" "" secret ;;
+    phonic) ask HIVEPAL_VOICE_API_KEY "Phonic API key (https://phonic.co)" "" secret ;;
+    openrouter) ask HIVEPAL_VOICE_API_KEY "OpenRouter API key (https://openrouter.ai/keys)" "" secret ;;
+    local)
+      ask HIVEPAL_VOICE_URL "Address of your OpenAI-Realtime-compatible server$([[ $MODE == server ]] && echo " (as the daemon's container sees it)")" "ws://127.0.0.1:8765/v1/realtime"
+      ask HIVEPAL_VOICE_API_KEY "Its key, if it asks for one" "" secret ;;
+  esac
+  if [[ $HIVEPAL_VOICE_PROVIDER != gemini ]]; then
+    ask HIVEPAL_GEMINI_API_KEY "Gemini API key for voice-note transcripts (optional; free at https://aistudio.google.com/apikey)" "" secret
+  fi
   ask HIVEPAL_FIREBASE_DIR "Folder with firebase-service-account.json and google-services.json (optional; empty = phones use UnifiedPush through ntfy)" ""
   API_KEY=$(new_key)
 
@@ -126,8 +184,11 @@ FCM_GOOGLE_SERVICES_FILE=/secrets/google-services.json"
     echo "LIVEKIT_NODE_IP="
     echo "$FCM_LINES"
     echo "HIVEPAL_GEMINI_API_KEY=${HIVEPAL_GEMINI_API_KEY:-}"
+    echo "HIVEPAL_VOICE_PROVIDER=$HIVEPAL_VOICE_PROVIDER"
+    [[ -n "${HIVEPAL_VOICE_API_KEY:-}" ]] && echo "HIVEPAL_VOICE_API_KEY=$HIVEPAL_VOICE_API_KEY"
+    [[ -n "${HIVEPAL_VOICE_URL:-}" ]] && echo "HIVEPAL_VOICE_URL=$HIVEPAL_VOICE_URL"
     echo "HIVEPAL_SMTP_URL=${HIVEPAL_SMTP_URL:-}"
-    [[ $MODE == server && -n "${HIVEPAL_GEMINI_API_KEY:-}" ]] && echo "HIVEPAL_SERVE_FLAGS=--ai"
+    [[ $MODE == server ]] && voice_ready && echo "HIVEPAL_SERVE_FLAGS=--ai"
   } > "$ENV_FILE"
   umask 022
   echo "Saved in $ENV_FILE (keep it private: it has the relay's API key)."
@@ -161,9 +222,11 @@ if [[ $MODE == server ]]; then
     sleep 2
   done || true
   "${COMPOSE[@]}" exec -T daemon hivepal init --relay "$RELAY_INSIDE" --api-key "$API_KEY"
-  if [[ -n "${HIVEPAL_GEMINI_API_KEY:-}" ]]; then
-    printf '%s' "$HIVEPAL_GEMINI_API_KEY" | "${COMPOSE[@]}" exec -T daemon sh -c \
-      'umask 077; k=$(cat); { grep -v "^GEMINI_API_KEY=" /config/.env 2>/dev/null; echo "GEMINI_API_KEY=$k"; } > /tmp/env && cat /tmp/env > /config/.env && rm /tmp/env'
+  # The voice AI's provider and keys, into the daemon's .env (through stdin: no secret in argv).
+  if [[ -n "$(voice_env)" ]]; then
+    voice_env | "${COMPOSE[@]}" exec -T daemon sh -c \
+      'umask 077; cat > /tmp/new; sed "s/=.*//; s/^/^/; s/\$/=/" /tmp/new > /tmp/pat
+       { grep -v -f /tmp/pat /config/.env 2>/dev/null; cat /tmp/new; } > /tmp/env && cat /tmp/env > /config/.env; rm -f /tmp/env /tmp/new /tmp/pat'
   fi
   "${COMPOSE[@]}" restart daemon >/dev/null
   HIVEPAL=("${COMPOSE[@]}" exec daemon hivepal)
@@ -180,13 +243,7 @@ else
   BIN=$(uv tool dir --bin)/hivepal
   for _ in $(seq 1 30); do curl -fsS "$PUBLIC/healthz" >/dev/null 2>&1 && break; sleep 2; done
   "$BIN" init --relay "$PUBLIC" --api-key "$API_KEY"
-  if [[ -n "${HIVEPAL_GEMINI_API_KEY:-}" ]]; then
-    home=${HIVEPAL_HOME:-$HOME/.agentring}
-    umask 077
-    { grep -v '^GEMINI_API_KEY=' "$home/.env" 2>/dev/null || true; echo "GEMINI_API_KEY=$HIVEPAL_GEMINI_API_KEY"; } > "$home/.env.new"
-    mv "$home/.env.new" "$home/.env"
-    umask 022
-  fi
+  voice_env | merge_env "${HIVEPAL_HOME:-$HOME/.agentring}/.env"
   HIVEPAL=("$BIN")
   # Shorter instructions when the CLI is already on the PATH.
   [[ "$(command -v hivepal 2>/dev/null)" == "$BIN" ]] && { BIN=hivepal; HIVEPAL=(hivepal); }
@@ -210,7 +267,7 @@ Next:
   2. Pair the phone: ${HIVEPAL[*]} pair   and scan the QR with the app
   3. Try it: ${HIVEPAL[*]} msg \"hello\"
   4. An agent with its own chat and key: ${HIVEPAL[*]} bots add nubi Nubi
-$([[ $MODE == local ]] && echo "  5. Answer calls with the voice AI: $BIN serve --ai   (keep it running)")
+$([[ $MODE == local ]] && voice_ready && echo "  5. Answer calls with the voice AI ($HIVEPAL_VOICE_PROVIDER): $BIN serve --ai   (keep it running)")
 "
 if [[ $YES == 0 && -t 0 ]]; then
   read -r -p "Pair the phone now? [Y/n] " p

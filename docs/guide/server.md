@@ -35,7 +35,9 @@ It asks for:
 |---|---|---|
 | Domain | `hive.example.com` | Caddy gets a Let's Encrypt certificate for it. Offers `<ip>.sslip.io` when the server's IP is public. |
 | Switchboard name | `Switchboard` | The voice that answers your calls. |
-| Voice AI key | `AIza…` | Optional. A Gemini key (free tier); for another provider leave it empty and see [voice](../voice.md). Without one there are no AI calls and no transcripts. |
+| Voice AI | `gemini` | Who talks on AI calls: `gemini` (free tier, recommended), `openai`, `grok`, `phonic`, `openrouter`, `local` (your own OpenAI-Realtime-compatible server) or `none`. See [voice](../voice.md). |
+| Its API key | `AIza…` | Optional. Without one there are no AI calls. For `local`, the server's address instead (and a key only if it asks for one). |
+| Gemini key for transcripts | `AIza…` | Only asked when the voice AI isn't Gemini, and optional: the relay transcribes voice notes with Gemini. |
 | Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional: without it the phone uses UnifiedPush (ntfy). |
 
 Then it writes `deploy/.env` (keep it private: it holds the relay's API key), starts everything, configures the daemon inside Docker and shows the QR code to pair the phone.
@@ -44,6 +46,7 @@ Answers can come from the environment for an unattended install:
 
 ```bash
 HIVEPAL_DOMAIN=hive.example.com HIVEPAL_GEMINI_API_KEY=AIza… HIVEPAL_FIREBASE_DIR=~/firebase ./install.sh --yes
+# another voice AI: HIVEPAL_VOICE_PROVIDER=grok HIVEPAL_VOICE_API_KEY=xai-… (local: HIVEPAL_VOICE_URL=ws://…)
 # or through the one-line install: … | HIVEPAL_DOMAIN=… sh -s -- --yes
 ```
 

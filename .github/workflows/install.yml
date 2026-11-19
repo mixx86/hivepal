@@ -32,7 +32,16 @@ jobs:
       - name: Install
         env:
           HIVEPAL_HOST_IP: 127.0.0.1
+          # Another voice provider than the default: its key must land in the daemon's .env.
+          HIVEPAL_VOICE_PROVIDER: grok
+          HIVEPAL_VOICE_API_KEY: xai-not-a-real-key
         run: ./install.sh --local --images --yes
+      - name: The voice provider is configured
+        run: |
+          env=~/.agentring/.env
+          grep -qx 'HIVEPAL_VOICE_PROVIDER=grok' "$env"
+          grep -qx 'XAI_API_KEY=xai-not-a-real-key' "$env"
+          [[ $(stat -c %a "$env") == 600 ]]
       - name: A message reaches the relay
         run: |
           bin=$(uv tool dir --bin)/hivepal

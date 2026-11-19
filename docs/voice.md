@@ -8,7 +8,8 @@ the agent ("Call agent" in the app).
 Install the voice extra and give it the key of a voice provider (environment or
 `~/.agentring/.env`). Gemini Live is the default (it has a free tier); OpenAI Realtime,
 Grok Voice and Phonic work the same way, and `local` uses a voice server on your own
-machine with no key ([providers](#providers), [local](#local-voice-experimental)):
+machine with no key ([providers](#providers), [local](#local-voice-experimental)).
+`install.sh` asks which one and its key and writes both for you; by hand:
 
 ```bash
 uv tool install './daemon[voice]'

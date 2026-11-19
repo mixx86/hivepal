@@ -24,8 +24,8 @@ It downloads the latest release into `~/hivepal` and uses its published images, 
 on your computer. From a clone it works the same: `git clone https://github.com/mixx86/hivepal && cd
 hivepal && ./install.sh --local` (that one builds the images from the source).
 
-It picks your computer's LAN address, asks for a name for the voice switchboard and the optional
-voice AI key, starts the relay and LiveKit in Docker, installs the `hivepal` command and connects it.
+It picks your computer's LAN address, asks for a name for the voice switchboard and the voice AI (Gemini, OpenAI,
+Grok, Phonic, OpenRouter or your own server) with its optional key, starts the relay and LiveKit in Docker, installs the `hivepal` command and connects it.
 At the end it prints the relay address and its API key (also saved in `deploy/.env.local`).
 
 ??? note "What just happened"
