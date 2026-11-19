@@ -49,7 +49,10 @@ REPO=$(git remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.
 say "Checking main"
 [[ $(git branch --show-current) == main ]] || die "switch to main first"
 [[ -z $(git status --porcelain) ]] || die "the working tree has changes; commit or stash them"
-git fetch -q origin main --tags
+# Only main and the release tags: android-preview is a tag that moves on every merge, and a plain
+# `fetch --tags` refuses to update a stale local copy of it (and stopped this script).
+git fetch -q origin main || die "couldn't fetch origin/main"
+git fetch -q --force origin 'refs/tags/v*:refs/tags/v*' || die "couldn't fetch the release tags"
 [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] || die "main is not origin/main: git pull --ff-only"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "tag $TAG already exists"
 git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1 && die "tag $TAG already exists on origin"
@@ -117,7 +120,7 @@ while :; do
 done
 
 git switch -q main
-git pull -q --ff-only origin main
+git pull -q --ff-only --no-tags origin main
 git branch -q -D "$branch" 2>/dev/null || true
 [[ $(sed -n 's/^version = "\(.*\)"/\1/p' daemon/pyproject.toml) == "$VERSION" ]] || die "main doesn't have version $VERSION after the merge"
 
