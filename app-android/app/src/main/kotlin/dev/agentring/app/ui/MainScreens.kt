@@ -376,6 +376,9 @@ fun SettingsScreen(pairing: Pairing) {
         SectionLabel(stringResource(R.string.updates))
         UpdatesCard()
 
+        SectionLabel(stringResource(R.string.backup))
+        BackupCard()
+
         SectionLabel(stringResource(R.string.settings_more))
         OutlinedButton(
             onClick = { Notifications.showTest(ctx) },
@@ -588,3 +591,53 @@ internal fun PushOption(title: String, badge: String?, body: String, action: Str
         }
     }
 }
+
+/**
+ * Hivepal: save the app's settings to a file and restore them (moving to another build or phone).
+ * Restoring applies the language and restarts the app so every screen reads the restored values.
+ */
+@Composable
+private fun BackupCard() {
+    val ctx = LocalContext.current
+    var note by remember { mutableStateOf<String?>(null) }
+    val saved = stringResource(R.string.backup_saved)
+    val failed = stringResource(R.string.backup_failed)
+    val save = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        note = runCatching {
+            ctx.contentResolver.openOutputStream(uri, "wt")!!.use {
+                it.write(dev.agentring.app.data.SettingsBackup.export(ctx, BuildConfig.VERSION_NAME).toByteArray())
+            }
+        }.fold({ saved }, { failed.format(it.message ?: "") })
+    }
+    val restore = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            val text = ctx.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }
+            dev.agentring.app.data.SettingsBackup.import(ctx, text)
+            ctx.getSharedPreferences("hivepal_ui", android.content.Context.MODE_PRIVATE).getString("lang", null)
+                ?.let { dev.agentring.app.AppLanguage.set(ctx, it) }
+            // Start again so every screen and store reads the restored settings.
+            ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.let {
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                ctx.startActivity(it)
+            }
+            Runtime.getRuntime().exit(0)
+        }.onFailure { note = failed.format(it.message ?: "") }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.backup_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = { save.launch("hivepal-settings.json") }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_save")) {
+            Text(stringResource(R.string.backup_save))
+        }
+        OutlinedButton(onClick = { restore.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_restore")) {
+            Text(stringResource(R.string.backup_restore))
+        }
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+

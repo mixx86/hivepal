@@ -61,8 +61,14 @@ older one. Between channels it doesn't: the keys differ.
 ## An update won't install over the app ("App not installed")
 
 The new APK is signed with another key than the installed one (a release over a preview or a
-self-built app, or the other way round). Stay on the channel you have, or uninstall the app first
-and pair the phone again (`hivepal pair`): your conversations stay on the relay.
+self-built app, or the other way round). Stay on the channel you have, or move like this:
+
+1. In the app you have: **Settings → Backup → Save settings to a file** (language, pinned and muted
+   chats, call settings, connected subscription services).
+2. Uninstall it, install the other APK, and pair again (`hivepal pair`): conversations, agents and
+   calls come back from the relay.
+3. **Settings → Backup → Restore from a file.** Then put the widget back, log in again to the services
+   in Subscriptions, and remove the old phone from the relay (`hivepal devices revoke <id>`).
 
 ## Can I use it on iPhone?
 
