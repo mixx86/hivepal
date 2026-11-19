@@ -21,6 +21,16 @@
     <string name="done_title">Paired with %1$s</string>
     <string name="done_no_push">Push notifications are not configured on your relay, so messages only arrive while the app is open. See docs/firebase.md.</string>
     <string name="continue_">Continue</string>
+    <string name="push_setup_title">Keep messages coming</string>
+    <string name="push_setup_body">This relay has no Firebase set up. Hivepal can still wake this phone through UnifiedPush, without a Google account.</string>
+    <string name="push_no_distributor">Install a notification distributor to continue.</string>
+    <string name="push_install_hint">ntfy is a free distributor. After installing it, return here and Hivepal will finish automatically.</string>
+    <string name="push_install_ntfy">Install ntfy</string>
+    <string name="push_registering_up">Connecting the notification distributor…</string>
+    <string name="push_checking">Checking that this relay can wake your phone…</string>
+    <string name="push_ready">Notifications are ready.</string>
+    <string name="push_failed">Couldn’t finish notification setup. Check your connection and try again.</string>
+    <string name="push_retry">Try again</string>
 
     <!-- Tabs -->
     <string name="tab_home">Home</string>
