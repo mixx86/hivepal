@@ -922,6 +922,12 @@ export interface components {
             push_provider: string;
             /** @description Only returned to the agent. */
             device_count?: number;
+            /** @description Hivepal, only returned to an agent: what this relay is configured for. `calls`: LiveKit is set up. `voice`: Gemini is set up (voice notes, transcripts). `wake_email`: SMTP is set up (wake-up emails). Push is `push_provider`. */
+            features?: {
+                calls: boolean;
+                voice: boolean;
+                wake_email: boolean;
+            };
             /** @description Only returned to an agent; the agent the key belongs to. */
             self?: {
                 agent_id: components["schemas"]["AgentId"];

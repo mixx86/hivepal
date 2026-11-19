@@ -10,6 +10,7 @@ take `--json` for machine-readable output.
 | `hivepal init --relay URL --api-key ak_…` | Connect to a relay; saved in `HIVEPAL_HOME` (default `~/.agentring`). |
 | `hivepal pair` | QR code (or a code to paste) to pair a phone; single use, 10 minutes. |
 | `hivepal status` | Relay connection and paired phones. |
+| `hivepal doctor` | Checks everything (relay, HTTPS, key, versions, push, calls, voice, phones, clock) and says how to fix what isn't right. Exit code 1 if something won't work. |
 | `hivepal devices` / `devices revoke <id>` | List or unpair phones. |
 | `hivepal version` | The version. |
 

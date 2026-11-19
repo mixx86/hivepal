@@ -1,5 +1,9 @@
 # FAQ and troubleshooting
 
+Something not working? Start with `hivepal doctor` (in Docker: `docker compose exec daemon hivepal
+doctor`): it checks the relay, its certificate, the key, push, calls, voice and the paired phones, and
+says what to do about each problem.
+
 ## Messages only arrive when the app is open
 
 There's no Firebase yet: set it up ([Firebase](firebase.md)), run the installer again and re-pair the
