@@ -10,8 +10,9 @@ that's reachable from anywhere, see [Install on a server](server.md).
 - An **Android phone** (Android 8 or newer) and a USB cable.
 - To build the app: **JDK 17+** and the **Android SDK** (Android Studio installs both). Or use an APK
   from the [releases](https://github.com/mixx86/hivepal/releases).
-- Optional: a free [Gemini API key](https://aistudio.google.com/apikey), for calls with a voice AI and
-  voice-note transcripts.
+- Optional: an API key for a voice AI, for calls with a voice AI and voice-note transcripts. We
+  suggest [Gemini](https://aistudio.google.com/apikey) (free tier); other providers work for calls
+  ([voice](../voice.md)).
 
 ## 1. Start the relay and install the CLI
 
@@ -24,7 +25,7 @@ on your computer. From a clone it works the same: `git clone https://github.com/
 hivepal && ./install.sh --local` (that one builds the images from the source).
 
 It picks your computer's LAN address, asks for a name for the voice switchboard and the optional
-Gemini key, starts the relay and LiveKit in Docker, installs the `hivepal` command and connects it.
+voice AI key, starts the relay and LiveKit in Docker, installs the `hivepal` command and connects it.
 At the end it prints the relay address and its API key (also saved in `deploy/.env.local`).
 
 ??? note "What just happened"
@@ -79,7 +80,7 @@ where it runs, or the `HIVEPAL_API_KEY` variable). From then on each one writes 
 
 ## 6. Calls (optional)
 
-With a Gemini key, run the switchboard and leave it running:
+With a voice AI key, run the switchboard and leave it running:
 
 ```bash
 hivepal serve --ai

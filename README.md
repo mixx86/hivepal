@@ -78,11 +78,13 @@ From a clone, `./install.sh` (or `--local`) does the same but builds the images 
 No domain? On a server with a public IP it offers `<ip>.sslip.io`. Once it's running, the relay has a
 web panel at `/admin`: status, pairing, agents with ready-to-copy setup, and a test call.
 
-It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
-[Gemini key](https://aistudio.google.com/apikey) for voice, and an optional
-[Firebase project](https://mixx86.github.io/hivepal-web/firebase/) (needed for notifications while the app is closed and for the
-phone to ring when locked). Then it builds and starts everything, configures the daemon and shows
-the QR code to pair the phone. Running it again updates and restarts.
+It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional API
+key for a voice AI (the voice on calls and voice-note transcripts; we recommend
+[Gemini](https://aistudio.google.com/apikey), which has a free tier; other providers in
+[voice](https://mixx86.github.io/hivepal-web/voice/)), and an optional [Firebase project](https://mixx86.github.io/hivepal-web/firebase/). Without Firebase the phone is
+woken through UnifiedPush with the free ntfy app, which the app sets up when you pair it. Then it
+starts everything, configures the daemon and shows the QR code to pair the phone. Running it again
+updates and restarts.
 
 **The app:**
 

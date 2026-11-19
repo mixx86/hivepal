@@ -37,8 +37,9 @@ chats (`hivepal msg --to planner …`) instead of asking you twice.
 
 ## 1. Hivepal
 
-Install it on a server ([guide](server.md)) so the agents can reach it from the cloud, set up
-Firebase (a locked phone must ring) and a Gemini key (calls and voice notes).
+Install it on a server ([guide](server.md)) so the agents can reach it from the cloud, add an API key
+for a voice AI (calls and voice notes; Gemini has a free tier), and pair your phone (it's woken
+through Firebase or, without Google, UnifiedPush).
 
 ## 2. A private notes repo
 

@@ -5,9 +5,10 @@ data messages. You use **your own** free Firebase project: nothing goes through
 anyone else's servers, and the prebuilt APK works with it without rebuilding —
 the relay hands the app the (public) client settings when you pair.
 
-Without Firebase everything still works while the app is open on screen (it keeps a
-WebSocket to the relay), but a locked phone or a closed app won't notice new messages
-or **ring for calls**. So for calls, it is not optional.
+Firebase is **optional**: without it the app is woken through UnifiedPush, with the free
+[ntfy](https://ntfy.sh) app (no Google account), and a locked phone rings the same. Choose Firebase
+if you'd rather not install another app and already use Google services on the phone; with both
+available, each phone picks one in Settings → Notifications.
 
 Time: ~5 minutes. Cost: free (FCM has no usage charges).
 
