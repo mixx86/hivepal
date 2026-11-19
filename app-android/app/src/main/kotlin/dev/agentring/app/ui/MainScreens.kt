@@ -370,6 +370,9 @@ fun SettingsScreen(pairing: Pairing) {
             }
         }
 
+        SectionLabel(stringResource(R.string.updates))
+        UpdatesCard()
+
         SectionLabel(stringResource(R.string.settings_more))
         OutlinedButton(
             onClick = { Notifications.showTest(ctx) },
@@ -423,5 +426,58 @@ private fun InfoRow(label: String, value: String) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+
+/**
+ * Hivepal: the installed version, a check for a newer release (only when tapped: no background calls
+ * to GitHub) and Obtainium, which checks on its own. Preview and self-built apps are another channel.
+ */
+@Composable
+private fun UpdatesCard() {
+    val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var result by remember { mutableStateOf<dev.agentring.core.Updates.Result?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            when (val r = result) {
+                null -> stringResource(if (failed) R.string.updates_failed else R.string.updates_installed, BuildConfig.VERSION_NAME)
+                is dev.agentring.core.Updates.Result.UpToDate -> stringResource(R.string.updates_up_to_date, r.version)
+                is dev.agentring.core.Updates.Result.Newer -> stringResource(R.string.updates_newer, r.version)
+                dev.agentring.core.Updates.Result.NotARelease -> stringResource(R.string.updates_not_release, BuildConfig.VERSION_NAME)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val newer = result as? dev.agentring.core.Updates.Result.Newer
+        if (newer != null) {
+            Button(onClick = { open(newer.url) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                Text(stringResource(R.string.updates_download, newer.version))
+            }
+        } else {
+            OutlinedButton(
+                enabled = !checking,
+                onClick = {
+                    checking = true
+                    failed = false
+                    scope.launch {
+                        result = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            runCatching { dev.agentring.core.Updates.check(BuildConfig.VERSION_NAME) }.getOrNull()
+                        }
+                        failed = result == null
+                        checking = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("check_updates"),
+            ) { Text(stringResource(if (checking) R.string.updates_checking else R.string.updates_check)) }
+        }
+        TextButton(onClick = {
+            // Obtainium adds the app from its releases and checks for new ones; its site when it isn't installed.
+            if (open("obtainium://add/https://github.com/${dev.agentring.core.Updates.REPO}").isFailure) open("https://obtainium.imranr.dev")
+        }) { Text(stringResource(R.string.updates_obtainium)) }
     }
 }

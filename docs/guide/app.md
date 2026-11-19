@@ -67,3 +67,15 @@ Long-press the home screen → Widgets → **Hivepal**: unread messages and a bu
 
 The app speaks English and Spanish: **Settings → Language** (or on the welcome screen before pairing).
 On Android 13+ it's also in the system's per-app language setting.
+
+## Updates
+
+**Settings → Updates** shows the installed version and, when you tap **Check for updates**, whether a
+newer release is out (only then does the app ask GitHub; it never checks in the background). To get
+new versions automatically, add Hivepal to [Obtainium](https://obtainium.imranr.dev): the button below
+does it in one tap, or add `https://github.com/mixx86/hivepal` by hand. Obtainium watches the releases
+and installs updates over the app.
+
+An `android-preview` or self-built app is another channel, signed with another key: it updates from
+where it came from, not from the releases ([which APK](../faq.md#which-apk-do-i-install)).
+

@@ -12,6 +12,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- App, Settings → Updates: the installed version, a check for a newer release when you tap it (no
+  background calls) and a one-tap link to add Hivepal to Obtainium for automatic updates.
 - One-line install: `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh`
   (`sh -s -- --local` on your own computer) downloads the latest release and runs its installer with
   the published images, so nothing is built on the machine. `install.sh --images` does that from a
@@ -20,6 +22,10 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 - Pairing from the phone's camera: `hivepal pair` shows a link (`<relay>/pair#<code>`, the new
   `qr_url`) whose page offers to install the app and opens it with the code; the app shows which relay
   and asks before pairing (`hivepal://pair` links). The app still reads the old QR and pasted codes.
+
+### Fixed
+
+- App, Spanish: the Settings footer said "basado en hivepal" instead of "basado en agentring".
 
 ## [0.5.0] - 2026-11-19
 
