@@ -74,12 +74,17 @@ On Android 13+ it's also in the system's per-app language setting.
 
 ## Notifications without Google
 
-When the relay has Firebase configured, it is the default wake-up channel. When it does not, setup
-automatically uses an installed UnifiedPush distributor; otherwise it asks you to install
-[ntfy](https://ntfy.sh) and completes registration on return. To choose it yourself even when
-Firebase exists, use **Settings → Notifications → Use UnifiedPush**. The app gives the relay its
-address and keys, and pushes (ringing calls included) go through it encrypted for the app (the
-distributor's server cannot read them). **Back to Firebase** undoes it.
+**Settings → Notifications** shows how the relay wakes this phone and offers both ways:
+
+- **UnifiedPush (ntfy app)**, recommended: no Google account, set up in a minute from the phone, a
+  good fit for a self-hosted relay, and messages are encrypted for the app. Install
+  [ntfy](https://ntfy.sh) (F-Droid or Play Store) and tap **Use UnifiedPush**.
+- **Firebase (Google)**: built into Android, no extra app, but it needs a Firebase project on your relay
+  ([Firebase](../firebase.md)) and pairing the phone again. When the relay has it, **Back to Firebase**
+  switches back.
+
+When the relay has no Firebase, the setup offers ntfy (and finishes by itself once it's installed),
+with Firebase as the alternative; **Skip for now** goes on without push.
 
 ## Updates
 

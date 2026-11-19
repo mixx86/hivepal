@@ -261,6 +261,18 @@ private fun PushSetupPage(onReady: () -> Unit) {
                 }
             }
         }
+        // The other way: Firebase, set up on the relay (then pair again). Offered, not pushed.
+        if (!ready) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.push_prefer_fcm), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.push_option_fcm_missing), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(
+                    onClick = { runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FIREBASE_GUIDE))) } },
+                    modifier = Modifier.testTag("push_fcm_howto"),
+                ) { Text(stringResource(R.string.push_fcm_howto)) }
+            }
+        }
     }
 }
 

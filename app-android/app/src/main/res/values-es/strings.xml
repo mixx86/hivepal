@@ -20,7 +20,7 @@
     <string name="done_no_push">Tu relay no tiene configuradas las notificaciones push, así que los mensajes solo llegan con la app abierta. Mira docs/firebase.md.</string>
     <string name="continue_">Continuar</string>
     <string name="push_setup_title">Recibe los mensajes siempre</string>
-    <string name="push_setup_body">Este relay no tiene Firebase configurado. Hivepal puede despertar este móvil con UnifiedPush, sin cuenta de Google.</string>
+    <string name="push_setup_body">Este relay no tiene Firebase. Lo más rápido: UnifiedPush con la app gratuita ntfy (recomendado, sin cuenta de Google).</string>
     <string name="push_no_distributor">Instala un distribuidor de notificaciones para continuar.</string>
     <string name="push_install_hint">ntfy es un distribuidor gratuito. Instálalo, vuelve aquí y Hivepal terminará automáticamente.</string>
     <string name="push_install_ntfy">Instalar ntfy</string>
@@ -186,6 +186,16 @@
     <string name="push_use_fcm">Volver a Firebase</string>
     <string name="push_up_none">No hay ningún distribuidor de UnifiedPush en este móvil: instala uno como ntfy (F-Droid o Play Store) y vuelve a intentarlo.</string>
     <string name="push_up_waiting">Hecho. Mándate un mensaje de prueba para comprobar que llega con la app cerrada.</string>
+    <string name="push_via_none">Aún no hay canal de notificaciones: los mensajes solo llegan con la app abierta y las llamadas no pueden sonar con el móvil bloqueado.</string>
+    <string name="push_recommended">Recomendado</string>
+    <string name="push_option_up">UnifiedPush (app ntfy)</string>
+    <string name="push_option_up_body">Sin cuenta de Google, se configura en un minuto desde este móvil y encaja con un relay autoalojado. Los mensajes van cifrados para la app.</string>
+    <string name="push_option_fcm">Firebase (Google)</string>
+    <string name="push_option_fcm_body">Configurado en tu relay. Integrado en Android, sin app extra.</string>
+    <string name="push_option_fcm_missing">Necesita un proyecto de Firebase en tu relay: una cuenta de Google y dos archivos (unos 10 minutos), y después volver a emparejar este móvil. Sin app extra en el móvil.</string>
+    <string name="push_fcm_howto">Cómo configurar Firebase</string>
+    <string name="push_prefer_fcm">¿Prefieres Firebase?</string>
+    <string name="push_in_use">En uso</string>
     <string name="updates">Actualizaciones</string>
     <string name="updates_installed">Instalada: Hivepal %1$s</string>
     <string name="updates_check">Buscar actualizaciones</string>
