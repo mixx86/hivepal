@@ -16,6 +16,11 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
   it's there. "Skip for now" goes on without push (Settings → Notifications later).
 
+### Changed
+
+- App: screen titles ("Chats", "Settings"…) and "Hivepal" in the menu in solid brand blue instead of a
+  gradient.
+
 ### Fixed
 
 - `hivepal doctor` judges push per phone: on a relay without Firebase it no longer warns that nothing
