@@ -64,5 +64,5 @@ take `--json` for machine-readable output.
 |---|---|
 | `hivepal mcp` | MCP server over stdio: `claude mcp add hivepal -- hivepal mcp`. |
 | `hivepal mcp-http` | Remote MCP server (Streamable HTTP) for many users. |
-| `hivepal connect openclaw\|hermes` | Set up those harnesses in one go. |
+| `hivepal connect claude-code\|codex\|cursor\|openclaw\|hermes` | Set up that harness in one go: MCP server, skill, consult from a call. |
 | `hivepal agents` | Agents the voice AI can consult during a call (`agents.yaml`). |

@@ -1309,7 +1309,7 @@ def serve(
 
 @app.command()
 def connect(
-    harness: Annotated[str, typer.Argument(help="The agent harness to connect: openclaw or hermes.")],
+    harness: Annotated[str, typer.Argument(help="The agent harness to connect: claude-code, codex, cursor, openclaw or hermes.")],
     url: Annotated[Optional[str], typer.Option(
         "--url", help="Use a remote MCP server instead of the local one, e.g. https://agentring.io/mcp. "
         "The API key comes from HIVEPAL_API_KEY (or this machine's hivepal config).")] = None,
@@ -1320,7 +1320,7 @@ def connect(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change; change nothing.")] = False,
     json_out: JsonOpt = False,
 ) -> None:
-    """Connect OpenClaw or Hermes: MCP server, skill and agents.yaml. Safe to run again."""
+    """Connect Claude Code, Codex, Cursor, OpenClaw or Hermes: MCP server, skill and agents.yaml. Safe to run again."""
     from dataclasses import asdict
 
     from .config import secret
@@ -1343,10 +1343,13 @@ def connect(
         typer.echo(f"{s.what:<20} {s.status:<12} {s.detail}".rstrip())
     if dry_run:
         return
-    if harness.lower() == "openclaw":
-        typer.echo("\nOpenClaw picks it up on the next turn. Check: openclaw mcp probe hivepal")
-    else:
-        typer.echo("\nIn Hermes, run /reload-mcp or start a new session. Check: hermes mcp test hivepal")
+    typer.echo("\n" + {
+        "openclaw": "OpenClaw picks it up on the next turn. Check: openclaw mcp probe hivepal",
+        "hermes": "In Hermes, run /reload-mcp or start a new session. Check: hermes mcp test hivepal",
+        "claude-code": "Start a new Claude Code session (or /mcp). Check: claude mcp get hivepal",
+        "codex": "Start a new Codex session. Check: codex mcp list",
+        "cursor": "Restart Cursor (or reload MCP servers in its settings).",
+    }.get(harness.lower(), ""))
 
 
 def main() -> None:

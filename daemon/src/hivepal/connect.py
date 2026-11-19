@@ -1,4 +1,4 @@
-"""`hivepal connect`: set up an agent harness (OpenClaw, Hermes) to use hivepal.
+"""`hivepal connect`: set up an agent harness (OpenClaw, Hermes, Claude Code, Codex, Cursor) to use hivepal.
 
 Three steps, each one idempotent (running it again changes nothing that is already right):
 
@@ -61,7 +61,14 @@ class Harness:
 HARNESSES = {
     "openclaw": Harness("openclaw", "OpenClaw", "openclaw"),
     "hermes": Harness("hermes", "Hermes", "hermes"),
+    "claude-code": Harness("claude-code", "Claude Code", "claude"),
+    "codex": Harness("codex", "Codex", "codex"),
+    "cursor": Harness("cursor", "Cursor", "cursor-agent"),
 }
+#: Harnesses whose skills folder hivepal knows; the others get the MCP server's own instructions.
+SKILL_HOMES = {"openclaw", "hermes", "claude-code"}
+#: Harnesses the voice AI can consult on a call (a command that answers one question and exits).
+CONSULTABLE = {"openclaw", "hermes", "claude-code", "codex"}
 
 
 def _run(argv: list[str]) -> subprocess.CompletedProcess:
@@ -98,8 +105,12 @@ def mcp_entry(h: Harness, *, url: str | None = None, exe: str | None = None) -> 
             entry["env"] = {"HIVEPAL_HOME": str(home_dir())}
     if h.name == "openclaw":
         entry["requestTimeoutMs"] = MCP_TIMEOUT_S * 1000
-    else:
+    elif h.name == "hermes":
         entry["timeout"] = MCP_TIMEOUT_S
+    elif h.name == "codex":
+        entry["tool_timeout_sec"] = MCP_TIMEOUT_S
+    elif url:
+        entry["type"] = "http"  # Claude Code and Cursor tell remote servers apart this way
     return entry
 
 
@@ -162,7 +173,100 @@ def _would(status: str, dry_run: bool) -> str:
 def connect_mcp(h: Harness, entry: dict[str, Any], *, dry_run: bool, run: Runner = _run) -> Step:
     if h.name == "openclaw":
         return _openclaw_mcp(h, entry, dry_run=dry_run, run=run)
+    if h.name == "claude-code":
+        return _claude_mcp(h, entry, dry_run=dry_run, run=run)
+    if h.name == "codex":
+        return _codex_mcp(entry, dry_run=dry_run)
+    if h.name == "cursor":
+        return _json_mcp(Path.home() / ".cursor" / "mcp.json", entry, dry_run=dry_run)
     return _hermes_mcp(entry, dry_run=dry_run)
+
+
+def _claude_mcp(h: Harness, entry: dict[str, Any], *, dry_run: bool, run: Runner) -> Step:
+    """User scope (every project), through Claude Code's own CLI; ~/.claude.json tells what's there."""
+    binary = _find_binary(h)
+    try:
+        current = (json.loads((Path.home() / ".claude.json").read_text()).get("mcpServers") or {}).get(SERVER_NAME)
+    except (OSError, ValueError, AttributeError):
+        current = None
+    want = {**entry, "type": entry.get("type", "stdio")}
+    if current is not None and {k: v for k, v in current.items() if k in want} == want:
+        return Step("MCP server", "unchanged", f"{h.label}: {SERVER_NAME} (user scope)")
+    status = "updated" if current is not None else "added"
+    if not dry_run:
+        if current is not None:
+            run([binary, "mcp", "remove", SERVER_NAME, "--scope", "user"])
+        r = run([binary, "mcp", "add-json", SERVER_NAME, json.dumps(want), "--scope", "user"])
+        if r.returncode != 0:
+            raise ConnectError(f"`claude mcp add-json` failed: {(r.stderr or r.stdout).strip()}")
+    return Step("MCP server", _would(status, dry_run), f"`claude mcp add-json {SERVER_NAME} --scope user`")
+
+
+def _json_mcp(path: Path, entry: dict[str, Any], *, dry_run: bool) -> Step:
+    """A `{"mcpServers": {...}}` file (Cursor)."""
+    try:
+        cfg = json.loads(path.read_text()) if path.exists() else {}
+    except ValueError as e:
+        raise ConnectError(f"cannot read {path}: {e}") from None
+    servers = cfg.get("mcpServers") or {}
+    if not isinstance(cfg, dict) or not isinstance(servers, dict):
+        raise ConnectError(f"{path}: expected an object with an `mcpServers` object")
+    if servers.get(SERVER_NAME) == entry:
+        return Step("MCP server", "unchanged", str(path))
+    status = "updated" if SERVER_NAME in servers else "added"
+    if not dry_run:
+        if path.exists():
+            shutil.copy2(path, path.with_name(path.name + ".bak-hivepal"))
+        cfg["mcpServers"] = {**servers, SERVER_NAME: entry}
+        _write_private(path, json.dumps(cfg, indent=2) + "\n")
+    return Step("MCP server", _would(status, dry_run), str(path))
+
+
+def _toml_value(v: Any) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, list):
+        return "[" + ", ".join(_toml_value(x) for x in v) + "]"
+    if isinstance(v, dict):
+        return "{ " + ", ".join(f"{json.dumps(k)} = {_toml_value(x)}" for k, x in v.items()) + " }"
+    return json.dumps(str(v))  # a JSON string is a valid TOML basic string
+
+
+def _codex_mcp(entry: dict[str, Any], *, dry_run: bool) -> Step:
+    """[mcp_servers.hivepal] in ~/.codex/config.toml; the rest of the file is left as it is."""
+    import re
+    import tomllib
+
+    path = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex").expanduser() / "config.toml"
+    text = path.read_text() if path.exists() else ""
+    try:
+        cfg = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise ConnectError(f"cannot read {path}: {e}") from None
+    current = (cfg.get("mcp_servers") or {}).get(SERVER_NAME)
+    if current == entry:
+        return Step("MCP server", "unchanged", str(path))
+    block = f"[mcp_servers.{SERVER_NAME}]\n" + "".join(f"{k} = {_toml_value(v)}\n" for k, v in entry.items())
+    header = re.compile(rf"^\[mcp_servers\.{SERVER_NAME}(\.[^\]]*)?\]\s*$", re.M)
+    if current is not None:
+        # Drop the old table (and any sub-tables such as .env) up to the next table header.
+        lines, out, skipping = text.splitlines(keepends=True), [], False
+        for line in lines:
+            if line.lstrip().startswith("["):
+                skipping = bool(header.match(line.strip()))
+            if not skipping:
+                out.append(line)
+        text = "".join(out)
+    new = text + ("" if not text or text.endswith("\n") else "\n") + ("\n" if text.strip() else "") + block
+    if (tomllib.loads(new).get("mcp_servers") or {}).get(SERVER_NAME) != entry:
+        raise ConnectError(f"couldn't write [mcp_servers.{SERVER_NAME}] in {path}: add it by hand:\n{block}")
+    if not dry_run:
+        if path.exists():
+            shutil.copy2(path, path.with_name(path.name + ".bak-hivepal"))
+        _write_private(path, new)
+    return Step("MCP server", _would("updated" if current is not None else "added", dry_run), str(path))
 
 
 def _openclaw_mcp(h: Harness, entry: dict[str, Any], *, dry_run: bool, run: Runner) -> Step:
@@ -246,6 +350,8 @@ def _materialize(files: dict[str, bytes], dest: Path) -> None:
 
 
 def install_skill(h: Harness, *, dry_run: bool, run: Runner = _run) -> Step:
+    if h.name not in SKILL_HOMES:
+        return Step("skill", "skipped", f"{h.label} reads the MCP server's own instructions")
     files = skill_files()
     if h.name == "openclaw":
         dest = openclaw_state_dir() / "skills" / SKILL_NAME
@@ -262,7 +368,7 @@ def install_skill(h: Harness, *, dry_run: bool, run: Runner = _run) -> Step:
                 raise ConnectError(f"`openclaw skills install` failed: {(r.stderr or r.stdout).strip()}")
         return Step("skill", _would(status, dry_run), str(dest))
 
-    dest = hermes_home() / "skills" / SKILL_NAME
+    dest = (Path.home() / ".claude" if h.name == "claude-code" else hermes_home()) / "skills" / SKILL_NAME
     if _same_tree(dest, files):
         return Step("skill", "unchanged", str(dest))
     status = "updated" if dest.exists() else "added"
@@ -291,6 +397,18 @@ def consult_spec(h: Harness, binary: str) -> dict[str, Any]:
             "command": ["sh", "-c",
                         'exec "$0" agent --agent main --session-id "hivepal-${HIVEPAL_CALL_ID:-test}" --message="$1"',
                         binary, "{task}"],
+            "timeout_s": 600,
+        }
+    if h.name == "claude-code":
+        return {
+            "description": "My Claude Code agent. Code, files, the projects on this computer.",
+            "command": [binary, "-p", "Task: {task}"],  # -p answers once and exits
+            "timeout_s": 600,
+        }
+    if h.name == "codex":
+        return {
+            "description": "My Codex agent. Code and the projects on this computer.",
+            "command": [binary, "exec", "Task: {task}"],
             "timeout_s": 600,
         }
     return {
@@ -347,9 +465,12 @@ def connect(harness: str, *, url: str | None = None, api_key: str | None = None,
     h = HARNESSES.get(harness)
     if h is None:
         raise ConnectError(f"unknown harness {harness!r}: one of {', '.join(HARNESSES)}")
-    if h.name == "openclaw" or (consult and not url):
+    consult = consult and h.name in CONSULTABLE
+    if h.name in ("openclaw", "claude-code") or (consult and not url):
         _find_binary(h)  # fail before changing anything
     steps: list[Step] = []
+    if url and h.name not in ("openclaw", "hermes"):
+        raise ConnectError(f"--url (a remote MCP server) is for OpenClaw and Hermes; {h.label} uses the local one")
     if url:
         if not url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
             raise ConnectError("--url must be https (http only for localhost)")
@@ -366,5 +487,6 @@ def connect(harness: str, *, url: str | None = None, api_key: str | None = None,
         steps.append(add_consult_agent(h, dry_run=dry_run))
     else:
         steps.append(Step("consult from a call", "skipped",
-                          "remote MCP: the server never runs commands" if url else ""))
+                          "remote MCP: the server never runs commands" if url
+                          else "" if h.name in CONSULTABLE else f"{h.label} has no one-shot command for it"))
     return steps
