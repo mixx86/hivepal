@@ -33,6 +33,8 @@ status for reference). When the two disagree, the fork's part wins.
   at https://mixx86.github.io/hivepal-web/ by the separate repo `mixx86/hivepal-web` (checked out
   next to this one as `../hivepal-site`): its `sync.py` copies `docs/`, `./deploy.sh` publishes.
   Diagrams are Mermaid; keep them narrow (the site's column is ~900 px; prefer `TB`, short labels).
+  Files outside `docs/` (README, CONTRIBUTING, CHANGELOG…) link to a docs page on the **website**
+  (`https://mixx86.github.io/hivepal-web/<path>/`), not to `docs/…md` in the repo; media stays in the repo.
 
 ### Status (as of 2026-11-19)
 
