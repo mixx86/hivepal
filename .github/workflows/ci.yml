@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Branches are tested through their pull request; main after each merge.
   push:
+    branches: [main]
   pull_request:
 
 # Actions are pinned by commit SHA (comment = release tag); bump them deliberately.

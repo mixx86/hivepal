@@ -28,8 +28,9 @@ fi
   sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
   and set ANDROID_HOME to the SDK folder"
 
-version=$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/daemon/pyproject.toml")
-code=$((20000 + $(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)))
+# Same numbering as the android-preview build (scripts/app-version.sh): every newer commit installs
+# over the last one.
+read -r version code < <("$ROOT/scripts/app-version.sh")
 echo "Building Hivepal $version ($code)…"
 cd "$ROOT/app-android"
 ./gradlew -q :app:assembleRelease "-PversionName=$version" "-PversionCode=$code"

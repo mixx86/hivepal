@@ -1,7 +1,9 @@
 name: Android
 
 on:
+  # Branches are tested through their pull request; main after each merge.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -23,6 +25,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0  # history and tags, for the APK's version (scripts/app-version.sh)
       - uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -33,7 +37,11 @@ jobs:
 
       - name: Build APK and unit tests
         working-directory: app-android
-        run: ./gradlew --stacktrace :core:test :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease
+        run: |
+          read -r name code < <(../scripts/app-version.sh)
+          echo "APK version $name ($code)"
+          ./gradlew --stacktrace :core:test :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease \
+            "-PversionName=$name" "-PversionCode=$code"
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

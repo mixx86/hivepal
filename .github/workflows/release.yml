@@ -58,6 +58,16 @@ jobs:
           if [[ "$pyproject" != "$version" ]]; then
             echo "::error::daemon/pyproject.toml has version $pyproject, the tag says $version. Bump it (and uv lock) first."; exit 1
           fi
+          # The relay reports its version in /v1/status; npm wants SemVer (0.5.0rc1 -> 0.5.0-rc.1).
+          npm_version="$major.$minor.$patch${kind:+-$kind.$n}"
+          relay_pkg=$(python3 -c 'import json; print(json.load(open("relay/package.json"))["version"])')
+          relay_const=$(sed -n 's/^export const VERSION = "\(.*\)";/\1/p' relay/src/routes/system.ts)
+          if [[ "$relay_pkg" != "$npm_version" || "$relay_const" != "$version" ]]; then
+            echo "::error::relay/package.json has $relay_pkg and the relay's VERSION is $relay_const; the tag needs $npm_version and $version. Use scripts/release.sh."; exit 1
+          fi
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $version. Use scripts/release.sh."; exit 1
+          fi
           {
             echo "version=$version"
             echo "version_code=$version_code"
@@ -261,6 +271,12 @@ jobs:
       OWNER: ${{ github.repository_owner }}
       ON_PYPI: ${{ needs.pypi.result == 'success' }}
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+          path: src
       # Only what the release ships: the run also holds Docker's build records
       # (*.dockerbuild), which download-artifact cannot fetch.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -288,7 +304,10 @@ jobs:
           else
             daemon="download \`hivepal-$VERSION-py3-none-any.whl\` below, then \`uv tool install './hivepal-$VERSION-py3-none-any.whl[voice]'\`."
           fi
-          cat > notes.md <<EOF
+          # This version's section of CHANGELOG.md, then how to install it.
+          awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {on=1; next} /^## \[/ {on=0} on' src/CHANGELOG.md > notes.md
+          cat >> notes.md <<EOF
+
           ## Install
 
           - **Android**: \`hivepal-$VERSION.apk\` below (allow installs from unknown sources).

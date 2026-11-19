@@ -40,6 +40,14 @@ cd app-android && ./gradlew -PcoreOnly :core:test   # when Google's Maven is unr
   smoke test, and builds the APK and runs an end-to-end test on an Android
   emulator against a real relay.
 
+## Branches, pull requests and releases
+
+`main` only changes through pull requests that pass CI (relay + daemon tests, the docker compose
+smoke test, the Android build with the emulator end-to-end test). Work on a short-lived branch,
+open a pull request, and it is squash-merged once the checks are green. If it changes what users
+see or run, add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md). Releases are cut by
+the maintainer with `scripts/release.sh` ([docs/release.md](docs/release.md)).
+
 ## Protocol first
 
 [`protocol/relay.openapi.yaml`](protocol/relay.openapi.yaml) is the single
