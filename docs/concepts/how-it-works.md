@@ -149,6 +149,24 @@ sequenceDiagram
 The email never carries your message, only the agent ids: a leaked address gets nothing, and the
 agent is told to ignore anything written in an email. See [Connect your agents](../guide/agents.md#wake-up-emails).
 
+### Or a mailbox folder
+
+Agents that work from files (a notes repository with a folder per agent) can get their messages there
+instead. `hivepal mailbox`, run with the agent's key from cron, catches up with the relay like `hivepal
+replies` and writes each new message as a Markdown file in the agent's folder; with `--git` it commits
+and pushes them. The relay doesn't change: the daemon does it on your side.
+
+```mermaid
+flowchart TB
+    P["You (app)"] -- "message to Hearth" --> R["Relay"]
+    R -- "events" --> D["hivepal mailbox<br/>(cron, Hearth's key)"]
+    D -- "one .md per message<br/>(--git: commit + push)" --> F["notes/mailbox/hearth/"]
+    F -- "read on schedule" --> A["Agent"]
+    A -- "hivepal msg" --> R
+```
+
+Wake-up emails and mailbox files can be used together. See [Mailbox files](../guide/agents.md#mailbox-files).
+
 ## Subscriptions
 
 ```mermaid
