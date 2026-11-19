@@ -35,10 +35,17 @@ def test_doctor_against_the_relay(relay: str, tmp_path: Path, monkeypatch: pytes
     assert "Calls" in checks and "Voice" in checks  # the relay says what it's configured for
 
     pair = json.loads(runner.invoke(app, ["pair", "--no-wait", "--json"], env=env).output)
-    simulate_phone_pairing(pair["qr_payload"])
+    phone = simulate_phone_pairing(pair["qr_payload"])
+    r = runner.invoke(app, ["doctor"], env=env)
+    assert r.exit_code == 0, r.output  # works, but a phone with no push channel is worth a warning
+    assert "! Phone:" in r.output and "no push channel" in r.output and "Use UnifiedPush" in r.output
+
+    # The phone picks UnifiedPush: now it's fine, and doctor says how it's woken.
+    httpx.post(f"{relay}/v1/device/unifiedpush", headers=phone["headers"],
+               json={"endpoint": "https://ntfy.sh/upTest123"}).raise_for_status()
     r = runner.invoke(app, ["doctor"], env=env)
     assert r.exit_code == 0, r.output
-    assert "✓ Phone:" in r.output and "✗" not in r.output
+    assert "✓ Phone:" in r.output and "UnifiedPush" in r.output and "✗" not in r.output
 
 
 def test_bad_certificate_and_unreachable():
