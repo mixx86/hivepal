@@ -265,6 +265,47 @@ paths:
                     items: { $ref: "#/components/schemas/Call" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /v1/calls/test:
+    post:
+      tags: [calls]
+      operationId: testCall
+      summary: >-
+        Hivepal, device only: ring this phone after `delay_s` seconds, as a call from the main agent
+        (the switchboard), so the user can lock it first and see it ring like a real call. Nobody else
+        joins: hang up when done. The usual rules apply when it starts (one call at a time, limits).
+      security: [{ deviceJwt: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                delay_s: { type: integer, minimum: 0, maximum: 60, default: 10 }
+      responses:
+        "202":
+          description: It will ring at `at`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [at]
+                properties:
+                  at: { $ref: "#/components/schemas/Timestamp" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Another call is ringing or active.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Calls are not configured on this relay.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /v1/calls/{call_id}:
     parameters:
       - $ref: "#/components/parameters/CallId"

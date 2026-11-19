@@ -65,6 +65,9 @@
     <string name="settings_agent">Agente</string>
     <string name="settings_device">ID del dispositivo</string>
     <string name="test_notification">Enviar notificación de prueba</string>
+    <string name="test_call">Llámame en 10 s</string>
+    <string name="test_call_armed">Bloquea el móvil ya: sonará en 10 segundos, como una llamada de verdad. Contesta y cuelga.</string>
+    <string name="test_call_unavailable">Las llamadas no están configuradas en el relay (LiveKit).</string>
     <string name="unpair">Desemparejar este móvil</string>
     <string name="unpair_confirm">¿Olvidar el emparejamiento en este móvil? Para revocarlo también en el relay ejecuta: hivepal devices revoke %1$s</string>
     <string name="cancel">Cancelar</string>

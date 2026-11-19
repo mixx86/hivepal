@@ -378,6 +378,7 @@ fun SettingsScreen(pairing: Pairing) {
             onClick = { Notifications.showTest(ctx) },
             modifier = Modifier.fillMaxWidth().height(48.dp).testTag("test_notification"),
         ) { Text(stringResource(R.string.test_notification)) }
+        TestCallButton()
         if (pairing.isCloud()) {
             OutlinedButton(
                 onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.CLOUD_URL + "/app"))) },
