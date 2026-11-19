@@ -57,4 +57,10 @@ class BillingParserTest {
         assertEquals("Premium Individual", b.plan)
         assertEquals("10,99 €", b.price)
     }
+
+    @Test fun retiredServicesAreNotOffered() {
+        val offered = BillingParser.PRESETS.map { it.id }.toSet()
+        assertEquals(emptySet<String>(), BillingParser.RETIRED.map { it.id }.toSet() intersect offered)
+        assertEquals(false, "netflix" in offered || "disney" in offered)
+    }
 }

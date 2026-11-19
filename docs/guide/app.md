@@ -43,8 +43,9 @@ Tap ✎ to rename an agent or edit a group; **New group** creates one.
 
 How many days each of your subscriptions has left, read from the service's own billing page.
 
-1. **Add a service** → pick one (Claude, ChatGPT, Spotify, Netflix, GitHub…) or **Other service…** with a
-   name and the address of its billing page.
+1. **Add a service** → pick one (Claude, ChatGPT, GitHub, DigitalOcean, Hetzner…) or **Other service…** with a
+   name and the address of its billing page. The list is for what you pay to run your agents (AI, APIs,
+   code hosting, servers); anything else can still be added with **Other service…**.
 2. The site opens inside the app. **Log in**, open the page that shows the renewal date, and tap
    **Use this page**.
 3. The card appears with a ring that empties as the date comes.
@@ -54,8 +55,9 @@ shows the last reading. Three days before a renewal you get a notification. If a
 logged out, tap **Change page** and log in again.
 
 !!! note "Google accounts"
-    Google doesn't allow signing in with a Google account inside an app's browser. For services where
-    you use "Continue with Google", log in with email and password or an email code instead.
+    "Continue with Google" opens Google's account chooser in its own window, which closes when you
+    continue. If Google says instead that the browser or app may not be secure (it does when you have to
+    type your Google password there), log in with email and password or an email code.
 
 ## Widget
 

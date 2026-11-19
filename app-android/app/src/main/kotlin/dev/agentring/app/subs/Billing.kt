@@ -22,8 +22,9 @@ data class Billing(
 object BillingParser {
     /**
      * Ready-made services: the page to start from (ideally the billing one; the user can move on from
-     * there before "Use this page"). Anything else: "Other service" with its own name and address.
-     * Google accounts can't sign in inside an app's browser, so Google-only services aren't listed.
+     * there before "Use this page"). The list is for what an agent's owner pays to run it: AI, APIs,
+     * code hosting, servers. Anything else (streaming, shopping…): "Other service" with its own name and
+     * address. Google-only services aren't listed: typing a Google password inside an app's browser is refused.
      */
     val PRESETS = listOf(
         Service("claude", "Claude", "https://claude.ai/settings/billing"),
@@ -32,14 +33,21 @@ object BillingParser {
         Service("perplexity", "Perplexity", "https://www.perplexity.ai/settings/account"),
         Service("cursor", "Cursor", "https://cursor.com/dashboard"),
         Service("github", "GitHub", "https://github.com/settings/billing"),
-        Service("spotify", "Spotify", "https://www.spotify.com/account/overview/"),
-        Service("netflix", "Netflix", "https://www.netflix.com/account"),
-        Service("disney", "Disney+", "https://www.disneyplus.com/account"),
-        Service("prime", "Amazon Prime", "https://www.amazon.com/gp/primecentral"),
         Service("proton", "Proton", "https://account.proton.me/dashboard"),
         Service("webdock", "Webdock", "https://app.webdock.io/en/login"),
         Service("digitalocean", "DigitalOcean", "https://cloud.digitalocean.com/account/billing"),
         Service("hetzner", "Hetzner", "https://accounts.hetzner.com/"),
+    )
+
+    /**
+     * Services that were ready-made once and no longer are: not offered any more, but one already
+     * connected keeps being read (its id is in the user's saved pages and on the relay).
+     */
+    val RETIRED = listOf(
+        Service("spotify", "Spotify", "https://www.spotify.com/account/overview/"),
+        Service("netflix", "Netflix", "https://www.netflix.com/account"),
+        Service("disney", "Disney+", "https://www.disneyplus.com/account"),
+        Service("prime", "Amazon Prime", "https://www.amazon.com/gp/primecentral"),
     )
 
     private val MONTHS = mapOf(

@@ -182,7 +182,7 @@ fun SubscriptionsScreen() {
     }
 
     if (picking) {
-        val open = subs.all(ctx).filter { subs.page(ctx, it.id) == null && !it.id.startsWith("c-") }
+        val open = subs.offered(ctx)
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { picking = false },
             title = { Text(stringResource(R.string.subs_add)) },

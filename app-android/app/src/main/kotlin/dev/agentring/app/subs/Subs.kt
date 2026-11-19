@@ -40,8 +40,15 @@ object Subs {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Ready-made services plus the ones the user added ("Other service"). */
-    fun all(ctx: Context): List<Service> = BillingParser.PRESETS + custom(ctx)
+    /**
+     * Ready-made services, retired ones still connected, and the ones the user added ("Other service").
+     * The picker offers the ready-made ones only.
+     */
+    fun all(ctx: Context): List<Service> =
+        BillingParser.PRESETS + BillingParser.RETIRED.filter { page(ctx, it.id) != null } + custom(ctx)
+
+    /** What "Add a service" offers: the ready-made services not connected yet. */
+    fun offered(ctx: Context): List<Service> = BillingParser.PRESETS.filter { page(ctx, it.id) == null }
 
     /** The services with a billing page chosen, in the order they were connected. */
     fun connected(ctx: Context): List<Service> {
