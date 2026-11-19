@@ -36,10 +36,14 @@ status for reference). When the two disagree, the fork's part wins.
 
 ### Status (as of 2026-11-19)
 
-- Public repo since 2026-11-18, secret scanning and push protection on. No rulesets. First release
+- Public repo since 2026-11-18, secret scanning and push protection on. Rulesets since 2026-11-19:
+  `main` only through squash-merged PRs with the CI checks green (no bypass, no approval needed,
+  auto-merge on); `v*` tags only by admins. First release
   **v0.4.0** on 2026-11-19 (signed APK, wheel + sdist, public GHCR images `hivepal-relay` /
   `hivepal-daemon`; PyPI off until `HIVEPAL_PUBLISH_PYPI=true`). agentring's tags were removed on
-  2026-11-18; the fork publishes its own `android-preview` pre-release from `main`.
+  2026-11-18; the fork publishes its own `android-preview` pre-release from `main`, numbered by
+  `scripts/app-version.sh` (versionCode 100000000 + commits). The user's phone runs a debug-key
+  build (preview channel): a release APK won't install over it without uninstalling.
 - **Release signing key** created on 2026-11-19 (certificate fingerprint in SECURITY.md; the
   maintainer keeps the keystore offline). `release.yml` reads it from the `HIVEPAL_KEYSTORE_*`
   Actions secrets. `android-preview` stays signed with the committed debug key. Not on Google Play,
@@ -57,8 +61,17 @@ status for reference). When the two disagree, the fork's part wins.
   `docs/multiagent.md`. Record accepted deviations there.
 - The protocol contract is `protocol/relay.openapi.yaml` (single source of truth). Change it first,
   then the implementations, and keep `protocol/examples/` fixtures valid.
-- Develop on `main`. Commit with clear messages; don't open PRs unless asked. Only `main` pushes
-  replace the `android-preview` APK.
+- **Branches and pull requests** (agreed 2026-11-19): never commit to `main` directly (a ruleset
+  refuses it). Work on a short branch (`fix/…`, `feat/…`, `docs/…`, `chore/…`), push it, open a PR
+  with `gh pr create -R mixx86/hivepal` and merge it yourself with
+  `gh pr merge --squash --auto --delete-branch`: it lands once CI is green. The user wants that, no
+  review needed. Watch the checks; fix a red one on the branch (a flaky test: re-run it, say so).
+  Every merge to `main` replaces the `android-preview` APK.
+- **Changelog**: a PR that changes behaviour adds a line under `## [Unreleased]` in `CHANGELOG.md`.
+- **Releases** happen when the user asks for one: `scripts/release.sh X.Y.Z` (patch = fixes, minor =
+  features; docs/release.md). Never push a `v*` tag by hand without being asked.
+- `gh` must target the fork: this clone has `gh repo set-default mixx86/hivepal`; with `upstream`
+  present, pass `-R mixx86/hivepal` when in doubt. Never open PRs or issues on `mutonby/agentring`.
 - **Dependency policy** (supply-chain care): prefer releases at least ~2 weeks old, pin exact
   versions, check the lockfiles against OSV before pushing. Apply age limits per package
   (`uv lock --exclude-newer-package`), never globally: a global `--exclude-newer` once downgraded
@@ -109,7 +122,8 @@ app-android/    :core = pure Kotlin/JVM (protocol models, PushVerifier, RelayApi
                 :auto = Android Auto car screen (manifest-only module)
 deploy/         docker-compose.yml (caddy + relay + LiveKit), docker-compose.local.yml (own computer, LAN/Tailscale, no TLS),
                 docker-compose.proxy.yml (behind an existing proxy), Caddyfile, .env.example, .env.local.example
-scripts/        build-app.sh, deploy-images.sh, backup-relay.sh, ci-emulator-e2e.sh, device-test.sh (install.sh is at the root)
+scripts/        build-app.sh, deploy-images.sh, backup-relay.sh, ci-emulator-e2e.sh, device-test.sh,
+                release.sh (cut a release), app-version.sh (preview APK numbering); install.sh is at the root
 skills/         hivepal/ = the agent skill (copied into the daemon package and the Grok plugin)
 docs/           guides, concepts, reference, design docs (architecture, protocol, multiagent, voice…)
 .github/        workflows/ci.yml (relay+daemon tests, compose smoke), workflows/android.yml (APK + emulator e2e + android-preview), workflows/release.yml (v* tags)

@@ -20,6 +20,23 @@ the previous one: `major·1000000 + minor·10000 + patch·100 + slot`, where the
 is `N` for `aN`, `30+N` for `bN`, `60+N` for `rcN` and `99` for the final release
 (`v0.2.0rc1` → 20061, `v0.2.0` → 20099).
 
+## When to release, and the two Android channels
+
+There is no schedule: release when `main` has something worth installing, and say what in
+[`CHANGELOG.md`](../CHANGELOG.md). Every pull request that changes behaviour adds a line under
+**Unreleased**; that section is what the next release ships. A **patch** (`0.4.1`) only fixes
+things, a **minor** (`0.5.0`) adds features (before 1.0 it may also change the protocol, which the
+changelog must then say).
+
+| Channel | Built from | Signed with | Version |
+|---|---|---|---|
+| Release (`hivepal-X.Y.Z.apk`) | a `vX.Y.Z` tag | the release key | from the tag (above) |
+| `android-preview` | every push to `main` | the public debug key | [`scripts/app-version.sh`](../scripts/app-version.sh): last release + commits since (`0.4.0+2.ga6e21e1`), versionCode `100000000 +` commits |
+
+`scripts/build-app.sh` numbers its builds like `android-preview`. Within a channel every newer
+build installs over the older one. Across channels it doesn't (different keys): moving a phone from
+one channel to the other means uninstalling, and pairing it again.
+
 ## One-time setup
 
 ### 1. Release signing key
@@ -116,41 +133,44 @@ If the organisation or repository restricts workflow permissions (Settings →
 Actions → General → Workflow permissions), it must still allow jobs to request
 `packages: write`, `contents: write` and `id-token: write`.
 
-### 5. Optional: protect release tags
+### 5. Protect `main` and the release tags
 
-Settings → Rules → Rulesets → New tag ruleset, target `v*`, restrict creations,
-updates and deletions to maintainers. Anyone who can push a `v*` tag can publish a
-release.
+Hivepal's repository has two rulesets (Settings → Rules → Rulesets):
+
+- **main**: changes land only through a pull request, squash-merged, once the required checks
+  pass (`Relay + daemon tests`, `docker compose smoke test (…)`, `Build APK + emulator
+  end-to-end`); no force pushes, no deletion, linear history. No one bypasses it. Pull requests
+  need no approval, so the maintainer (or an agent working for them) can merge their own, and
+  **auto-merge** (`gh pr merge --squash --auto`) merges one by itself when CI turns green.
+- **release tags**: only repository admins may create, move or delete `v*` tags. Anyone who can
+  push a `v*` tag can publish a release.
+
+The repository also merges by squash only and deletes a branch once its pull request is merged.
 
 ## Cutting a release
 
-1. Pick a commit on the default branch whose CI is green.
-2. Set the version everywhere it is written down (the workflow refuses a tag that
-   doesn't match `daemon/pyproject.toml`, and checks the wheel's
-   `hivepal.__version__`):
+```bash
+git switch main && git pull --ff-only
+scripts/release.sh 0.4.1        # --dry-run to only prepare the branch locally
+```
 
-   ```bash
-   # daemon/pyproject.toml: version = "0.2.0", then refresh the lockfile:
-   cd daemon && uv lock && cd ..
-   ```
+[`scripts/release.sh`](../scripts/release.sh) checks that `main` is clean and up to date and that
+`CHANGELOG.md` has entries under **Unreleased**. On a branch `release/v0.4.1` it writes the version
+everywhere it is kept (`daemon/pyproject.toml` + `uv.lock`, `relay/package.json` +
+`package-lock.json`, the relay's `VERSION` in `relay/src/routes/system.ts`, which `/v1/status`
+reports) and turns **Unreleased** into `[0.4.1] - <date>`. It opens a pull request that merges
+itself when CI is green, then tags the merged commit `v0.4.1` and pushes the tag. The release
+workflow refuses a tag whose version doesn't match those files or has no changelog section, and
+puts that section at the top of the GitHub release's notes.
 
-   Also bump `relay/package.json` and the relay's `VERSION` constant
-   (`relay/src/routes/system.ts`), which `/v1/status` reports.
-   Commit (`release: 0.2.0`) and push; wait for CI.
-3. Tag and push the tag:
+Then follow the run in the Actions tab (approve the `pypi` environment when asked, if PyPI is on).
+Between releases `main` keeps the last release's version; preview builds show how far past it they
+are (`0.4.0+2.ga6e21e1`).
 
-   ```bash
-   git tag -a v0.2.0 -m "hivepal 0.2.0"
-   git push origin v0.2.0
-   ```
-
-4. Follow the run in the Actions tab; approve the `pypi` environment when asked.
-5. Afterwards, set the next development version (e.g. `0.3.0.dev0` in
-   `daemon/pyproject.toml`, `uv lock`) so later builds don't claim to be the release.
-
-If the run fails before the `pypi` job, fix the problem, delete the tag
-(`git push --delete origin v0.2.0 && git tag -d v0.2.0`) and tag again. After PyPI
-has the version, release a new patch version instead.
+If the run fails before the `pypi` job, fix the problem in a pull request, delete the tag
+(`git push --delete origin v0.4.1 && git tag -d v0.4.1`) and tag the fixed `main` again
+(`git tag -a v0.4.1 -m "hivepal 0.4.1" && git push origin v0.4.1`). After PyPI has the version,
+release a new patch version instead.
 
 ## Building a release APK locally
 
@@ -158,13 +178,14 @@ has the version, release a new patch version instead.
 cd app-android
 export HIVEPAL_KEYSTORE_FILE=/path/to/hivepal-release.jks
 export HIVEPAL_KEYSTORE_PASSWORD=… HIVEPAL_KEY_ALIAS=hivepal
-./gradlew :app:assembleRelease -PversionName=0.2.0 -PversionCode=20099
+./gradlew :app:assembleRelease -PversionName=0.4.1 -PversionCode=40199
 ```
 
 The same names also work as Gradle properties (`-PHIVEPAL_KEYSTORE_FILE=…`).
 Without `HIVEPAL_KEYSTORE_FILE`, `assembleRelease` still works but signs with the
 public debug key and prints a warning: fine for testing, never publish that APK.
-Without `-PversionName`/`-PversionCode` the build is `0.2.0-dev` / `1`.
+Without `-PversionName`/`-PversionCode` the build is `0.2.0-dev` / `1`; `scripts/build-app.sh`
+passes the preview numbering instead.
 
 ## Google Play
 
