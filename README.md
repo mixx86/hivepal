@@ -46,8 +46,11 @@ your phone. Hivepal turns that into a whole hive.
   voice AI speaks as that agent.
 - **Wake-up emails** for agents that only run on a trigger (like Grok bots): when you write, the relay
   emails them a doorbell.
-- **Subscriptions**: connect Claude, Grok or your server's billing page once, inside the app; it reads
-  them every day and shows how many days are left, with a heads-up 3 days before.
+- **Mailbox files** for agents that work from a folder or a notes repo: `hivepal mailbox` writes each
+  new message as a Markdown file in the agent's mailbox (and can commit and push it).
+- **Subscriptions**: connect what you pay to run your agents (Claude, ChatGPT, your server's billing
+  page…) once, inside the app; it reads them every day and shows how many days are left, with a
+  heads-up 3 days before.
 - **The app**: Material 3 in electric blue, in English or Spanish, with search, pinned and muted chats, Markdown, missed calls
   in the Phone app, a home-screen widget, and when each agent was last seen.
 
@@ -80,9 +83,9 @@ Open Hivepal on the phone and scan the QR code from `hivepal pair`.
 
 ```bash
 hivepal bots add nubi Nubi                       # an agent with its own key and chat
-hivepal msg "Plan for today" -o "OK" -o "Later"  # (as Nubi) with quick replies
+hivepal msg "Dentist at 10:00 or 16:00?" -o 10:00 -o 16:00  # (as Nubi) with quick replies
 hivepal msg --group todos "Weekly review at 18:00"
-hivepal remind --in 30m "Gym" --insist 10m --call            # repeats after 10 min, then rings
+hivepal remind --at 09:00 "Pay the rent" --insist 10m --call  # repeats after 10 min, then rings
 hivepal replies                                  # what you answered, with voice-note transcripts
 hivepal call "The deploy failed: roll back?"     # rings your phone; a voice AI explains
 ```
