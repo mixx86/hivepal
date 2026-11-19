@@ -67,7 +67,8 @@ object UnifiedPushSetup {
     fun sendEndpoint(ctx: Context): Boolean {
         val url = endpoint(ctx) ?: return false
         val p = prefs(ctx)
-        return runCatching { Graph.api()?.setUnifiedPush(url, p.getString(KEY_P256DH, null), p.getString(KEY_AUTH, null)) }
+        val api = Graph.api() ?: return false
+        return runCatching { api.setUnifiedPush(url, p.getString(KEY_P256DH, null), p.getString(KEY_AUTH, null)) }
             .onFailure { Log.w(HivepalUnifiedPushService.TAG, "relay refused the endpoint: ${it.message}") }
             .isSuccess
     }

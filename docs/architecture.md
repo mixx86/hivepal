@@ -227,6 +227,8 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
   connector's Web Push keys) so the distributor's server only sees ciphertext; it falls back to FCM
   when the phone clears it.
   Endpoints must be `https://` on a public host (checked again after DNS) and redirects are not
-  followed, so a paired phone can't make the relay reach its internal network. FCM stays the
-  default and unchanged; the app picks the channel in Settings → Notifications.
+  followed, so a paired phone can't make the relay reach its internal network. FCM remains the
+  default when the relay configures it; without FCM, onboarding selects UnifiedPush automatically
+  when a distributor exists and otherwise guides the user through installing ntfy. Settings →
+  Notifications still lets a user choose either channel.
 

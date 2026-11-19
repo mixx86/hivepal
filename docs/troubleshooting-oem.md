@@ -81,8 +81,9 @@ Usually only the app's checklist is needed.
 
 ### Huawei / Honor (EMUI, Magic UI)
 
-- Without Google Play services FCM doesn't work and the phone will not wake for
-  calls (UnifiedPush support is planned). Older models with Play services:
+- Without Google Play services FCM doesn't work. Use UnifiedPush (setup offers ntfy automatically
+  when the relay has no Firebase); then apply the battery settings below for reliable calls. Older
+  models with Play services:
 - Settings → Battery → **App launch** → hivepal → turn off *Manage
   automatically*, then enable **Auto-launch**, **Secondary launch** and **Run in
   background**.

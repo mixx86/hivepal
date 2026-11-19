@@ -10,6 +10,12 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Added
+
+- The app picks how it's woken: Firebase when the relay has it; without Firebase, the setup turns on
+  UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
+  it's there. "Skip for now" goes on without push (Settings → Notifications later).
+
 ## [0.6.0] - 2026-11-19
 
 ### Security

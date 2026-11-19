@@ -19,6 +19,17 @@
     <string name="done_title">Emparejado con %1$s</string>
     <string name="done_no_push">Tu relay no tiene configuradas las notificaciones push, así que los mensajes solo llegan con la app abierta. Mira docs/firebase.md.</string>
     <string name="continue_">Continuar</string>
+    <string name="push_setup_title">Recibe los mensajes siempre</string>
+    <string name="push_setup_body">Este relay no tiene Firebase configurado. Hivepal puede despertar este móvil con UnifiedPush, sin cuenta de Google.</string>
+    <string name="push_no_distributor">Instala un distribuidor de notificaciones para continuar.</string>
+    <string name="push_install_hint">ntfy es un distribuidor gratuito. Instálalo, vuelve aquí y Hivepal terminará automáticamente.</string>
+    <string name="push_install_ntfy">Instalar ntfy</string>
+    <string name="push_later">Ahora no (luego en Ajustes → Notificaciones)</string>
+    <string name="push_registering_up">Conectando el distribuidor de notificaciones…</string>
+    <string name="push_checking">Comprobando que el relay puede despertar el móvil…</string>
+    <string name="push_ready">Las notificaciones están listas.</string>
+    <string name="push_failed">No se pudo terminar la configuración. Comprueba la conexión y vuelve a intentarlo.</string>
+    <string name="push_retry">Reintentar</string>
 
     <string name="tab_home">Inicio</string>
     <string name="tab_messages">Mensajes</string>

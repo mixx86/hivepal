@@ -133,6 +133,11 @@ class M1EndToEndTest {
         screenshot("01-pair")
         compose.onNodeWithTag("pairing_code").performScrollTo().performTextInput(qr)
         compose.onNodeWithTag("pair_button").performScrollTo().performClick()
+        // The CI relay has no Firebase and the emulator no UnifiedPush distributor: the setup offers
+        // ntfy, and the user can go on without push (messages still arrive while the app is open).
+        waitForTag("install_ntfy", timeoutMs = 20_000)
+        screenshot("02-push-setup")
+        compose.onNodeWithTag("push_later").performClick()
         // Call readiness page, then "try it".
         waitForTag("calls_next", timeoutMs = 20_000)
         screenshot("02-calls")

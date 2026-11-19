@@ -6,10 +6,10 @@ says what to do about each problem.
 
 ## Messages only arrive when the app is open
 
-There's no push channel yet. Either set up Firebase ([Firebase](firebase.md)), run the installer again
-and re-pair the phone, or, without Google, install a UnifiedPush distributor such as
-[ntfy](https://ntfy.sh) on the phone and pick **Settings → Notifications → Use UnifiedPush** in the app.
-**Status** in the app says whether pushes work.
+If the relay has Firebase, configure it ([Firebase](firebase.md)), run the installer again and re-pair
+the phone. Without Firebase, setup automatically uses UnifiedPush: install its suggested distributor
+(such as [ntfy](https://ntfy.sh)) and return to the app. You can also choose UnifiedPush manually in
+**Settings → Notifications**. **Status** in the app says whether pushes work.
 
 ## A locked phone doesn't ring
 

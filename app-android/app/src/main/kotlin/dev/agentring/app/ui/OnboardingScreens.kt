@@ -85,7 +85,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Step { WELCOME, HOW, PAIR, CALLS, DONE }
+private enum class Step { WELCOME, HOW, PAIR, PUSH, CALLS, DONE }
 
 /** Where the user's relay lives; only changes which instructions the tutorial shows. */
 private enum class Setup { CLOUD, SELF_HOSTED }
@@ -101,7 +101,9 @@ internal fun Pairing.dashboardUrl(): String? = if (isCloud()) BuildConfig.CLOUD_
 
 @Composable
 fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
-    var step by rememberSaveable { mutableStateOf(if (paired != null) Step.CALLS else Step.WELCOME) }
+    var step by rememberSaveable {
+        mutableStateOf(if (paired?.pushConfig == null && paired != null) Step.PUSH else if (paired != null) Step.CALLS else Step.WELCOME)
+    }
     var setup by rememberSaveable {
         mutableStateOf(if (paired?.isCloud() == true || (paired == null && BuildConfig.CLOUD_URL.isNotEmpty())) Setup.CLOUD else Setup.SELF_HOSTED)
     }
@@ -109,6 +111,10 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
     val canGoBack = step == Step.HOW || step == Step.PAIR
     // Builds without a hosted service skip the "cloud or own server" question.
     val offerCloud = BuildConfig.CLOUD_URL.isNotEmpty()
+    // Before pairing, reserve the optional step; once the relay answers, hide it for Firebase.
+    val needsPushSetup = paired?.pushConfig == null
+    fun displayedIndex(s: Step) = if (!needsPushSetup && s.ordinal > Step.PUSH.ordinal) s.ordinal - 1 else s.ordinal
+    val displayedTotal = Step.entries.size - 1 - if (needsPushSetup) 0 else 1
     fun back() {
         step = if (step == Step.PAIR && !offerCloud) Step.WELCOME else Step.entries[step.ordinal - 1]
     }
@@ -123,8 +129,8 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
         topBar = {
             if (step != Step.WELCOME) {
                 TutorialTopBar(
-                    index = step.ordinal,
-                    total = Step.entries.size - 1,
+                    index = displayedIndex(step),
+                    total = displayedTotal,
                     onBack = if (canGoBack) ::back else null,
                 )
             }
@@ -145,9 +151,114 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
                     setup = it
                     step = Step.PAIR
                 }
-                Step.PAIR -> PairPage(setup, onPaired = { step = Step.CALLS })
+                Step.PAIR -> PairPage(setup, onPaired = {
+                    step = if (Graph.pairing.current?.pushConfig == null) Step.PUSH else Step.CALLS
+                })
+                Step.PUSH -> PushSetupPage(onReady = { step = Step.CALLS })
                 Step.CALLS -> CallsPage(onNext = { step = Step.DONE })
                 Step.DONE -> DonePage(Graph.pairing.current ?: paired, onFinished)
+            }
+        }
+    }
+}
+
+/** Set up the wake-up channel while the pairing result still tells us Firebase is unavailable. */
+@Composable
+private fun PushSetupPage(onReady: () -> Unit) {
+    val ctx = LocalContext.current
+    val activity = ctx as? android.app.Activity
+    val setup = dev.agentring.app.push.UnifiedPushSetup
+    var distributors by remember { mutableStateOf(setup.distributors(ctx)) }
+    var endpoint by remember { mutableStateOf(setup.endpoint(ctx)) }
+    var attemptedDistributor by remember { mutableStateOf<String?>(null) }
+    var registering by remember { mutableStateOf(false) }
+    var checking by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+
+    // The user may install ntfy from this page. Its package appears without restarting Hivepal.
+    LaunchedEffect(Unit) {
+        while (!ready) {
+            distributors = setup.distributors(ctx)
+            endpoint = setup.endpoint(ctx)
+            delay(1_000)
+        }
+    }
+
+    fun startRegistration() {
+        if (activity == null || registering) return
+        registering = true
+        failed = false
+        setup.enable(activity) { accepted ->
+            registering = false
+            failed = !accepted
+        }
+    }
+
+    val distributorKey = distributors.sorted().joinToString(",")
+    LaunchedEffect(distributorKey, endpoint) {
+        if (endpoint == null && distributorKey.isNotEmpty() && attemptedDistributor != distributorKey) {
+            attemptedDistributor = distributorKey
+            startRegistration()
+        }
+    }
+    LaunchedEffect(endpoint) {
+        if (endpoint != null && !ready && !checking) {
+            checking = true
+            ready = withContext(Dispatchers.IO) { setup.sendEndpoint(ctx) }
+            failed = !ready
+            checking = false
+        }
+    }
+
+    fun installNtfy() {
+        val store = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=io.heckel.ntfy"))
+        val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=io.heckel.ntfy"))
+        runCatching { ctx.startActivity(store) }.getOrElse { runCatching { ctx.startActivity(web) } }
+    }
+
+    Page(bottom = {
+        when {
+            ready -> PrimaryButton(stringResource(R.string.continue_), "push_continue", onClick = onReady)
+            distributors.isEmpty() -> OutlinedButton(
+                onClick = ::installNtfy,
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("install_ntfy"),
+            ) { Text(stringResource(R.string.push_install_ntfy), style = MaterialTheme.typography.titleMedium) }
+            failed && !registering && !checking -> OutlinedButton(
+                onClick = ::startRegistration,
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("retry_unifiedpush"),
+            ) { Text(stringResource(R.string.push_retry), style = MaterialTheme.typography.titleMedium) }
+        }
+        // Never a dead end: without push the app still works while it's open, and
+        // Settings → Notifications can set it up later.
+        if (!ready) {
+            TextButton(onClick = onReady, modifier = Modifier.testTag("push_later")) {
+                Text(stringResource(R.string.push_later))
+            }
+        }
+    }) {
+        HeroBadge(rememberVectorPainter(Icons.Filled.Notifications), size = 88.dp, pulse = registering || checking)
+        Text(stringResource(R.string.push_setup_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.push_setup_body),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        BrandCard {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val status = when {
+                    ready -> R.string.push_ready
+                    checking -> R.string.push_checking
+                    registering -> R.string.push_registering_up
+                    distributors.isEmpty() -> R.string.push_no_distributor
+                    failed -> R.string.push_failed
+                    else -> R.string.push_registering_up
+                }
+                Text(stringResource(status), style = MaterialTheme.typography.bodyMedium)
+                if (distributors.isEmpty()) {
+                    Text(stringResource(R.string.push_install_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
