@@ -617,8 +617,15 @@ def test_open_requests_per_tenant_are_capped_and_released(relay: str, start):
     assert c.post(ping(2)).status_code == 200
     w = post_raw(s.url, wait_replies(3), accept=ACCEPT)
     assert until(lambda: s.server.tenant_conns)
-    r = c.post(ping(4))
-    assert r.status_code == 429 and r.headers["retry-after"] == "5"
+    # The waiting request takes its slot a moment after it shows up: ask until it's taken.
+    last = {}
+
+    def refused() -> bool:
+        last["r"] = c.post(ping(4))
+        return last["r"].status_code == 429
+
+    assert until(refused, timeout=5)
+    assert last["r"].headers["retry-after"] == "5"
     w.close()
     assert until(lambda: not s.server.tenant_conns)
     assert c.post(ping(5)).status_code == 200
