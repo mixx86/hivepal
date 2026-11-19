@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hivepal: the page a pairing link (`PairingToken.qr_url`) opens on a phone without the app or from its camera. Static HTML: it reads the code from the URL fragment in the browser and offers to install the app and to open it (`hivepal://pair?c=<code>`), plus the code to paste. */
+        get: operations["pairPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -917,7 +934,8 @@ export interface components {
          * @example {
          *       "pairing_token": "pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW",
          *       "expires_at": 1761200600000,
-         *       "qr_payload": "{\"v\":1,\"relay_url\":\"https://relay.example.com\",\"pairing_token\":\"pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW\"}"
+         *       "qr_payload": "{\"v\":1,\"relay_url\":\"https://relay.example.com\",\"pairing_token\":\"pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW\"}",
+         *       "qr_url": "https://relay.example.com/pair#eyJ2IjoxLCJyZWxheV91cmwiOiJodHRwczovL3JlbGF5LmV4YW1wbGUuY29tIiwicGFpcmluZ190b2tlbiI6InB0X3E4VngwbTNjSjVhMW4xd1lnN0tjOWIyZEU0Zkg2aUw4b1AwclMydFU0dlcifQ"
          *     }
          */
         PairingToken: {
@@ -925,6 +943,11 @@ export interface components {
             expires_at: components["schemas"]["Timestamp"];
             /** @description Exact string to encode in the QR (compact JSON of `QrPayload`). */
             qr_payload: string;
+            /**
+             * Format: uri
+             * @description Hivepal: the same pairing as a link, `<relay>/pair#<base64url of qr_payload>`. Its QR also works from the phone's camera: the relay's /pair page offers to open the app (or to install it first), which then asks before pairing. The code is in the fragment, which browsers never send. Hivepal apps accept either form when scanning or pasting.
+             */
+            qr_url?: string;
         };
         QrPayload: {
             /** @constant */
@@ -1396,6 +1419,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    pairPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;

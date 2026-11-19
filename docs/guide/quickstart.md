@@ -47,7 +47,9 @@ Developer options → USB debugging), then:
 hivepal pair
 ```
 
-Open Hivepal on the phone → **Get started** → scan the QR code. Allow the permissions it asks for
+Scan the QR code with the phone's camera: it opens a page on your relay that offers to install the
+app if it's missing and then opens it, which asks before pairing. With the app already open,
+**Get started** → **Scan QR code** works too. Allow the permissions it asks for
 (notifications, microphone, full-screen calls, unrestricted battery): they're what make a locked phone
 ring.
 

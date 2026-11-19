@@ -230,9 +230,10 @@ def pair(
         if json_out:
             _emit_json(tok)
         else:
-            qr = segno.make(tok["qr_payload"], error="m")
+            # The link form (newer relays) also works from the phone's camera: it offers to install the app.
+            qr = segno.make(tok.get("qr_url") or tok["qr_payload"], error="m")
             qr.terminal(compact=True, border=2)
-            typer.echo("\nScan this QR code with the hivepal app (Pair → Scan QR).")
+            typer.echo("\nScan this QR code with the phone's camera or the Hivepal app (Get started → Scan).")
             typer.echo("No camera? Copy this pairing code into the app (Pair → Paste code):\n")
             typer.echo(f"  {tok['qr_payload']}\n")
             typer.echo(f"Valid until {_fmt_ts(tok['expires_at'])}, single use.")

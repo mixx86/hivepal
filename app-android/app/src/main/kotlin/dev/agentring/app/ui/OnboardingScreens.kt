@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
@@ -112,6 +113,11 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
         step = if (step == Step.PAIR && !offerCloud) Step.WELCOME else Step.entries[step.ordinal - 1]
     }
     BackHandler(enabled = canGoBack) { back() }
+    // Opened from a pairing link: straight to the pairing page, which asks before pairing.
+    val pendingLink by Graph.pendingPairLink.collectAsState()
+    LaunchedEffect(pendingLink) {
+        if (pendingLink != null && step.ordinal < Step.PAIR.ordinal) step = Step.PAIR
+    }
 
     Scaffold(
         topBar = {
@@ -369,6 +375,28 @@ private fun PairPage(setup: Setup, onPaired: () -> Unit) {
                 busy = false
             }
         }
+    }
+    // A pairing link: show which relay and pair only if the user says so (any web page can open one).
+    val pendingLink by Graph.pendingPairLink.collectAsState()
+    val linkRelay = remember(pendingLink) {
+        pendingLink?.let { runCatching { android.net.Uri.parse(dev.agentring.core.QrPayload.parse(it).relayUrl).host }.getOrNull() ?: "" }
+    }
+    if (pendingLink != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { Graph.pendingPairLink.value = null },
+            title = { Text(stringResource(R.string.pair_link_title)) },
+            text = { Text(stringResource(R.string.pair_link_body, linkRelay ?: "")) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val link = pendingLink
+                    Graph.pendingPairLink.value = null
+                    link?.let(::pair)
+                }, modifier = Modifier.testTag("pair_link_confirm")) { Text(stringResource(R.string.pair_link_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { Graph.pendingPairLink.value = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
     val scanFailed = stringResource(R.string.scan_failed, "%s")
     fun scan() {

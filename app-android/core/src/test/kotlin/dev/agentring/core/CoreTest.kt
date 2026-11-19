@@ -149,6 +149,33 @@ class CoreTest {
     }
 
     @Test
+    fun `pairing links carry the same payload`() {
+        val json = """{"v":1,"relay_url":"https://relay.example.com","pairing_token":"pt_abc"}"""
+        val code = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
+        for (link in listOf(
+            "https://relay.example.com/pair#$code",
+            "hivepal://pair?c=$code",
+            "  hivepal://pair?c=$code&x=1 ",
+        )) {
+            val p = QrPayload.parse(link)
+            assertEquals("https://relay.example.com", p.relayUrl)
+            assertEquals("pt_abc", p.pairingToken)
+        }
+        // The link's own host doesn't matter: the payload says which relay, and the URL policy applies to it.
+        val insecure = java.util.Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("""{"v":1,"relay_url":"http://relay.example.com","pairing_token":"pt_abc"}""".toByteArray())
+        for (bad in listOf("https://relay.example.com/pair", "https://relay.example.com/pair#%%%", "hivepal://pair?c=",
+            "hivepal://pair?c=$insecure", "ftp://relay.example.com/pair#$code")) {
+            try {
+                QrPayload.parse(bad)
+                fail("accepted $bad")
+            } catch (e: IllegalArgumentException) {
+                // expected
+            }
+        }
+    }
+
+    @Test
     fun `livekit url must be wss outside a private network`() {
         RelayUrlPolicy.checkLiveKit("wss://relay.example.com")
         RelayUrlPolicy.checkLiveKit("ws://localhost:7880")

@@ -26,6 +26,7 @@ import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
+import { pairPageRoutes } from "./routes/pairpage.js";
 import { systemRoutes } from "./routes/system.js";
 import { WsHub, wsRoutes } from "./routes/ws.js";
 
@@ -170,6 +171,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
 
   systemRoutes(app, ctx);
   pairingRoutes(app, ctx);
+  pairPageRoutes(app);
   messageRoutes(app, ctx);
   agentRoutes(app, ctx);
   fileRoutes(app, ctx);

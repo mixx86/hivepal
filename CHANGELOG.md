@@ -17,6 +17,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   the published images, so nothing is built on the machine. `install.sh --images` does that from a
   release's files.
 - No domain needed on a server: the installer offers `<ip>.sslip.io` when the server's IP is public.
+- Pairing from the phone's camera: `hivepal pair` shows a link (`<relay>/pair#<code>`, the new
+  `qr_url`) whose page offers to install the app and opens it with the code; the app shows which relay
+  and asks before pairing (`hivepal://pair` links). The app still reads the old QR and pasted codes.
 
 ## [0.5.0] - 2026-11-19
 

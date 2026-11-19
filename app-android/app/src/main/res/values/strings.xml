@@ -14,6 +14,10 @@
     <string name="pair">Pair</string>
     <string name="pairing">Pairing…</string>
     <string name="scan_failed">Could not scan: %1$s</string>
+    <string name="pair_link_title">Pair with this relay?</string>
+    <string name="pair_link_body">%1$s\n\nContinue only if you started this pairing yourself (hivepal pair).</string>
+    <string name="pair_link_confirm">Pair</string>
+    <string name="pair_link_already_paired">This phone is already paired. To pair it with another relay, unpair it first in Settings.</string>
     <string name="done_title">Paired with %1$s</string>
     <string name="done_no_push">Push notifications are not configured on your relay, so messages only arrive while the app is open. See docs/firebase.md.</string>
     <string name="continue_">Continue</string>
