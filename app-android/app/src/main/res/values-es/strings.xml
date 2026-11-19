@@ -192,9 +192,11 @@
     <string name="updates_checking">Buscando…</string>
     <string name="updates_up_to_date">Hivepal %1$s es la última versión.</string>
     <string name="updates_newer">Ha salido Hivepal %1$s.</string>
+    <string name="updates_newer_preview">Hay una build preview más nueva (%1$s). Se instala encima de esta app y conserva todo.</string>
+    <string name="updates_download_preview">Descargar la preview</string>
     <string name="updates_download">Descargar %1$s</string>
     <string name="updates_failed">Instalada: Hivepal %1$s. No se pudo consultar GitHub.</string>
-    <string name="updates_not_release">Es una app preview o compilada por ti (%1$s): se actualiza desde el mismo sitio (android-preview o scripts/build-app.sh), no desde las releases.</string>
+    <string name="updates_not_release">Esta app se compiló con cambios locales (%1$s): actualízala igual que la compilaste (scripts/build-app.sh).</string>
     <string name="updates_obtainium">Actualizaciones automáticas con Obtainium</string>
     <string name="perm_notifications_why">Para mostrar mensajes y llamadas entrantes.</string>
     <string name="perm_microphone_why">Para que tu agente te oiga.</string>

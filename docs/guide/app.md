@@ -89,6 +89,8 @@ new versions automatically, add Hivepal to [Obtainium](https://obtainium.imranr.
 does it in one tap, or add `https://github.com/mixx86/hivepal` by hand. Obtainium watches the releases
 and installs updates over the app.
 
-An `android-preview` or self-built app is another channel, signed with another key: it updates from
-where it came from, not from the releases ([which APK](../faq.md#which-apk-do-i-install)).
+An `android-preview` app is another channel, signed with another key: **Check for updates** compares
+it with the latest `android-preview` build instead, and **Download the preview** gets that APK, which
+installs over the app and keeps everything. An app built with local changes updates the way it was
+built ([which APK](../faq.md#which-apk-do-i-install)).
 
