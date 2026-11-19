@@ -5,6 +5,7 @@ import { type Ctx, principal, requireAgentKey, requireAuth } from "../context.js
 import { ApiError, notFound } from "../errors.js";
 import { newId, randomToken } from "../ids.js";
 import type { Device, Schemas } from "../protocol.js";
+import { pairUrl } from "./pairpage.js";
 import { checkPair } from "../quota.js";
 
 const PAIR_WINDOW_MS = 60_000;
@@ -48,8 +49,8 @@ export function createPairingToken(ctx: Ctx, ttlS = 600): Schemas["PairingToken"
     expiresAt,
     now,
   );
-  const qr = { v: 1, relay_url: ctx.cfg.publicUrl, pairing_token: token };
-  return { pairing_token: token, expires_at: expiresAt, qr_payload: JSON.stringify(qr) };
+  const qr = JSON.stringify({ v: 1, relay_url: ctx.cfg.publicUrl, pairing_token: token });
+  return { pairing_token: token, expires_at: expiresAt, qr_payload: qr, qr_url: pairUrl(ctx.cfg.publicUrl, qr) };
 }
 
 export function listDevices(ctx: Ctx, includeRevoked = false): Device[] {

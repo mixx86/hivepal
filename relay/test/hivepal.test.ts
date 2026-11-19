@@ -365,3 +365,28 @@ describe("subscriptions", () => {
     expect((await b.app.inject({ method: "DELETE", url: "/v1/subscriptions/webdock", headers: dev.headers })).statusCode).toBe(204);
   });
 });
+
+describe("pairing link", () => {
+  it("a pairing token also comes as a link to /pair with the payload in the fragment", async () => {
+    b = await setup();
+    const t = (await b.app.inject({ method: "POST", url: "/v1/pairing-tokens", headers: AGENT })).json();
+    const url = new URL(t.qr_url);
+    expect(`${url.origin}${url.pathname}`).toBe(`${JSON.parse(t.qr_payload).relay_url}/pair`);
+    expect(Buffer.from(url.hash.slice(1), "base64url").toString()).toBe(t.qr_payload);
+  });
+
+  it("/pair is a static page without auth, with a strict CSP and no code in it", async () => {
+    b = await setup();
+    const r = await b.app.inject({ method: "GET", url: "/pair" });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/^text\/html/);
+    const csp = String(r.headers["content-security-policy"]);
+    expect(csp).toMatch(/default-src 'none'/);
+    // The inline script runs only because its hash is in the CSP.
+    const script = /<script>([\s\S]*)<\/script>/.exec(r.body)![1];
+    const { createHash } = await import("node:crypto");
+    expect(csp).toContain(`'sha256-${createHash("sha256").update(script).digest("base64")}'`);
+    expect(r.body).not.toMatch(/pt_[A-Za-z0-9_-]{20}/);
+    expect(r.headers["cache-control"]).toBe("no-store");
+  });
+});

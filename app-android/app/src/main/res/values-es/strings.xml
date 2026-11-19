@@ -12,6 +12,10 @@
     <string name="pair">Emparejar</string>
     <string name="pairing">Emparejando…</string>
     <string name="scan_failed">No se pudo escanear: %1$s</string>
+    <string name="pair_link_title">¿Emparejar con este relay?</string>
+    <string name="pair_link_body">%1$s\n\nSigue solo si has empezado tú este emparejamiento (hivepal pair).</string>
+    <string name="pair_link_confirm">Emparejar</string>
+    <string name="pair_link_already_paired">Este móvil ya está emparejado. Para emparejarlo con otro relay, desempareja primero en Ajustes.</string>
     <string name="done_title">Emparejado con %1$s</string>
     <string name="done_no_push">Tu relay no tiene configuradas las notificaciones push, así que los mensajes solo llegan con la app abierta. Mira docs/firebase.md.</string>
     <string name="continue_">Continuar</string>

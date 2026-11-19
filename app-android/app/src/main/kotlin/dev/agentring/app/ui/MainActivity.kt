@@ -42,6 +42,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        intent?.data?.takeIf { it.scheme == "hivepal" && it.host == "pair" }?.let { link ->
+            intent.data = null
+            if (Graph.pairing.current != null) {
+                android.widget.Toast.makeText(this, dev.agentring.app.R.string.pair_link_already_paired, android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                Graph.pendingPairLink.value = link.toString()
+            }
+            return
+        }
         when (intent?.getStringExtra(EXTRA_OPEN)) {
             OPEN_MESSAGES -> openRequest.value = OpenRequest(intent.getStringExtra(EXTRA_CONV))
             // The widget's call button: call the main agent.

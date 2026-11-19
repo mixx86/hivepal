@@ -24,10 +24,16 @@ data class QrPayload(
     @SerialName("pairing_token") val pairingToken: String,
 ) {
     companion object {
-        /** Parses the QR / pasted pairing code. Throws [IllegalArgumentException] with a user-facing reason. */
+        /**
+         * Parses the QR / pasted pairing code: the JSON itself, or a pairing link (Hivepal relays):
+         * `https://<relay>/pair#<base64url JSON>` or `hivepal://pair?c=<base64url JSON>`.
+         * Throws [IllegalArgumentException] with a user-facing reason.
+         */
         fun parse(raw: String): QrPayload {
+            val text = raw.trim()
+            val json = if (text.startsWith("{")) text else fromLink(text)
             val p = try {
-                ProtocolJson.decodeFromString<QrPayload>(raw.trim())
+                ProtocolJson.decodeFromString<QrPayload>(json ?: throw IllegalArgumentException())
             } catch (e: Exception) {
                 throw IllegalArgumentException("This is not a Hivepal pairing code")
             }
@@ -35,6 +41,18 @@ data class QrPayload(
             require(p.pairingToken.startsWith("pt_")) { "Invalid pairing token" }
             RelayUrlPolicy.check(p.relayUrl)
             return p
+        }
+
+        private val LINK_CODE = Regex("""[?&]c=([A-Za-z0-9_-]+)""")
+
+        /** The JSON inside a pairing link, or null if [text] isn't one. */
+        private fun fromLink(text: String): String? {
+            val lower = text.lowercase()
+            if (!(lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("hivepal:"))) return null
+            val code = text.substringAfter('#', "").takeIf { it.isNotEmpty() && !it.startsWith("Intent;") }
+                ?: LINK_CODE.find(text)?.groupValues?.get(1)
+                ?: return null
+            return runCatching { String(java.util.Base64.getUrlDecoder().decode(code), Charsets.UTF_8) }.getOrNull()
         }
     }
 }
