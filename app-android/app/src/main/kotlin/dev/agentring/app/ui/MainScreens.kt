@@ -452,15 +452,22 @@ private fun UpdatesCard() {
                 null -> stringResource(if (failed) R.string.updates_failed else R.string.updates_installed, BuildConfig.VERSION_NAME)
                 is dev.agentring.core.Updates.Result.UpToDate -> stringResource(R.string.updates_up_to_date, r.version)
                 is dev.agentring.core.Updates.Result.Newer -> stringResource(R.string.updates_newer, r.version)
+                is dev.agentring.core.Updates.Result.NewerPreview -> stringResource(R.string.updates_newer_preview, r.commit)
                 dev.agentring.core.Updates.Result.NotARelease -> stringResource(R.string.updates_not_release, BuildConfig.VERSION_NAME)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         val newer = result as? dev.agentring.core.Updates.Result.Newer
+        val newerPreview = result as? dev.agentring.core.Updates.Result.NewerPreview
         if (newer != null) {
             Button(onClick = { open(newer.url) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 Text(stringResource(R.string.updates_download, newer.version))
+            }
+        } else if (newerPreview != null) {
+            // The APK itself: same key as this app, so it installs over it and keeps everything.
+            Button(onClick = { open(newerPreview.url) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                Text(stringResource(R.string.updates_download_preview))
             }
         } else {
             OutlinedButton(
@@ -479,10 +486,13 @@ private fun UpdatesCard() {
                 modifier = Modifier.fillMaxWidth().height(48.dp).testTag("check_updates"),
             ) { Text(stringResource(if (checking) R.string.updates_checking else R.string.updates_check)) }
         }
-        TextButton(onClick = {
-            // Obtainium adds the app from its releases and checks for new ones; its site when it isn't installed.
-            if (open("obtainium://add/https://github.com/${dev.agentring.core.Updates.REPO}").isFailure) open("https://obtainium.imranr.dev")
-        }) { Text(stringResource(R.string.updates_obtainium)) }
+        // Obtainium follows the releases (release key): only for a release build, which it can update.
+        if (dev.agentring.core.Updates.key(BuildConfig.VERSION_NAME) != null) {
+            TextButton(onClick = {
+                // Obtainium adds the app from its releases and checks for new ones; its site when it isn't installed.
+                if (open("obtainium://add/https://github.com/${dev.agentring.core.Updates.REPO}").isFailure) open("https://obtainium.imranr.dev")
+            }) { Text(stringResource(R.string.updates_obtainium)) }
+        }
     }
 }
 

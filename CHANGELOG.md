@@ -12,6 +12,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- App, Settings → Updates on a preview build: compares it with the latest `android-preview` build and
+  offers its APK, which installs over the app and keeps everything (before, previews were only told
+  they're another channel). The Obtainium link shows only on release builds, which it can update.
 - The app picks how it's woken: Firebase when the relay has it; without Firebase, the setup turns on
   UnifiedPush by itself when a distributor is installed, or offers to install ntfy and finishes once
   it's there. "Skip for now" goes on without push (Settings → Notifications later).
