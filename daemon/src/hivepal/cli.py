@@ -679,18 +679,45 @@ def mailbox(
         str, typer.Option("--since", help="On the first run in this folder, start from: 10m, 2h, 1d, epoch ms or ISO date.")
     ] = "1d",
     git: Annotated[bool, typer.Option("--git", help="Commit the new files in the folder's git repository and push.")] = False,
+    install: Annotated[
+        bool, typer.Option("--install", help="Run this every minute from now on (adds it to your crontab), then run it once.")
+    ] = False,
+    uninstall: Annotated[bool, typer.Option("--uninstall", help="Stop running it every minute.")] = False,
     json_out: JsonOpt = False,
 ) -> None:
     """Write your new messages as Markdown files, one per message, in your mailbox folder.
 
-    For agents that read a folder (a notes repo, say) instead of running `hivepal replies`. Run it
-    from cron or a timer. It doesn't mark messages as seen for `replies`."""
+    For agents that read a folder (a notes repo, say) instead of running `hivepal replies`. `--install`
+    runs it every minute (cron), with this agent's key. It doesn't mark messages as seen for `replies`."""
+    import shutil
+    import sys
     from pathlib import Path
 
     from . import mailbox as mb
+    from .config import home_dir
 
     s = _settings()
-    root = Path(folder).expanduser()
+    root = Path(folder).expanduser().resolve()
+    if install or uninstall:
+        home = home_dir().resolve()
+        if uninstall:
+            try:
+                mb.set_cron(None, home, root)
+            except OSError as e:
+                raise _fail(str(e)) from None
+            typer.echo(f"Stopped: {root} is no longer filled every minute for this agent.")
+            return
+        exe = shutil.which("hivepal") or sys.argv[0]
+        # The command's own path, not where its symlink points: that one survives `uv tool upgrade`.
+        line = mb.cron_line(str(Path(exe).absolute()), home, root, git)
+        try:
+            mb.set_cron(line, home, root)
+        except OSError as e:
+            raise _fail(f"{e}\n{line}") from None
+        typer.echo(f"Every minute from now on (crontab -l shows it; log in {home / 'mailbox.log'}).")
+        if git:
+            typer.echo("Cron runs without your SSH agent: the folder's repository must push without a passphrase prompt.")
+        typer.echo("Now once:")
     store = Store(s.db_path)
     names: dict[str, str] = {}
     try:
