@@ -10,6 +10,14 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Added
+
+- One-line install: `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh`
+  (`sh -s -- --local` on your own computer) downloads the latest release and runs its installer with
+  the published images, so nothing is built on the machine. `install.sh --images` does that from a
+  release's files.
+- No domain needed on a server: the installer offers `<ip>.sslip.io` when the server's IP is public.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added

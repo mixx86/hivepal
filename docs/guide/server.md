@@ -7,37 +7,41 @@ cloud, the phone works on mobile data, and calls ring wherever you are. The smal
 ## What you need
 
 - A Linux server (Debian, Ubuntu, Fedora…) with **Docker** and the Compose plugin.
-- A **domain or subdomain** pointing at it (an `A` record, e.g. `hive.example.com`). Many VPS providers
-  give you a hostname that works as is.
+- Optionally a **domain or subdomain** pointing at it (an `A` record, e.g. `hive.example.com`).
+  Without one, the installer offers `<your-ip>.sslip.io`, a name that resolves to the server's public
+  IP (from the free [sslip.io](https://sslip.io) service), and Caddy gets it a certificate all the same.
 - These **ports open**: TCP 80 and 443 (HTTPS), TCP 7881 and UDP 50000–50100 (call audio).
 - Recommended: a [Firebase project](../firebase.md) (pushes and ringing when the app is closed) and a
   [Gemini API key](https://aistudio.google.com/apikey) (voice AI, voice-note transcripts).
 
 ## 1. Install
 
-On the server:
+On the server, in one line (no git, nothing built there: it downloads the latest release into
+`~/hivepal` and uses its published images):
 
 ```bash
-git clone https://github.com/mixx86/hivepal && cd hivepal
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh
 ```
+
+Or from a clone, building the images on the server: `git clone https://github.com/mixx86/hivepal &&
+cd hivepal && ./install.sh`.
 
 It asks for:
 
 | Question | Example | Notes |
 |---|---|---|
-| Domain | `hive.example.com` | Caddy gets a Let's Encrypt certificate for it. |
+| Domain | `hive.example.com` | Caddy gets a Let's Encrypt certificate for it. Offers `<ip>.sslip.io` when the server's IP is public. |
 | Switchboard name | `Switchboard` | The voice that answers your calls. |
 | Gemini key | `AIza…` | Optional. Without it there are no AI calls and no transcripts. |
 | Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional, but without it the phone only gets messages while the app is open. |
 
-Then it writes `deploy/.env` (keep it private: it holds the relay's API key), builds and starts
-everything, configures the daemon inside Docker and shows the QR code to pair the phone.
+Then it writes `deploy/.env` (keep it private: it holds the relay's API key), starts everything, configures the daemon inside Docker and shows the QR code to pair the phone.
 
 Answers can come from the environment for an unattended install:
 
 ```bash
 HIVEPAL_DOMAIN=hive.example.com HIVEPAL_GEMINI_API_KEY=AIza… HIVEPAL_FIREBASE_DIR=~/firebase ./install.sh --yes
+# or through the one-line install: … | HIVEPAL_DOMAIN=… sh -s -- --yes
 ```
 
 ## 2. The app and the phone
@@ -63,7 +67,8 @@ See [Connect your agents](agents.md).
 ## Updating
 
 ```bash
-git pull && ./install.sh          # keeps deploy/.env, rebuilds and restarts
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh   # the one-line install: the latest release, same configuration
+git pull && ./install.sh          # a clone: keeps deploy/.env, rebuilds and restarts
 ```
 
 On a small server, building the images there can eat its memory. Build them on your own computer

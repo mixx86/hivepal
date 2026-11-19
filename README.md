@@ -62,10 +62,13 @@ You need a Linux server with Docker and a domain, **or** just your own computer 
 on the same Wi-Fi or Tailscale).
 
 ```bash
-git clone https://github.com/mixx86/hivepal && cd hivepal
-./install.sh            # on a server with a domain: relay, calls, HTTPS and the daemon
-./install.sh --local    # or on this computer
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh              # on a server: relay, calls, HTTPS and the daemon
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh -s -- --local  # or on this computer
 ```
+
+That downloads the latest release into `~/hivepal` and uses its published images (nothing is built).
+From a clone, `./install.sh` (or `--local`) does the same but builds the images from the source.
+No domain? On a server with a public IP it offers `<ip>.sslip.io`.
 
 It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
 [Gemini key](https://aistudio.google.com/apikey) for voice, and an optional
