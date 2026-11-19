@@ -85,9 +85,9 @@ if ring_start is not None:
 
 # The agent's voice once answered
 if ring_end is not None:
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(S / "coach.wav"), "-ar", str(SR), "-ac", "1",
-                    "-f", "f32le", str(S / "coach.f32")], check=True)
-    voice = np.fromfile(S / "coach.f32", dtype=np.float32).astype(np.float64)
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(S / "hearth.wav"), "-ar", str(SR), "-ac", "1",
+                    "-f", "f32le", str(S / "hearth.f32")], check=True)
+    voice = np.fromfile(S / "hearth.f32", dtype=np.float32).astype(np.float64)
     voice /= max(1e-9, np.abs(voice).max())
     at(ring_end + 0.25, tone([1200.0], 0.12, 0.04), 0.12)  # connected
     at(ring_end + 0.7, voice, 0.75)
@@ -99,7 +99,7 @@ pad *= 0.010 * (0.6 + 0.4 * np.sin(2 * np.pi * t / 9.0))
 fade = np.minimum(1, t / 2.0) * np.minimum(1, (dur - t) / 2.0)
 if ring_end is not None:
     duck = np.ones_like(t)
-    duck[(t > ring_end + 0.5) & (t < ring_end + 7.2)] = 0.35
+    duck[(t > ring_end + 0.5) & (t < ring_end + 11.5)] = 0.35
     pad *= duck
 out += pad * fade
 

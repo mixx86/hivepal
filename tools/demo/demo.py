@@ -9,6 +9,8 @@ from pathlib import Path
 S = Path(__file__).parent
 BIN = str(S / "demo-bin/hivepal")
 EMU = "emulator-5554"
+# Fictional agents: a planner, one that looks after the house, one that keeps the accounts.
+AGENTS = (("atlas", "Atlas"), ("hearth", "Hearth"), ("penny", "Penny"))
 
 
 def hp(who: str, *args: str, check: bool = True) -> str:
@@ -30,14 +32,14 @@ def relay_url() -> str:
 def setup_agents() -> None:
     existing = {a["agent_id"] for a in json.loads(hp("main", "bots", "--json"))["agents"]}
     hp("main", "bots", "rename", "main", "Switchboard")
-    for aid, name in (("nubi", "Nubi"), ("coach", "Coach"), ("ink", "Ink")):
+    for aid, name in AGENTS:
         if aid not in existing:
             key = json.loads(hp("main", "bots", "add", aid, name, "--json"))["api_key"]
             (S / f"demo-{aid}").mkdir(exist_ok=True)
             hp(aid, "init", "--relay", relay_url(), "--api-key", key)
     groups = {g["group_id"] for g in json.loads(hp("main", "groups", "--json"))["groups"]}
-    if "hive" not in groups:
-        hp("main", "groups", "add", "hive", "Hive", "--members", "nubi,coach,ink")
+    if "home" not in groups:
+        hp("main", "groups", "add", "home", "Home", "--members", ",".join(a for a, _ in AGENTS))
 
 
 def adb(*args: str) -> str:

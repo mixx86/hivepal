@@ -1,0 +1,10 @@
+# Everything a demo run makes: the demo relay's homes and CLI, recordings, frames and props.
+demo-*/
+notes/
+frames/
+*.mp4
+*.wav
+*.f32
+*.jpg
+*.png
+events.json
