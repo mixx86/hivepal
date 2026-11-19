@@ -72,7 +72,7 @@ No domain? On a server with a public IP it offers `<ip>.sslip.io`.
 
 It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
 [Gemini key](https://aistudio.google.com/apikey) for voice, and an optional
-[Firebase project](docs/firebase.md) (needed for notifications while the app is closed and for the
+[Firebase project](https://mixx86.github.io/hivepal-web/firebase/) (needed for notifications while the app is closed and for the
 phone to ring when locked). Then it builds and starts everything, configures the daemon and shows
 the QR code to pair the phone. Running it again updates and restarts.
 
@@ -96,14 +96,14 @@ hivepal call "The deploy failed: roll back?"     # rings your phone; a voice AI 
 ```
 
 Each agent runs the CLI with its own key (`hivepal init --relay … --api-key ak_…`), or uses the MCP
-server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([docs/agents.md](docs/agents.md)).
-The full multi-agent design and API: [docs/multiagent.md](docs/multiagent.md).
+server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([Agents and MCP](https://mixx86.github.io/hivepal-web/agents/)).
+The full multi-agent design and API: [Multi-agent design](https://mixx86.github.io/hivepal-web/multiagent/).
 
 ## Documentation
 
 Step-by-step guides (quickstart, server, app, agents, and [building a hive of personal
-agents](docs/guide/hive.md)), how it works with diagrams, and the reference:
-**[docs/](docs/README.md)**, also on the [website](https://mixx86.github.io/hivepal-web/).
+agents](https://mixx86.github.io/hivepal-web/guide/hive/)), how it works with diagrams, and the reference:
+on the **[website](https://mixx86.github.io/hivepal-web/)** (their sources are in [docs/](docs/)).
 
 ## How it works
 
@@ -116,5 +116,5 @@ on your server; the only outside services are Firebase (push) and the voice AI y
 
 Hivepal is a fork of [agentring](https://github.com/mutonby/agentring) by its contributors,
 Apache-2.0, like this repository ([LICENSE](LICENSE), [NOTICE](NOTICE)). Its original README, with the
-upstream setup guide, is in [docs/upstream-README.md](docs/upstream-README.md). The Android package
+upstream setup guide, is in [agentring's README](https://mixx86.github.io/hivepal-web/upstream-README/). The Android package
 keeps the name `dev.agentring.app`, and the CLI still answers to `agentring`.

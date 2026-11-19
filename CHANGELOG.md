@@ -6,7 +6,7 @@ What changes for people who run Hivepal, release by release. The format follows
 release (`0.5.0`) adds features; before 1.0 a minor release may also change the protocol.
 
 Every pull request that changes behaviour adds a line under **Unreleased**;
-`scripts/release.sh` turns that section into the next version (see [docs/release.md](docs/release.md)).
+`scripts/release.sh` turns that section into the next version (see [Releasing](https://mixx86.github.io/hivepal-web/release/)).
 
 ## [Unreleased]
 
