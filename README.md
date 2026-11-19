@@ -53,8 +53,15 @@ your phone. Hivepal turns that into a whole hive.
 - **Subscriptions**: connect what you pay to run your agents (Claude, ChatGPT, your server's billing
   page…) once, inside the app; it reads them every day and shows how many days are left, with a
   heads-up 3 days before.
+- **Notifications without Google**: Firebase when your relay has it, or UnifiedPush through the free
+  ntfy app (no Google account, encrypted for the app); the app sets it up during pairing.
+- **Easy to set up and check**: a one-line install, pairing by scanning a QR with the phone's camera,
+  a web panel on the relay (`/admin`: status, pairing, agents with setup to copy, a test call),
+  `hivepal doctor` to find what's wrong, `hivepal connect claude-code|codex|cursor|openclaw|hermes`,
+  and "Ring me in 10 s" in the app to see a locked phone ring.
 - **The app**: Material 3 in electric blue, in English or Spanish, with search, pinned and muted chats, Markdown, missed calls
-  in the Phone app, a home-screen widget, and when each agent was last seen.
+  in the Phone app, a home-screen widget, when each agent was last seen, a settings backup to a file,
+  and update checks (releases, or the `android-preview` channel).
 
 ## Install
 
