@@ -154,7 +154,7 @@ fun MainScaffold(pairing: Pairing, openRequest: MutableState<OpenRequest?>) {
                                     Dest.SEARCH -> R.string.search
                                 },
                             ),
-                            style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleLarge.copy(color = Retro.Blue, fontWeight = FontWeight.Bold),
                         )
                     },
                     navigationIcon = {
@@ -226,7 +226,7 @@ private fun DrawerHeader(pairing: Pairing) {
         Column {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge.copy(brush = BrandBrush, fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                style = MaterialTheme.typography.titleLarge.copy(color = Retro.Blue, fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
             )
             Text(
                 pairing.relayUrl.removePrefix("https://").removePrefix("http://").trimEnd('/'),
