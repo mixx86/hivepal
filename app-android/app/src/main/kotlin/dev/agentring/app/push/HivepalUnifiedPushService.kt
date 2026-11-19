@@ -15,12 +15,15 @@ import kotlin.concurrent.thread
 
 /**
  * Hivepal: push without Google. A UnifiedPush distributor (ntfy, NextPush…) gives the app an endpoint;
- * the relay POSTs each push there and the distributor delivers it here. The body is the same signed
- * map FCM carries, as JSON, so it goes through the same [PushHandler] (signature checked there).
+ * the relay POSTs each push there and the distributor delivers it here. The relay encrypts it with
+ * the connector's Web Push keys (RFC 8291), so the distributor's server can't read it, and the
+ * connector decrypts it: the same signed map FCM carries, as JSON, through the same [PushHandler]
+ * (signature checked there).
  */
 class HivepalUnifiedPushService : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
-        UnifiedPushSetup.saveEndpoint(applicationContext, endpoint.url)
+        // The connector's Web Push keys: the relay encrypts for them, the connector decrypts.
+        UnifiedPushSetup.saveEndpoint(applicationContext, endpoint.url, endpoint.pubKeySet?.pubKey, endpoint.pubKeySet?.auth)
         thread(name = "up-endpoint") { UnifiedPushSetup.sendEndpoint(applicationContext) }
     }
 
@@ -48,6 +51,8 @@ class HivepalUnifiedPushService : PushService() {
 object UnifiedPushSetup {
     private const val PREFS = "hivepal_push"
     private const val KEY_ENDPOINT = "up_endpoint"
+    private const val KEY_P256DH = "up_p256dh"
+    private const val KEY_AUTH = "up_auth"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -55,12 +60,14 @@ object UnifiedPushSetup {
 
     fun distributors(ctx: Context): List<String> = UnifiedPush.getDistributors(ctx)
 
-    fun saveEndpoint(ctx: Context, url: String) = prefs(ctx).edit().putString(KEY_ENDPOINT, url).apply()
+    fun saveEndpoint(ctx: Context, url: String, p256dh: String?, auth: String?) =
+        prefs(ctx).edit().putString(KEY_ENDPOINT, url).putString(KEY_P256DH, p256dh).putString(KEY_AUTH, auth).apply()
 
     /** Blocking: gives the relay the current endpoint (again after re-pairing, for instance). */
     fun sendEndpoint(ctx: Context): Boolean {
         val url = endpoint(ctx) ?: return false
-        return runCatching { Graph.api()?.setUnifiedPush(url) }
+        val p = prefs(ctx)
+        return runCatching { Graph.api()?.setUnifiedPush(url, p.getString(KEY_P256DH, null), p.getString(KEY_AUTH, null)) }
             .onFailure { Log.w(HivepalUnifiedPushService.TAG, "relay refused the endpoint: ${it.message}") }
             .isSuccess
     }
@@ -80,7 +87,7 @@ object UnifiedPushSetup {
     }
 
     fun forget(ctx: Context) {
-        prefs(ctx).edit().remove(KEY_ENDPOINT).apply()
+        prefs(ctx).edit().remove(KEY_ENDPOINT).remove(KEY_P256DH).remove(KEY_AUTH).apply()
         thread(name = "up-clear") { runCatching { Graph.api()?.clearUnifiedPush() } }
     }
 

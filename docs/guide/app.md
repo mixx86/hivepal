@@ -76,8 +76,9 @@ On Android 13+ it's also in the system's per-app language setting.
 
 By default the relay wakes the phone through Firebase. To do without Google, install a UnifiedPush
 distributor such as [ntfy](https://ntfy.sh) (F-Droid or Play Store) and tap **Settings → Notifications
-→ Use UnifiedPush**: the app registers with it and gives the relay its address, and pushes, ringing
-calls included, go through it. **Back to Firebase** undoes it. A relay without Firebase works this way
+→ Use UnifiedPush**: the app registers with it and gives the relay its address and keys, and pushes,
+ringing calls included, go through it, encrypted for the app (the distributor's server can't read
+them). **Back to Firebase** undoes it. A relay without Firebase works this way
 too.
 
 ## Updates

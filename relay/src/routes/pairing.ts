@@ -7,6 +7,7 @@ import { newId, randomToken } from "../ids.js";
 import type { Device, Schemas } from "../protocol.js";
 import { pairUrl } from "./pairpage.js";
 import { endpointProblem } from "../push/unifiedpush.js";
+import { encrypt } from "../push/webpush.js";
 import { checkPair } from "../quota.js";
 
 const PAIR_WINDOW_MS = 60_000;
@@ -174,7 +175,7 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
   );
 
   // Hivepal: UnifiedPush instead of FCM for this device.
-  app.post<{ Body: { endpoint: string } }>(
+  app.post<{ Body: { endpoint: string; p256dh?: string; auth?: string } }>(
     "/v1/device/unifiedpush",
     {
       preHandler: requireAuth(ctx, "device"),
@@ -183,7 +184,11 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
           type: "object",
           additionalProperties: false,
           required: ["endpoint"],
-          properties: { endpoint: { type: "string", minLength: 1, maxLength: 2048 } },
+          properties: {
+            endpoint: { type: "string", minLength: 1, maxLength: 2048 },
+            p256dh: { type: "string", pattern: "^[A-Za-z0-9_-]{86,88}={0,2}$" },
+            auth: { type: "string", pattern: "^[A-Za-z0-9_-]{22,24}={0,2}$" },
+          },
         },
       },
     },
@@ -192,7 +197,21 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
       if (p.kind !== "device") throw new Error("unreachable");
       const problem = endpointProblem(req.body.endpoint);
       if (problem) throw new ApiError(400, "invalid_request", `UnifiedPush endpoint ${problem}`);
-      db.prepare("UPDATE devices SET up_endpoint = ? WHERE device_id = ?").run(req.body.endpoint, p.deviceId);
+      const { p256dh, auth } = req.body;
+      if (!!p256dh !== !!auth) throw new ApiError(400, "invalid_request", "p256dh and auth go together");
+      if (p256dh && auth) {
+        try {
+          encrypt(Buffer.from("{}"), { p256dh, auth }); // a key that can't be used is refused now, not at push time
+        } catch (e) {
+          throw new ApiError(400, "invalid_request", `Web Push keys: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      db.prepare("UPDATE devices SET up_endpoint = ?, up_p256dh = ?, up_auth = ? WHERE device_id = ?").run(
+        req.body.endpoint,
+        p256dh ?? null,
+        auth ?? null,
+        p.deviceId,
+      );
       return reply.code(204).send();
     },
   );
@@ -200,7 +219,7 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.delete("/v1/device/unifiedpush", { preHandler: requireAuth(ctx, "device") }, async (req, reply) => {
     const p = principal(req);
     if (p.kind !== "device") throw new Error("unreachable");
-    db.prepare("UPDATE devices SET up_endpoint = NULL WHERE device_id = ?").run(p.deviceId);
+    db.prepare("UPDATE devices SET up_endpoint = NULL, up_p256dh = NULL, up_auth = NULL WHERE device_id = ?").run(p.deviceId);
     return reply.code(204).send();
   });
 

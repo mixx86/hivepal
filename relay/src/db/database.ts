@@ -166,6 +166,11 @@ const MIGRATIONS: string[] = [
   -- Hivepal: a device woken through UnifiedPush (its endpoint) instead of FCM.
   ALTER TABLE devices ADD COLUMN up_endpoint TEXT;
   `,
+  `
+  -- Hivepal: the app's Web Push keys, to encrypt what goes through the UnifiedPush distributor.
+  ALTER TABLE devices ADD COLUMN up_p256dh TEXT;
+  ALTER TABLE devices ADD COLUMN up_auth TEXT;
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

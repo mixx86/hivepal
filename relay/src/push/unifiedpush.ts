@@ -11,6 +11,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import type { PushOptions, PushPayload, PushProvider, PushResult, PushTarget } from "./push-provider.js";
+import { encrypt } from "./webpush.js";
 
 const TIMEOUT_MS = 10_000;
 
@@ -62,16 +63,21 @@ export class UnifiedPushProvider implements PushProvider {
           return { ok: false, unregistered: false, error: "endpoint resolves to an internal address" };
         }
       }
+      const json = Buffer.from(JSON.stringify(payload));
+      // Encrypted for the app when it gave its keys: the distributor's server sees ciphertext only.
+      const body = target.webPush ? encrypt(json, target.webPush) : json;
       const r = await this.fetchImpl(target.token, {
         method: "POST",
         redirect: "manual", // never follow: a redirect could point anywhere
         headers: {
-          "content-type": "application/json",
+          ...(target.webPush
+            ? { "content-type": "application/octet-stream", "content-encoding": "aes128gcm" }
+            : { "content-type": "application/json" }),
           ttl: String(opts.ttlSeconds),
           urgency: opts.highPriority ? "high" : "normal",
           ...(opts.collapseKey ? { topic: opts.collapseKey.slice(0, 32).replace(/[^A-Za-z0-9_-]/g, "_") } : {}),
         },
-        body: JSON.stringify(payload),
+        body: new Uint8Array(body),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (r.status >= 200 && r.status < 300) return { ok: true };
