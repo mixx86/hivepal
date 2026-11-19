@@ -86,6 +86,15 @@
             </intent-filter>
         </service>
 
+        <!-- Hivepal: push without Google, through a UnifiedPush distributor (ntfy, NextPush…). -->
+        <service
+            android:name=".push.HivepalUnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".notify.ReplyReceiver"
             android:exported="false" />

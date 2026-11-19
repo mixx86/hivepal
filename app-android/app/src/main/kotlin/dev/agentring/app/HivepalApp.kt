@@ -21,6 +21,10 @@ class HivepalApp : Application() {
         CallNotifications.createChannels(this)
         // Firebase must be ready before FirebaseMessagingService delivers a push.
         Graph.pairing.current?.let { Graph.push.initFirebase(it.pushConfig) }
+        // UnifiedPush (when chosen): make sure the relay has the current endpoint.
+        if (Graph.pairing.current != null && dev.agentring.app.push.UnifiedPushSetup.endpoint(this) != null) {
+            kotlin.concurrent.thread(name = "up-sync") { dev.agentring.app.push.UnifiedPushSetup.sendEndpoint(this) }
+        }
         ProcessLifecycleOwner.get().lifecycle.addObserver(Graph.connection)
         // Hivepal: keep the home-screen widget in step with the messages.
         Graph.appScope.launch {

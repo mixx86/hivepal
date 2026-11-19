@@ -2,8 +2,10 @@
 
 ## Messages only arrive when the app is open
 
-There's no Firebase yet: set it up ([Firebase](firebase.md)), run the installer again and re-pair the
-phone. **Status** in the app says whether pushes work.
+There's no push channel yet. Either set up Firebase ([Firebase](firebase.md)), run the installer again
+and re-pair the phone, or, without Google, install a UnifiedPush distributor such as
+[ntfy](https://ntfy.sh) on the phone and pick **Settings → Notifications → Use UnifiedPush** in the app.
+**Status** in the app says whether pushes work.
 
 ## A locked phone doesn't ring
 

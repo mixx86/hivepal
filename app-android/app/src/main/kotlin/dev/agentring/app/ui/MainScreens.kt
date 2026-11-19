@@ -370,6 +370,9 @@ fun SettingsScreen(pairing: Pairing) {
             }
         }
 
+        SectionLabel(stringResource(R.string.push_channel))
+        PushChannelCard()
+
         SectionLabel(stringResource(R.string.updates))
         UpdatesCard()
 
@@ -480,5 +483,49 @@ private fun UpdatesCard() {
             // Obtainium adds the app from its releases and checks for new ones; its site when it isn't installed.
             if (open("obtainium://add/https://github.com/${dev.agentring.core.Updates.REPO}").isFailure) open("https://obtainium.imranr.dev")
         }) { Text(stringResource(R.string.updates_obtainium)) }
+    }
+}
+
+
+/**
+ * Hivepal: how the relay wakes this phone. Firebase (Google) by default; UnifiedPush through a
+ * distributor app (ntfy, NextPush…) for a phone or a relay without Google.
+ */
+@Composable
+private fun PushChannelCard() {
+    val ctx = LocalContext.current
+    val setup = dev.agentring.app.push.UnifiedPushSetup
+    var usingUp by remember { mutableStateOf(setup.endpoint(ctx) != null) }
+    var note by remember { mutableStateOf<String?>(null) }
+    val noDistributor = stringResource(R.string.push_up_none)
+    val waiting = stringResource(R.string.push_up_waiting)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(if (usingUp) R.string.push_via_up else R.string.push_via_fcm),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (usingUp) {
+            OutlinedButton(
+                onClick = {
+                    kotlin.concurrent.thread { setup.disable(ctx) }
+                    usingUp = false
+                    note = null
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("push_use_fcm"),
+            ) { Text(stringResource(R.string.push_use_fcm)) }
+        } else {
+            OutlinedButton(
+                onClick = {
+                    val activity = ctx as? android.app.Activity ?: return@OutlinedButton
+                    setup.enable(activity) { ok ->
+                        usingUp = ok
+                        note = if (ok) waiting else noDistributor
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("push_use_up"),
+            ) { Text(stringResource(R.string.push_use_up)) }
+        }
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

@@ -6,6 +6,7 @@ import { ApiError, notFound } from "../errors.js";
 import { newId, randomToken } from "../ids.js";
 import type { Device, Schemas } from "../protocol.js";
 import { pairUrl } from "./pairpage.js";
+import { endpointProblem } from "../push/unifiedpush.js";
 import { checkPair } from "../quota.js";
 
 const PAIR_WINDOW_MS = 60_000;
@@ -19,6 +20,7 @@ interface DeviceRow {
   platform: string;
   app_version: string | null;
   fcm_token: string | null;
+  up_endpoint?: string | null;
   created_at: number;
   last_seen_at: number | null;
   revoked_at: number | null;
@@ -33,7 +35,8 @@ export function deviceFromRow(r: DeviceRow): Device {
     created_at: r.created_at,
     ...(r.last_seen_at ? { last_seen_at: r.last_seen_at } : {}),
     ...(r.revoked_at ? { revoked_at: r.revoked_at } : {}),
-    has_push_token: r.fcm_token !== null,
+    has_push_token: r.fcm_token !== null || (r.up_endpoint ?? null) !== null,
+    push_via: r.up_endpoint ? "unifiedpush" : r.fcm_token ? "fcm" : "none",
   };
 }
 
@@ -65,7 +68,7 @@ export function revokeDevice(ctx: Ctx, deviceId: string): void {
   const row = ctx.db.prepare("SELECT revoked_at FROM devices WHERE device_id = ?").get(deviceId);
   if (!row) throw notFound("Device");
   ctx.db
-    .prepare("UPDATE devices SET revoked_at = COALESCE(revoked_at, ?), fcm_token = NULL WHERE device_id = ?")
+    .prepare("UPDATE devices SET revoked_at = COALESCE(revoked_at, ?), fcm_token = NULL, up_endpoint = NULL WHERE device_id = ?")
     .run(Date.now(), deviceId);
   ctx.hub.disconnectDevice(deviceId);
   ctx.calls?.deviceRevoked(deviceId);
@@ -169,6 +172,37 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
       return reply.code(204).send();
     },
   );
+
+  // Hivepal: UnifiedPush instead of FCM for this device.
+  app.post<{ Body: { endpoint: string } }>(
+    "/v1/device/unifiedpush",
+    {
+      preHandler: requireAuth(ctx, "device"),
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["endpoint"],
+          properties: { endpoint: { type: "string", minLength: 1, maxLength: 2048 } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const p = principal(req);
+      if (p.kind !== "device") throw new Error("unreachable");
+      const problem = endpointProblem(req.body.endpoint);
+      if (problem) throw new ApiError(400, "invalid_request", `UnifiedPush endpoint ${problem}`);
+      db.prepare("UPDATE devices SET up_endpoint = ? WHERE device_id = ?").run(req.body.endpoint, p.deviceId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.delete("/v1/device/unifiedpush", { preHandler: requireAuth(ctx, "device") }, async (req, reply) => {
+    const p = principal(req);
+    if (p.kind !== "device") throw new Error("unreachable");
+    db.prepare("UPDATE devices SET up_endpoint = NULL WHERE device_id = ?").run(p.deviceId);
+    return reply.code(204).send();
+  });
 
   app.get<{ Querystring: { include_revoked?: boolean } }>(
     "/v1/devices",

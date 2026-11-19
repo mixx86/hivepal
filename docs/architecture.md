@@ -218,3 +218,13 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
   per-tenant limits (`402 quota_exceeded`, `end_reason: quota`). This lifts F1's "one
   user, no accounts" for the hosted version only; self-hosted is unchanged. The control
   plane (accounts, billing) lives in a private repo. Details in [cloud.md](cloud.md).
+
+- **UnifiedPush next to FCM** (Hivepal fork, at the user's request, 2026-11-19, issue #12): a
+  phone may wake through a UnifiedPush distributor (ntfy, NextPush…) instead of FCM, so
+  neither the phone nor the relay needs Google. The phone gives the relay its endpoint
+  (`POST /v1/device/unifiedpush`); the relay POSTs the same signed `PushData` map there, as JSON,
+  with RFC 8030 `TTL` and `Urgency` headers, and falls back to FCM when the phone clears it.
+  Endpoints must be `https://` on a public host (checked again after DNS) and redirects are not
+  followed, so a paired phone can't make the relay reach its internal network. FCM stays the
+  default and unchanged; the app picks the channel in Settings → Notifications.
+

@@ -116,6 +116,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/device/unifiedpush": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. A 404 or 410 answer forgets the endpoint. Only `https://` endpoints on a public host are accepted. */
+        post: operations["setUnifiedPushEndpoint"];
+        /** Hivepal: back to FCM for this device (if it has a token). */
+        delete: operations["clearUnifiedPushEndpoint"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -1019,6 +1037,11 @@ export interface components {
             last_seen_at?: components["schemas"]["Timestamp"];
             revoked_at?: components["schemas"]["Timestamp"];
             has_push_token: boolean;
+            /**
+             * @description Hivepal: how the relay wakes this device: `unifiedpush`, `fcm`, or `none`.
+             * @enum {string}
+             */
+            push_via?: "unifiedpush" | "fcm" | "none";
         };
         CreateCallRequest: {
             /** @description Required when the agent calls; optional when the user calls. */
@@ -1579,6 +1602,52 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setUnifiedPushEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    endpoint: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    clearUnifiedPushEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
         };
     };
