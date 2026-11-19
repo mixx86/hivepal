@@ -202,6 +202,7 @@ bold "
 Hivepal is running.
 
   Relay:    $PUBLIC
+  Panel:    $PUBLIC/admin   (status, pair a phone, add agents, test; log in with the key below)
   API key:  $API_KEY   (also in $ENV_FILE)
 
 Next:

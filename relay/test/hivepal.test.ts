@@ -390,3 +390,23 @@ describe("pairing link", () => {
     expect(r.headers["cache-control"]).toBe("no-store");
   });
 });
+
+describe("web panel", () => {
+  it("/admin is a static page without data, its script allowed by hash and nothing else", async () => {
+    b = await setup();
+    const r = await b.app.inject({ method: "GET", url: "/admin" });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/^text\/html/);
+    const csp = String(r.headers["content-security-policy"]);
+    expect(csp).toMatch(/default-src 'none'/);
+    expect(csp).toMatch(/connect-src 'self'/);
+    const scripts = [...r.body.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts).toHaveLength(1);
+    expect(() => new Function(scripts[0])).not.toThrow(); // it parses (compiled, not run)
+    const { createHash } = await import("node:crypto");
+    expect(csp).toContain(`'sha256-${createHash("sha256").update(scripts[0]).digest("base64")}'`);
+    expect(r.body).not.toMatch(/ak_[A-Za-z0-9_-]{20}/);
+    expect(r.body).not.toMatch(/innerHTML/);
+    expect(r.headers["x-robots-tag"]).toBe("noindex");
+  });
+});
