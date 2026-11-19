@@ -10,6 +10,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-19
+
 ### Security
 
 - UnifiedPush pushes are encrypted for the app (Web Push, RFC 8291), so the distributor's server (ntfy.sh,
@@ -89,6 +91,7 @@ First release of Hivepal, the multi-agent fork of [agentring](https://github.com
 - Signed release APK, daemon wheel and sdist, public GHCR images `hivepal-relay` and
   `hivepal-daemon`.
 
-[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/mixx86/hivepal/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/mixx86/hivepal/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mixx86/hivepal/releases/tag/v0.4.0
