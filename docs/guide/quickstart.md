@@ -16,9 +16,12 @@ that's reachable from anywhere, see [Install on a server](server.md).
 ## 1. Start the relay and install the CLI
 
 ```bash
-git clone https://github.com/mixx86/hivepal && cd hivepal
-./install.sh --local
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh -s -- --local
 ```
+
+It downloads the latest release into `~/hivepal` and uses its published images, so nothing is built
+on your computer. From a clone it works the same: `git clone https://github.com/mixx86/hivepal && cd
+hivepal && ./install.sh --local` (that one builds the images from the source).
 
 It picks your computer's LAN address, asks for a name for the voice switchboard and the optional
 Gemini key, starts the relay and LiveKit in Docker, installs the `hivepal` command and connects it.
