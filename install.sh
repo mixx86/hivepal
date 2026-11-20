@@ -392,8 +392,10 @@ Hivepal is running.
   API key:  $API_KEY   (also in $ENV_FILE)
 
 Next:
-  1. The app: $([[ $IMAGES == 1 ]] && echo "https://github.com/mixx86/hivepal/releases/download/v$VERSION/hivepal-$VERSION.apk" || echo "./scripts/build-app.sh --install   (or install a release APK)")
-  2. Pair the phone: ${HIVEPAL[*]} pair   and scan the QR with the app
+  1. App and pairing: ${HIVEPAL[*]} pair   and scan the QR with the phone's camera: the page offers the app
+     (https://github.com/mixx86/hivepal/releases/latest) and then opens it to pair$([[ $IMAGES == 1 ]] || echo "
+     (or build it yourself: ./scripts/build-app.sh --install, phone on USB)")
+  2. Then follow the app: permissions, push, and how agents hear from you
   3. Try it: ${HIVEPAL[*]} msg \"hello\"
   4. An agent with its own chat and key: ${HIVEPAL[*]} bots add nubi Nubi
 $([[ -n "${HIVEPAL_SMTP_URL:-}" ]] && echo "     Wake it by email: give it an address in the panel (Agents) and Send a test")

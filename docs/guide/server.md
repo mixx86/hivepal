@@ -57,12 +57,17 @@ HIVEPAL_DOMAIN=hive.example.com HIVEPAL_GEMINI_API_KEY=AIza… HIVEPAL_FIREBASE_
 
 ## 2. The app and the phone
 
-Build the app on your computer (`./scripts/build-app.sh --install`, phone on USB) or install an APK
-from the [releases](https://github.com/mixx86/hivepal/releases). Then, on the server:
+The installer ends with a QR code; to show one again, on the server:
 
 ```bash
 cd deploy && docker compose exec daemon hivepal pair
 ```
+
+Scan it with the **phone's camera**: the page it opens offers **Download the app**
+(`hivepal-X.Y.Z.apk` from the [latest release](https://github.com/mixx86/hivepal/releases/latest);
+Android asks once to allow installs from your browser) and then **Open Hivepal**, which pairs it. The
+app walks you through permissions, push and how agents hear from you. (Building the app yourself:
+[quickstart](quickstart.md#build-the-app-yourself).)
 
 ## The web panel
 

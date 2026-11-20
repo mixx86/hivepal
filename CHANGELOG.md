@@ -19,6 +19,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   searchable, both) in the setup and in Settings.
 - App: the main buttons (new group, send) glow still instead of pulsing; only what needs attention moves.
 - App: language names are in the app's language (English · Spanish, Inglés · Español).
+- Docs and installer: installing the app is the release APK (scan the pairing QR with the phone's camera), no
+  cable or Android SDK; building it yourself is the alternative.
 
 ### Fixed
 
