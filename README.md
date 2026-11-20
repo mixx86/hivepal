@@ -68,26 +68,23 @@ your phone. Hivepal turns that into a whole hive.
 
 ## Install
 
-Two pieces: the **relay** (on a server, or on your own computer for the phone on the same Wi-Fi or
-Tailscale) and the **app** on your Android phone.
+Two pieces: the **relay**, which your agents and your phone talk to, and the **app** on your Android
+phone. The relay goes in **one** place, whichever suits you:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh              # on a server
-curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh -s -- --local  # or on this computer
-```
+| Where the relay runs | Good for | Install | Guide |
+|---|---|---|---|
+| **Your own computer** | trying it; the phone on the same Wi-Fi or Tailscale | `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh \| sh -s -- --local` | [Quickstart](https://mixx86.github.io/hivepal-web/guide/quickstart/) (15 min) |
+| **A server** | reachable from anywhere, always on | `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh \| sh` | [Install on a server](https://mixx86.github.io/hivepal-web/guide/server/) |
 
-The installer asks a few questions (all optional but the first), starts everything and shows a QR code.
-Scan it with the phone's camera: it offers the app and pairs it. Step by step:
+Either way the installer asks a few questions (all optional but the first), starts everything and
+shows a QR code. Scan it with the phone's camera: it offers the app and pairs it
+([the app](https://mixx86.github.io/hivepal-web/guide/app/)).
 
-- [Quickstart on your computer](https://mixx86.github.io/hivepal-web/guide/quickstart/) (15 minutes)
-- [Install on a server](https://mixx86.github.io/hivepal-web/guide/server/): domain or `<ip>.sslip.io`,
-  HTTPS, the web panel at `/admin`, updates
-- [The app](https://mixx86.github.io/hivepal-web/guide/app/): setup, chats, calls, settings
-- Optional: [a voice AI](https://mixx86.github.io/hivepal-web/voice/) for calls and voice-note
-  transcripts (Gemini's free tier works), [Firebase](https://mixx86.github.io/hivepal-web/firebase/)
-  (otherwise the free ntfy app wakes the phone), and
-  [how agents hear from you, and remember](https://mixx86.github.io/hivepal-web/guide/agents/#how-agents-hear-from-you-and-remember)
-  (wake-up emails, Markdown mailboxes, memory)
+Optional, any time later: [a voice AI](https://mixx86.github.io/hivepal-web/voice/) for calls and
+voice-note transcripts (Gemini's free tier works), [Firebase](https://mixx86.github.io/hivepal-web/firebase/)
+(otherwise the free ntfy app wakes the phone), and
+[how agents hear from you, and remember](https://mixx86.github.io/hivepal-web/guide/agents/#how-agents-hear-from-you-and-remember)
+(wake-up emails, Markdown mailboxes, memory).
 
 ## Use it from your agents
 
