@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
@@ -21,7 +22,10 @@ import { Calls, callRoutes, targetsOf } from "./routes/calls.js";
 import { agentRoutes } from "./routes/agents.js";
 import { fileRoutes } from "./routes/files.js";
 import { GeminiSpeech } from "./gemini.js";
-import { Wake, smtpMailer } from "./wake.js";
+import { Wake, mailerFor } from "./wake.js";
+import { Mailbox } from "./mailbox.js";
+import { Settings } from "./settings.js";
+import { deliveryRoutes } from "./routes/delivery.js";
 import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
@@ -37,8 +41,12 @@ export interface BuildOptions {
   pushProvider?: PushProvider;
   /** Hivepal: the UnifiedPush sender (tests pass a fake). */
   unifiedPush?: PushProvider;
-  /** Hivepal: the wake-up email sender (tests pass a fake). Defaults to HIVEPAL_SMTP_URL's server. */
+  /** Hivepal: the wake-up email sender (tests pass a fake). Defaults to the relay's mail account. */
   mailer?: import("./wake.js").Mailer;
+  /** Hivepal, tests: builds the mailer for an SMTP URL (instead of nodemailer). */
+  mailerFactory?: (url: string) => import("./wake.js").Mailer;
+  /** Hivepal, tests: mailbox options (file:// repositories, a short batch delay). */
+  mailbox?: { allowFileRepos?: boolean; flushDelayMs?: number };
   /** Inject LiveKit (tests). Defaults to the configured server, if any. */
   livekit?: LiveKitService;
   /** A pino-compatible logger to use instead of creating one (hub mode: a child per tenant). */
@@ -159,11 +167,25 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     opts.unifiedPush,
   );
   events.onEvent((e) => dispatcher.handle(e));
-  const smtp = process.env.HIVEPAL_SMTP_URL;
-  const mailer = opts.mailer ?? (smtp ? smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM) : undefined);
-  const wake = mailer ? new Wake(agents, mailer, app.log) : undefined;
-  if (wake) events.onEvent((e) => wake.handle(e));
+  // Hivepal: delivery to agents (issue #41). The mail account and the mailbox repository are runtime
+  // settings; an agent with a mailbox gets its wake-up email after its files are written.
+  const settings = new Settings(db);
+  ctx.settings = settings;
+  agents.mailboxDefault = () => settings.mailboxesForAll();
+  const currentMailer = mailerFor(() => settings.smtpUrl(), opts.mailerFactory);
+  const wake = new Wake(agents, opts.mailer ? () => opts.mailer : currentMailer, app.log);
   ctx.wake = wake;
+  ctx.mailerFor = opts.mailerFactory;
+  // An in-memory database (tests) keeps its files in a temporary folder, not in one named ":memory:".
+  const tempDir = cfg.dataDir === ":memory:" ? join(tmpdir(), `hivepal-mailbox-${randomBytes(6).toString("hex")}`) : undefined;
+  const mailbox = new Mailbox({
+    dataDir: tempDir ?? cfg.dataDir,
+    db, agents, settings, log: app.log,
+    onFlushed: (ids) => wake.ringAgents(ids),
+    ...opts.mailbox,
+  });
+  ctx.mailbox = mailbox;
+  events.onEvent((e) => wake.handle(e, mailbox.handle(e)));
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ApiError) {
@@ -189,6 +211,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   pairPageRoutes(app);
   messageRoutes(app, ctx);
   agentRoutes(app, ctx);
+  deliveryRoutes(app, ctx);
   fileRoutes(app, ctx);
   subscriptionRoutes(app, ctx);
   if (process.env.GEMINI_API_KEY) ctx.speech = new GeminiSpeech(process.env.GEMINI_API_KEY);
@@ -205,7 +228,10 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   app.addHook("onClose", async () => {
     calls.stop();
     reminders.stop();
-    wake?.stop();
+    wake.stop();
+    await mailbox.flush().catch(() => undefined);
+    mailbox.stop();
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
     ctx.hub.closeAll();
     db.close();
   });

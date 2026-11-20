@@ -15,6 +15,7 @@ export type ErrorCode =
   | "quota_exceeded"
   | "tenant_disabled"
   | "email_failed"
+  | "repo_failed"
   | "internal";
 
 export class ApiError extends Error {

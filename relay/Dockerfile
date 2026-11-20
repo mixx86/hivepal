@@ -16,6 +16,9 @@ RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack 
       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
       /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
  && mkdir -p /data && chown node:node /data
+# Hivepal: agents' mailboxes are git repositories the relay commits to and pushes (over SSH with its
+# deploy key, or https). Alpine's packages for this image's release, with their security updates.
+RUN apk add --no-cache git openssh-client-default openssh-keygen
 WORKDIR /app
 COPY --from=build --chown=root:root /app/node_modules ./node_modules
 COPY --from=build --chown=root:root /app/dist ./dist

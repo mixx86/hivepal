@@ -15,16 +15,35 @@ import type { Event } from "./protocol.js";
 
 export interface Mailer {
   send(to: string, subject: string, text: string): Promise<void>;
+  /** Logs in to the mail server without sending (checking a new account). */
+  verify?(): Promise<void>;
 }
 
 /** smtps://user:password@smtp.example.com:465 (or smtp://… with STARTTLS). */
 export function smtpMailer(url: string, from?: string): Mailer {
-  const transport = createTransport(url);
+  const transport = createTransport(url, { connectionTimeout: 15_000, greetingTimeout: 15_000 } as never);
   const sender = from ?? decodeURIComponent(new URL(url).username);
   return {
     async send(to, subject, text) {
       await transport.sendMail({ from: sender, to, subject, text });
     },
+    async verify() {
+      await transport.verify();
+    },
+  };
+}
+
+/** The mailer for the current SMTP URL, rebuilt when the URL changes (it's set at runtime). */
+export function mailerFor(current: () => string | undefined, make: (url: string) => Mailer = (u) => smtpMailer(u, process.env.HIVEPAL_WAKE_FROM)) {
+  let url: string | undefined;
+  let mailer: Mailer | undefined;
+  return (): Mailer | undefined => {
+    const now = current();
+    if (now !== url) {
+      url = now;
+      mailer = now ? make(now) : undefined;
+    }
+    return mailer;
   };
 }
 
@@ -41,16 +60,25 @@ export class Wake {
 
   constructor(
     private readonly agents: Agents,
-    private readonly mailer: Mailer,
+    /** The mailer now, or undefined when the relay has no mail account (then nothing is sent). */
+    private readonly mailer: () => Mailer | undefined,
     private readonly log: FastifyBaseLogger,
     private readonly gapMs = 60_000,
     private readonly now: () => number = Date.now,
   ) {}
 
-  handle(e: Event): void {
+  /** A new message from the user: email its agents, except `later` (rung by `ringAgents` once their mailbox is written). */
+  handle(e: Event, later: Iterable<string> = []): void {
     if (e.type !== "msg.new" || e.from !== "user") return;
     const c = parseConv(e.conv ?? "agent:main");
-    const targets = c?.kind === "agent" ? [c.id] : c?.kind === "group" ? (this.agents.group(c.id)?.members ?? []) : [];
+    const skip = new Set(later);
+    const targets = (c?.kind === "agent" ? [c.id] : c?.kind === "group" ? (this.agents.group(c.id)?.members ?? []) : []).filter((id) => !skip.has(id));
+    this.ringAgents(targets);
+  }
+
+  /** Emails these agents (those with an address), one email per address and gap. */
+  ringAgents(targets: string[]): void {
+    if (!this.mailer()) return;
     const touched = new Set<string>();
     for (const id of targets) {
       const to = this.agents.wakeEmail(id);
@@ -82,7 +110,9 @@ export class Wake {
   async test(agentId: string): Promise<void> {
     const to = this.agents.wakeEmail(agentId);
     if (!to) throw new Error("no address");
-    await this.mailer.send(to, `Hivepal: ${agentId}`, `Test from Hivepal: the wake-up email for ${agentId} works. Read new messages with: hivepal replies`);
+    const mailer = this.mailer();
+    if (!mailer) throw new Error("no mail account");
+    await mailer.send(to, `Hivepal: ${agentId}`, `Test from Hivepal: the wake-up email for ${agentId} works. Read new messages with: hivepal replies`);
   }
 
   private send(to: string): void {
@@ -90,7 +120,9 @@ export class Wake {
     this.queued.delete(to);
     if (ids.length === 0) return;
     this.last.set(to, this.now());
-    this.mailer
+    const mailer = this.mailer();
+    if (!mailer) return;
+    mailer
       .send(to, `Hivepal: ${ids.join(" ")}`, `Mensajes nuevos en Hivepal para: ${ids.join(", ")}. Léelos con: hivepal replies`)
       .catch((err: unknown) => this.log.warn({ err, to }, "wake email failed"));
   }

@@ -53,10 +53,13 @@ export function testConfig(over: Partial<Config> = {}): Config {
 
 export const AGENT = { authorization: "Bearer ak_test_key" };
 
-export async function setup(over: Partial<Config> = {}): Promise<BuiltApp & { push: FakePush; livekit: FakeLiveKit }> {
+export async function setup(
+  over: Partial<Config> = {},
+  opts: Partial<import("../src/app.js").BuildOptions> = {},
+): Promise<BuiltApp & { push: FakePush; livekit: FakeLiveKit }> {
   const push = new FakePush();
   const livekit = new FakeLiveKit();
-  const built = await buildApp(testConfig(over), { logger: false, pushProvider: push, livekit });
+  const built = await buildApp(testConfig(over), { logger: false, pushProvider: push, livekit, ...opts });
   return { ...built, push, livekit };
 }
 

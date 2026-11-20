@@ -98,7 +98,7 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
   app.put<{ Params: { agent_id: string }; Body: { email: string | null } }>(
     "/v1/agents/:agent_id/wake",
     {
-      preHandler: mainKey,
+      preHandler: userOrMain,
       schema: {
         params: AGENT_PARAMS,
         body: {
@@ -114,8 +114,8 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
       if (email !== null && !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(email)) {
         throw new ApiError(400, "invalid_request", "Not an email address");
       }
-      if (email !== null && !process.env.HIVEPAL_SMTP_URL) {
-        throw new ApiError(400, "invalid_request", "This relay can't send email: set HIVEPAL_SMTP_URL");
+      if (email !== null && !ctx.settings?.smtpUrl()) {
+        throw new ApiError(400, "invalid_request", "This relay has no email account to send from: set one first (Settings, the web panel or ./install.sh --email)");
       }
       agents.setWake(agent_id, email);
       const a = agents.get(agent_id)!;
@@ -126,11 +126,11 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
 
   app.post<{ Params: { agent_id: string } }>(
     "/v1/agents/:agent_id/wake/test",
-    { preHandler: mainKey, schema: { params: AGENT_PARAMS } },
+    { preHandler: userOrMain, schema: { params: AGENT_PARAMS } },
     async (req, reply) => {
       const { agent_id } = req.params;
       if (!agents.exists(agent_id)) throw notFound("Agent");
-      if (!ctx.wake) throw new ApiError(400, "invalid_request", "This relay can't send email: set HIVEPAL_SMTP_URL");
+      if (!ctx.wake || !ctx.settings?.smtpUrl()) throw new ApiError(400, "invalid_request", "This relay has no email account to send from: set one first (Settings, the web panel or ./install.sh --email)");
       if (!agents.wakeEmail(agent_id)) throw new ApiError(400, "invalid_request", "This agent has no wake-up address");
       try {
         await ctx.wake.test(agent_id);
