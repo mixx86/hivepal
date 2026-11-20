@@ -10,6 +10,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-20
+
 ### Security
 
 - Relay: the wake-up email account's password (in the saved SMTP URL) is encrypted at rest with a key
@@ -204,7 +206,8 @@ First release of Hivepal, the multi-agent fork of [agentring](https://github.com
 - Signed release APK, daemon wheel and sdist, public GHCR images `hivepal-relay` and
   `hivepal-daemon`.
 
-[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/mixx86/hivepal/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/mixx86/hivepal/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/mixx86/hivepal/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/mixx86/hivepal/compare/v0.6.0...v0.7.0
