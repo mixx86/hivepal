@@ -56,7 +56,8 @@ hivepal bots remove nubi            # revoke its key (its messages stay)
 | | Command | |
 |---|---|---|
 | Message you | `hivepal msg "…"` | `-o "Yes" -o "No"` adds buttons; `-f photo.jpg` attaches; `--voice` sends it as a voice note |
-| Read your answers | `hivepal replies` | only new ones; voice notes come transcribed |
+| Read your answers | `hivepal replies` | only new ones; voice notes come transcribed; your phone shows the agent "typing…" until it answers |
+| Show it's working on it | `hivepal typing` | "typing…" for about 20 s (repeat for longer); the `typing` MCP tool does the same |
 | Write in a group | `hivepal msg --group hive "…"` | everyone in the group reads it |
 | Talk to another agent | `hivepal msg --to coach "…"` | a `bots:` conversation; you can read it, it never notifies you |
 | Remind you later | `hivepal remind --at 18:00 "Gym" -o "On my way"` | sent by the relay, even if the agent isn't running |

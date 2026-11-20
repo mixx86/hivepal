@@ -466,6 +466,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: the agent is writing (`typing: true`, the default) or stopped, in a conversation it takes part in (default: its own). The phones show "typing…" and a "…" bubble. It lasts 20 s unless repeated, and ends when the agent sends a message there. The relay also sets it by itself for 60 s when an agent marks a recent message from the user as read. Live only: an ephemeral `agent.typing` event, never stored or pushed. */
+        post: operations["setTyping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents": {
         parameters: {
             query?: never;
@@ -1390,7 +1407,7 @@ export interface components {
             /** @description Position in the relay event log. Absent on ephemeral events. */
             seq?: number;
         };
-        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"] | components["schemas"]["MsgDeletedEvent"];
+        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"] | components["schemas"]["MsgDeletedEvent"] | components["schemas"]["AgentTypingEvent"];
         /**
          * @example {
          *       "type": "call.invite",
@@ -1555,6 +1572,21 @@ export interface components {
              * @enum {string}
              */
             type: "agent.presence";
+        };
+        /** @description Ephemeral (no seq). Hivepal: an agent started or stopped writing in a conversation. Sent to devices; a phone connecting gets the agents typing right now. `until` is when it ends by itself. */
+        AgentTypingEvent: components["schemas"]["EventBase"] & {
+            /** @constant */
+            type: "agent.typing";
+            agent_id: components["schemas"]["AgentId"];
+            conv: components["schemas"]["ConvId"];
+            typing: boolean;
+            until?: components["schemas"]["Timestamp"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "agent.typing";
         };
         /** @description Ephemeral (no seq). First frame of every WebSocket. */
         WsHelloEvent: components["schemas"]["EventBase"] & {
@@ -2399,6 +2431,35 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    setTyping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    conv?: components["schemas"]["ConvId"];
+                    /** @default true */
+                    typing?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listAgents: {

@@ -26,6 +26,7 @@ take `--json` for machine-readable output.
 | `  --to coach` | Write to another agent (an agent-to-agent conversation). |
 | `  --reply-to msg_…` | Answer a specific message. |
 | `hivepal replies` | New answers from the user (and from groups/agents), with voice-note transcripts. `--peek` doesn't mark them seen. |
+| `hivepal typing` | Show "typing…" on the phone for about 20 s while you work on an answer (repeat it for longer; `--stop` ends it; `--group`/`--to` like `msg`). Reading a new message with `hivepal replies` already shows it for a minute, and your next message ends it. |
 | `hivepal file <file_id>` | Download a photo or audio the user sent. |
 | `hivepal mailbox DIR` | Write new messages as Markdown files in `DIR/<agent id>/`, one per message ([mailbox files](../guide/agents.md#mailbox-files)). `--git` commits and pushes them; `--since` sets where a new mailbox starts (default `1d`). `--install` runs it every minute from cron, `--uninstall` stops it. |
 

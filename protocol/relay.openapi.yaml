@@ -613,6 +613,32 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/typing:
+    post:
+      tags: [messages]
+      operationId: setTyping
+      summary: >-
+        Hivepal: the agent is writing (`typing: true`, the default) or stopped, in a conversation it takes part
+        in (default: its own). The phones show "typing…" and a "…" bubble. It lasts 20 s unless repeated, and
+        ends when the agent sends a message there. The relay also sets it by itself for 60 s when an agent marks
+        a recent message from the user as read. Live only: an ephemeral `agent.typing` event, never stored or pushed.
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                conv: { $ref: "#/components/schemas/ConvId" }
+                typing: { type: boolean, default: true }
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /v1/agents:
     get:
       tags: [agents]
@@ -2053,6 +2079,7 @@ components:
         - $ref: "#/components/schemas/AgentUpdatedEvent"
         - $ref: "#/components/schemas/GroupUpdatedEvent"
         - $ref: "#/components/schemas/MsgDeletedEvent"
+        - $ref: "#/components/schemas/AgentTypingEvent"
       discriminator:
         propertyName: type
         mapping:
@@ -2069,6 +2096,7 @@ components:
           agent.updated: "#/components/schemas/AgentUpdatedEvent"
           group.updated: "#/components/schemas/GroupUpdatedEvent"
           msg.deleted: "#/components/schemas/MsgDeletedEvent"
+          agent.typing: "#/components/schemas/AgentTypingEvent"
 
     CallInviteEvent:
       allOf:
@@ -2217,6 +2245,21 @@ components:
             agent_id:
               description: Which agent connected or disconnected (absent = `main`, older relays).
               $ref: "#/components/schemas/AgentId"
+
+    AgentTypingEvent:
+      description: >-
+        Ephemeral (no seq). Hivepal: an agent started or stopped writing in a conversation. Sent to devices;
+        a phone connecting gets the agents typing right now. `until` is when it ends by itself.
+      allOf:
+        - $ref: "#/components/schemas/EventBase"
+        - type: object
+          required: [type, agent_id, conv, typing]
+          properties:
+            type: { const: agent.typing }
+            agent_id: { $ref: "#/components/schemas/AgentId" }
+            conv: { $ref: "#/components/schemas/ConvId" }
+            typing: { type: boolean }
+            until: { $ref: "#/components/schemas/Timestamp" }
 
     WsHelloEvent:
       description: Ephemeral (no seq). First frame of every WebSocket.

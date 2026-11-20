@@ -14,4 +14,4 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 export type EventDraft = DistributiveOmit<Event, "id" | "ts" | "seq">;
 
 /** Event types that are never persisted and carry no `seq`. */
-export const EPHEMERAL_TYPES: ReadonlySet<EventType> = new Set(["agent.presence", "ws.hello"]);
+export const EPHEMERAL_TYPES: ReadonlySet<EventType> = new Set(["agent.presence", "ws.hello", "agent.typing"]);

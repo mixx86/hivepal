@@ -35,6 +35,8 @@ export interface Ctx {
   settings?: import("./settings.js").Settings;
   /** Hivepal: agents' Markdown mailboxes. */
   mailbox?: import("./mailbox.js").Mailbox;
+  /** Hivepal: which agents are writing right now (live only). */
+  typing?: import("./typing.js").Typing;
   /** Hivepal, tests: how a mailer is built for an SMTP URL (checking a new account). */
   mailerFor?: (url: string) => import("./wake.js").Mailer;
   /** The tenant's current limits (hub mode); unlimited on a self-hosted relay. */

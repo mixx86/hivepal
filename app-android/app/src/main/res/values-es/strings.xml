@@ -424,4 +424,8 @@
     <string name="delivery_intro_question">Primero: cuando escribes a un agente, ¿cómo se entera?</string>
     <string name="language_english">Inglés</string>
     <string name="language_spanish">Español</string>
+    <string name="typing">escribiendo…</string>
+    <string name="typing_one">%1$s está escribiendo…</string>
+    <string name="typing_two">%1$s y %2$s están escribiendo…</string>
+    <string name="typing_many">Varios están escribiendo…</string>
 </resources>

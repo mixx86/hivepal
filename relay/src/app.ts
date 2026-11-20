@@ -34,6 +34,7 @@ import { panelRoutes } from "./routes/panel.js";
 import { pairPageRoutes } from "./routes/pairpage.js";
 import { systemRoutes } from "./routes/system.js";
 import { WsHub, wsRoutes } from "./routes/ws.js";
+import { Typing } from "./typing.js";
 
 export interface BuildOptions {
   logger?: FastifyServerOptions["logger"];
@@ -186,6 +187,12 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   });
   ctx.mailbox = mailbox;
   events.onEvent((e) => wake.handle(e, mailbox.handle(e)));
+  // Hivepal: "typing…" ends when the agent writes in that conversation.
+  const typing = new Typing(events);
+  ctx.typing = typing;
+  events.onEvent((e) => {
+    if (e.type === "msg.new" && e.from === "agent") typing.stop(e.agent_id ?? "main", e.conv ?? "agent:main");
+  });
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ApiError) {
@@ -229,6 +236,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     calls.stop();
     reminders.stop();
     wake.stop();
+    typing.close();
     await mailbox.flush().catch(() => undefined);
     mailbox.stop();
     if (tempDir) rmSync(tempDir, { recursive: true, force: true });

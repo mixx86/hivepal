@@ -60,6 +60,10 @@ Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
   short batch and then the wake-up email. Memory (`PUT /v1/settings/memory {markdown, sqlite}`):
   `history/<conversation>/<day>.md` in the mailbox, and/or `GET /v1/agents/{id}/memory?q=` (FTS5) and
   `/memory.sqlite`. Phones may change all of it (the app); an agent reads only its own.
+- **Typing** (issue #48): `POST /v1/typing {conv?, typing?}` (agents) shows "typing…" on the phones
+  for 20 s; the relay also sets it for 60 s when an agent marks a message the user sent in the last 10
+  minutes as read (what `hivepal replies` does), and ends it when the agent writes there. It's an
+  ephemeral `agent.typing` event, like `agent.presence`: never stored, never pushed.
 - **What a relay is configured for**: `Status.features {calls, voice, wake_email}`, to agents (used by
   `hivepal doctor` and the web panel).
 - **Web panel**: `GET /admin`, a static page that uses the REST API with the relay's key pasted into

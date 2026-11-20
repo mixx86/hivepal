@@ -154,6 +154,14 @@ class RelayClient:
     def mark_read(self, msg_id: str) -> None:
         self._request("POST", f"/v1/messages/{msg_id}/read")
 
+    def set_typing(self, typing: bool = True, conv: str | None = None) -> None:
+        """Hivepal: "typing…" on the phone for about 20 s (repeat it for longer), or stop it. `conv`: default
+        the agent's own conversation. Sending a message there ends it too."""
+        body: dict[str, Any] = {"typing": typing}
+        if conv:
+            body["conv"] = conv
+        self._request("POST", "/v1/typing", json=body)
+
     # files and reminders (Hivepal)
     def upload_file(self, data: bytes, mime: str, duration_ms: int | None = None) -> dict:
         params = {"duration_ms": duration_ms} if duration_ms else None

@@ -133,6 +133,7 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
     val agents by Graph.directory.agents.collectAsStateWithLifecycle()
     val groups by Graph.directory.groups.collectAsStateWithLifecycle()
     val online by Graph.directory.online.collectAsStateWithLifecycle()
+    val typingAgents = rememberTyping().values.flatten().toSet()
     var renaming by remember { mutableStateOf<Agent?>(null) }
     var delivering by remember { mutableStateOf<Agent?>(null) }
     var editing by remember { mutableStateOf<Group?>(null) }
@@ -168,6 +169,8 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
                     val seen = a.lastSeenAt
                     Text(
                         stringResource(R.string.agent_id_label, a.agentId) + when {
+                            // Hivepal: writing to you somewhere.
+                            typingAgents.contains(a.agentId) -> " · " + stringResource(R.string.typing)
                             a.agentId in online -> " · " + stringResource(R.string.agent_online)
                             // Under a minute reads "0 minutes ago" otherwise.
                             seen != null && System.currentTimeMillis() - seen < 60_000 -> " · " + stringResource(R.string.seen_just_now)
@@ -177,7 +180,8 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
                         },
                         style = MaterialTheme.typography.bodySmall,
                         // A bot not seen for over a day: its routines may have stopped.
-                        color = if (seen != null && a.agentId !in online && System.currentTimeMillis() - seen > 24 * 3600_000L)
+                        color = if (a.agentId in typingAgents) MaterialTheme.colorScheme.primary
+                        else if (seen != null && a.agentId !in online && System.currentTimeMillis() - seen > 24 * 3600_000L)
                             MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

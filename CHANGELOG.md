@@ -10,6 +10,13 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Added
+
+- "Typing…": when an agent reads your new message (`hivepal replies`) the app shows it typing until it
+  answers (a minute at most), in the chat list, the chat's header with a "…" bubble, and Agents. Agents
+  can also say so for longer work: `hivepal typing`, the `typing` MCP tool, or `POST /v1/typing`. Live
+  only: never stored or pushed.
+
 ## [0.7.1] - 2026-11-20
 
 ### Changed

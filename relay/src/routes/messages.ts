@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { MAIN, convOf, dmOf, parseConv } from "../agents.js";
 import { type Principal, partyOf } from "../auth.js";
 import { type Ctx, principal, requireAuth } from "../context.js";
+import { READ_TYPING_MS, RECENT_MS, TYPING_MS } from "../typing.js";
 import { ApiError, forbidden, notFound } from "../errors.js";
 import { newId, wellFormed } from "../ids.js";
 import type { Message, Party, Schemas } from "../protocol.js";
@@ -269,6 +270,40 @@ export function messageRoutes(app: FastifyInstance, ctx: Ctx): void {
       .prepare("UPDATE messages SET read_at = ? WHERE msg_id = ? AND read_at IS NULL")
       .run(Date.now(), row.msg_id);
     if (res.changes === 1) events.emit({ type: "msg.read", msg_id: row.msg_id, by, conv: convOf(row.conv) });
+    // Hivepal: an agent reading what the user just wrote is about to answer (each agent, also in a group
+    // where another one already read it).
+    if (p.kind === "agent" && row.sender === "user" && Date.now() - row.created_at < RECENT_MS) {
+      ctx.typing?.set(p.agentId, convOf(row.conv), READ_TYPING_MS);
+    }
     return reply.code(204).send();
   });
+
+  app.post<{ Body: { conv?: string; typing?: boolean } | undefined }>(
+    "/v1/typing",
+    {
+      preHandler: requireAuth(ctx, "agent"),
+      // The body is optional: none means "typing in my own conversation".
+      preValidation: async (req) => {
+        req.body ??= {};
+      },
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          properties: { conv: CONV_SCHEMA, typing: { type: "boolean" } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const p = principal(req);
+      if (p.kind !== "agent") throw forbidden("Only agents write");
+      const conv = req.body?.conv ?? dmOf(p.agentId);
+      const c = parseConv(conv);
+      if (!ctx.agents.canSee(p.agentId, conv) || (c?.kind === "bots" && !ctx.agents.convExists(conv))) {
+        throw forbidden("An agent can only write in its own conversation, its groups and its bots: conversations");
+      }
+      ctx.typing?.set(p.agentId, conv, req.body?.typing === false ? 0 : TYPING_MS);
+      return reply.code(204).send();
+    },
+  );
 }

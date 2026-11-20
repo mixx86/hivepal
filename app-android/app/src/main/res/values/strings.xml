@@ -432,4 +432,8 @@
     <string name="delivery_intro_question">First: when you write to an agent, how does it find out?</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Spanish</string>
+    <string name="typing">typing…</string>
+    <string name="typing_one">%1$s is typing…</string>
+    <string name="typing_two">%1$s and %2$s are typing…</string>
+    <string name="typing_many">Several are typing…</string>
 </resources>
