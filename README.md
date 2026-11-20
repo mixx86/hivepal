@@ -8,10 +8,10 @@ and talk to each other, all through one small relay you host yourself.</p>
 
 📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-web](https://mixx86.github.io/hivepal-web/)**
 
-https://github.com/user-attachments/assets/1e045039-4de9-4aca-8bd7-8c3d802b246f
+https://github.com/user-attachments/assets/0606fbe0-5103-4a92-b1ab-f26222ee8df0
 
-*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a question with quick replies,
-two agents coordinating, a photo in a group, a reminder that insists, a voice note, a message landing
+*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a question with quick replies
+and the agent typing its answer, two agents coordinating, a photo in a group, a reminder that insists, a voice note, a message landing
 in an agent's mailbox folder, the subscriptions and, at the end, an agent calling. Demo agents and data.
 In 1440p on the [website](https://mixx86.github.io/hivepal-web/) and in the repo:
 [docs/media/hivepal-demo.mp4](docs/media/hivepal-demo.mp4).*
