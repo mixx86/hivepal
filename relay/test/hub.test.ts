@@ -170,7 +170,9 @@ describe("hub mode", () => {
     expect(ended.json.end_reason).toBe("quota");
     expect(ended.json.time_left_ms).toBeUndefined();
     const t = await app.inject({ method: "GET", url: `/admin/v1/tenants/${a.tid}`, headers: ADMIN });
-    expect(t.json().usage.call_seconds).toBeGreaterThanOrEqual(2);
+    // About the 2 s allowed: the cut can land a few ms early, and whole seconds are counted (1.99 s → 1).
+    expect(t.json().usage.call_seconds).toBeGreaterThanOrEqual(1);
+    expect(t.json().usage.call_seconds).toBeLessThanOrEqual(3);
     expect(t.json().usage.calls).toBe(1);
   });
 
