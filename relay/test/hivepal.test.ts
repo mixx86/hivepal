@@ -279,11 +279,12 @@ describe("wake-up emails", () => {
     const nubi = await addAgent("nubi", "Nubi");
     const test = (headers: Record<string, string>, id = "nubi") =>
       b!.app.inject({ method: "POST", url: `/v1/agents/${id}/wake/test`, headers });
-    expect((await test(AGENT)).json().error.message).toMatch(/HIVEPAL_SMTP_URL/); // no mail server
+    expect((await test(AGENT)).json().error.message).toMatch(/no email account/); // no mail server
     const sent: Array<[string, string]> = [];
     let fail = false;
     const mailer = { send: async (to: string, subject: string) => { if (fail) throw new Error("535 Username and Password not accepted"); sent.push([to, subject]); } };
-    b.ctx.wake = new Wake(b.ctx.agents, mailer, b.app.log);
+    b.ctx.wake = new Wake(b.ctx.agents, () => mailer, b.app.log);
+    b.ctx.settings!.setSmtpUrl("smtps://u:p@smtp.example.com:465");
     expect((await test(AGENT)).statusCode).toBe(400); // no address yet
     b.ctx.agents.setWake("nubi", "bots@mail.example.com");
     expect((await test(bearer(nubi))).statusCode).toBe(403);
@@ -314,7 +315,7 @@ describe("wake-up emails", () => {
     const mailer = { send: async (to: string, subject: string) => void sent.push([to, subject]) };
     const ev = (conv: string, from: "user" | "agent" = "user") =>
       ({ type: "msg.new", from, conv, msg_id: "m", text: "t", id: "e", ts: now }) as never;
-    const wake = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
+    const wake = new Wake(b.ctx.agents, () => mailer, b.app.log, 60_000, () => now);
     wake.handle(ev("agent:nubi"));
     wake.handle(ev("agent:casa")); // no address: nothing
     wake.handle(ev("agent:nubi", "agent")); // agents don't ring
@@ -325,7 +326,7 @@ describe("wake-up emails", () => {
     // A group message: one email per address, listing its members.
     b.ctx.agents.createGroup("g", "G", ["nubi", "rutina", "casa", "otro"]);
     now += 61_000;
-    const w2 = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
+    const w2 = new Wake(b.ctx.agents, () => mailer, b.app.log, 60_000, () => now);
     w2.handle(ev("group:g"));
     expect(sent.slice(1).sort()).toEqual([
       ["bots@mail.example.com", "Hivepal: nubi rutina"],
@@ -340,7 +341,7 @@ describe("wake-up emails", () => {
     await addAgent("nubi", "Nubi");
     b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
     const sent: string[] = [];
-    const wake = new Wake(b.ctx.agents, { send: async (_to, subject) => void sent.push(subject) }, b.app.log, 50);
+    const wake = new Wake(b.ctx.agents, () => ({ send: async (_to: string, subject: string) => void sent.push(subject) }), b.app.log, 50);
     const ev = { type: "msg.new", from: "user", conv: "agent:nubi", msg_id: "m", text: "t", id: "e", ts: 0 } as never;
     wake.handle(ev);
     wake.handle(ev);
@@ -440,7 +441,7 @@ describe("status features", () => {
   it("an agent learns what the relay is configured for; a phone doesn't", async () => {
     b = await setup();
     const st = (await b.app.inject({ method: "GET", url: "/v1/status", headers: AGENT })).json();
-    expect(st.features).toEqual({ calls: expect.any(Boolean), voice: expect.any(Boolean), wake_email: expect.any(Boolean) });
+    expect(st.features).toEqual({ calls: expect.any(Boolean), voice: expect.any(Boolean), wake_email: expect.any(Boolean), mailbox_repo: false });
     const dev = await pairDevice(b);
     expect((await b.app.inject({ method: "GET", url: "/v1/status", headers: dev.headers })).json().features).toBeUndefined();
   });

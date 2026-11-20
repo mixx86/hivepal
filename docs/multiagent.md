@@ -51,6 +51,15 @@ Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
 - **Wake-up emails**: `PUT /v1/agents/{id}/wake {email}` (relay key; the address never shows in
   views, only `wakes`), and `POST /v1/agents/{id}/wake/test`, which sends it now and answers `204` or
   `502 email_failed` with what the mail server said.
+- **Delivery and memory** (issue #41, [accepted deviation](architecture.md#accepted-deviations)): the
+  relay's email account (`PUT /v1/settings/email`, logs in before saving; replaces `HIVEPAL_SMTP_URL`),
+  mailboxes per agent or for all (`PUT /v1/agents/{id}/mailbox`, `PUT /v1/settings/mailboxes`): an
+  `inbox/` file per message received, in a git repository per agent in the relay
+  (`git clone https://x:<key>@relay/v1/agents/<id>/mailbox.git`) and, when set, an external repository
+  (`PUT /v1/settings/mailbox-repo`, the relay's deploy key in `GET /v1/settings/delivery`), pushed after a
+  short batch and then the wake-up email. Memory (`PUT /v1/settings/memory {markdown, sqlite}`):
+  `history/<conversation>/<day>.md` in the mailbox, and/or `GET /v1/agents/{id}/memory?q=` (FTS5) and
+  `/memory.sqlite`. Phones may change all of it (the app); an agent reads only its own.
 - **What a relay is configured for**: `Status.features {calls, voice, wake_email}`, to agents (used by
   `hivepal doctor` and the web panel).
 - **Web panel**: `GET /admin`, a static page that uses the REST API with the relay's key pasted into

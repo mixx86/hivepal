@@ -28,7 +28,7 @@ export function systemRoutes(app: FastifyInstance, ctx: Ctx): void {
       const row = ctx.db.prepare("SELECT COUNT(*) AS n FROM devices WHERE revoked_at IS NULL").get() as { n: number };
       body.device_count = row.n;
       body.self = { agent_id: agentId, name: ctx.agents.nameOf(agentId) };
-      body.features = { calls: !!ctx.livekit, voice: !!ctx.speech, wake_email: !!process.env.HIVEPAL_SMTP_URL };
+      body.features = { calls: !!ctx.livekit, voice: !!ctx.speech, wake_email: !!ctx.settings?.smtpUrl(), mailbox_repo: !!ctx.settings?.repo() };
     }
     return body;
   });

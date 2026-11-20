@@ -12,6 +12,14 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- Agents hear from you, and remember, through the relay (issue #41): Markdown mailboxes (an `inbox/`
+  file per message) in a git repository per agent kept in the relay (`git clone
+  https://x:<key>@relay/v1/agents/<id>/mailbox.git`) and/or pushed to an external repository with the
+  relay's own deploy key, then the wake-up email; and memory for bots, as each day's conversation in
+  their mailbox (Markdown) and/or searchable and downloadable as SQLite (`/v1/agents/{id}/memory`). The
+  email account, the repository and these choices are set in the relay at runtime (`/v1/settings/*`),
+  from the relay key or a phone. The relay image now includes `git` and `ssh`.
+
 - Installer: asks (optionally) for the email account wake-up emails are sent from and its password,
   knows the mail server of common providers and builds `HIVEPAL_SMTP_URL` itself (no hand
   URL-encoding); `./install.sh --email` sets it up or changes it on an existing install.

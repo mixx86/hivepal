@@ -171,6 +171,26 @@ const MIGRATIONS: string[] = [
   ALTER TABLE devices ADD COLUMN up_p256dh TEXT;
   ALTER TABLE devices ADD COLUMN up_auth TEXT;
   `,
+  `
+  -- Hivepal: an agent's mailbox (Markdown files the relay writes) turned on or off for it, over the
+  -- relay-wide default.
+  CREATE TABLE agent_mailbox (agent_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL, since INTEGER NOT NULL);
+  `,
+  `
+  -- Hivepal: full-text search over messages, for bots' memory (GET /v1/agents/{id}/memory?q=).
+  CREATE VIRTUAL TABLE messages_fts USING fts5(text, content='messages', content_rowid='rowid');
+  CREATE TRIGGER messages_fts_ai AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, text) VALUES (new.rowid, new.text);
+  END;
+  CREATE TRIGGER messages_fts_ad AFTER DELETE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+  END;
+  CREATE TRIGGER messages_fts_au AFTER UPDATE OF text ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+    INSERT INTO messages_fts(rowid, text) VALUES (new.rowid, new.text);
+  END;
+  INSERT INTO messages_fts(messages_fts) VALUES ('rebuild');
+  `,
 ];
 
 /** For upgrade tests: a database at an older schema. */

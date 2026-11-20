@@ -69,7 +69,26 @@ export class Agents {
     return {
       agent_id: r.agent_id, name: r.name, created_at: r.created_at,
       ...(seen ? { last_seen_at: seen } : {}), ...(this.wakeEmail(r.agent_id) ? { wakes: true } : {}),
+      ...(this.hasMailbox(r.agent_id) ? { mailbox: true } : {}),
     };
+  }
+
+  /** Hivepal: the relay-wide default for agents without their own mailbox setting (set by the app). */
+  mailboxDefault: () => boolean = () => false;
+
+  /** Hivepal: whether the relay writes this agent's messages as Markdown files. */
+  hasMailbox(agentId: string): boolean {
+    const r = this.db.prepare("SELECT enabled FROM agent_mailbox WHERE agent_id = ?").get(agentId) as { enabled: number } | undefined;
+    return r ? r.enabled === 1 : this.mailboxDefault();
+  }
+
+  /** On or off for this agent; null goes back to the relay-wide default. */
+  setMailbox(agentId: string, enabled: boolean | null, now = Date.now()): void {
+    if (enabled === null) this.db.prepare("DELETE FROM agent_mailbox WHERE agent_id = ?").run(agentId);
+    else
+      this.db
+        .prepare("INSERT INTO agent_mailbox (agent_id, enabled, since) VALUES (?, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET enabled = excluded.enabled")
+        .run(agentId, enabled ? 1 : 0, now);
   }
 
   /** Hivepal: the address the relay emails when the user writes to the agent (private: never in a view). */
@@ -110,6 +129,7 @@ export class Agents {
     return {
       agent_id: MAIN, name: this.cfg.agentName, created_at: 0,
       ...(seen ? { last_seen_at: seen } : {}), ...(this.wakeEmail(MAIN) ? { wakes: true } : {}),
+      ...(this.hasMailbox(MAIN) ? { mailbox: true } : {}),
     };
   }
 

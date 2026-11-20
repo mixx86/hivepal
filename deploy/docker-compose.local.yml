@@ -34,6 +34,8 @@ services:
       # Hivepal: voice-note transcripts and text-to-speech (Gemini), and wake-up emails to agents.
       GEMINI_API_KEY: ${HIVEPAL_GEMINI_API_KEY:-}
       HIVEPAL_SMTP_URL: ${HIVEPAL_SMTP_URL:-}
+      # Dates in agents' mailboxes and memory are in this time zone (the installer sets the host's).
+      TZ: ${TZ:-UTC}
       LIVEKIT_URL: ws://${HIVEPAL_HOST_IP}:7880
       LIVEKIT_API_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-hivepal}
