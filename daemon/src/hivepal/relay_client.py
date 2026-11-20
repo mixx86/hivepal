@@ -154,6 +154,14 @@ class RelayClient:
     def mark_read(self, msg_id: str) -> None:
         self._request("POST", f"/v1/messages/{msg_id}/read")
 
+    def set_typing(self, typing: bool = True, conv: str | None = None) -> None:
+        """Hivepal: "typing…" on the phone for about 20 s (repeat it for longer), or stop it. `conv`: default
+        the agent's own conversation. Sending a message there ends it too."""
+        body: dict[str, Any] = {"typing": typing}
+        if conv:
+            body["conv"] = conv
+        self._request("POST", "/v1/typing", json=body)
+
     # files and reminders (Hivepal)
     def upload_file(self, data: bytes, mime: str, duration_ms: int | None = None) -> dict:
         params = {"duration_ms": duration_ms} if duration_ms else None
@@ -216,6 +224,57 @@ class RelayClient:
 
     def set_agent_wake(self, agent_id: str, email: str | None) -> dict:
         return self._request("PUT", f"/v1/agents/{agent_id}/wake", json={"email": email})
+
+    # delivery and memory (issue #41)
+    def delivery(self) -> dict:
+        return self._request("GET", "/v1/settings/delivery")
+
+    def set_delivery_email(self, address: str | None, password: str | None = None, server: str | None = None) -> dict:
+        body: dict[str, Any] = {"address": address}
+        if password:
+            body["password"] = password
+        if server:
+            body["server"] = server
+        return self._request("PUT", "/v1/settings/email", json=body)
+
+    def set_mailbox_repo(self, url: str | None, branch: str | None = None) -> dict:
+        return self._request("PUT", "/v1/settings/mailbox-repo", json={"url": url, **({"branch": branch} if branch else {})})
+
+    def test_mailbox_repo(self) -> None:
+        self._request("POST", "/v1/settings/mailbox-repo/test")
+
+    def set_mailboxes_for_all(self, on: bool) -> dict:
+        return self._request("PUT", "/v1/settings/mailboxes", json={"all_agents": on})
+
+    def set_memory(self, markdown: bool, sqlite: bool) -> dict:
+        return self._request("PUT", "/v1/settings/memory", json={"markdown": markdown, "sqlite": sqlite})
+
+    def set_agent_mailbox(self, agent_id: str, enabled: bool | None) -> dict:
+        return self._request("PUT", f"/v1/agents/{agent_id}/mailbox", json={"enabled": enabled})
+
+    def memory(self, agent_id: str, q: str | None = None, conv: str | None = None, limit: int = 50) -> list[dict]:
+        params: dict[str, Any] = {"limit": limit}
+        if q:
+            params["q"] = q
+        if conv:
+            params["conv"] = conv
+        return self._request("GET", f"/v1/agents/{agent_id}/memory", params=params)["messages"]
+
+    def memory_file(self, agent_id: str) -> bytes:
+        try:
+            r = self._http.get(f"/v1/agents/{agent_id}/memory.sqlite")
+        except httpx.HTTPError as e:
+            raise RelayError(0, "unreachable", f"cannot reach relay at {self.relay_url}: {e}") from e
+        if r.status_code >= 400:
+            try:
+                msg = r.json()["error"]["message"]
+            except (ValueError, KeyError, TypeError):
+                msg = r.text[:300]
+            raise RelayError(r.status_code, "error", msg)
+        return r.content
+
+    def test_agent_wake(self, agent_id: str) -> None:
+        self._request("POST", f"/v1/agents/{agent_id}/wake/test")
 
     def rotate_agent_key(self, agent_id: str) -> dict:
         return self._request("POST", f"/v1/agents/{agent_id}/key")

@@ -6,11 +6,15 @@
 Each agent gets its own chat, key and voice. They message you, nudge you, call you when it matters,<br>
 and talk to each other, all through one small relay you host yourself.</p>
 
-https://github.com/user-attachments/assets/98daa8de-fb53-496d-83f6-472118a553b4
+📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-web](https://mixx86.github.io/hivepal-web/)**
 
-*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a plan with quick replies, a group,
-a reminder that insists, the subscriptions and, at the end, an agent calling. Demo agents and data.
-Also in the repo: [docs/media/hivepal-demo.mp4](docs/media/hivepal-demo.mp4).*
+https://github.com/user-attachments/assets/0606fbe0-5103-4a92-b1ab-f26222ee8df0
+
+*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a question with quick replies
+and the agent typing its answer, two agents coordinating, a photo in a group, a reminder that insists, a voice note, a message landing
+in an agent's mailbox folder, the subscriptions and, at the end, an agent calling. Demo agents and data.
+In 1440p on the [website](https://mixx86.github.io/hivepal-web/) and in the repo:
+[docs/media/hivepal-demo.mp4](docs/media/hivepal-demo.mp4).*
 
 ## Why
 
@@ -23,6 +27,10 @@ It started as a fork of [agentring](https://github.com/mutonby/agentring), which
 your phone. Hivepal turns that into a whole hive.
 
 — Gabriel Quintáns ([@mixx86](https://github.com/mixx86))
+
+> **A note on how this was built:** Hivepal was vibecoded with Claude. Kotlin and Python are not my
+> stack, so those parts were written largely with AI help and reviewed by me as an integrator, not as
+> a language expert. Bug reports, tests and patches from people who know them are especially welcome.
 
 ## What it does
 
@@ -40,56 +48,64 @@ your phone. Hivepal turns that into a whole hive.
   voice AI speaks as that agent.
 - **Wake-up emails** for agents that only run on a trigger (like Grok bots): when you write, the relay
   emails them a doorbell.
-- **Subscriptions**: connect Claude, Grok or your server's billing page once, inside the app; it reads
-  them every day and shows how many days are left, with a heads-up 3 days before.
+- **Mailboxes and memory**: the relay writes each message as a Markdown file in the agent's mailbox, a
+  git repository it clones from the relay or that the relay pushes to your notes repo, and the bots can
+  **remember** their conversations (each day's chat in Markdown, or searchable as SQLite). Set up from
+  the app, the web panel, the installer or the CLI; `hivepal mailbox` still writes a folder on the agent's
+  machine.
+- **Subscriptions**: connect what you pay to run your agents (Claude, ChatGPT, your server's billing
+  page…) once, inside the app; it reads them every day and shows how many days are left, with a
+  heads-up 3 days before.
+- **Notifications without Google**: Firebase when your relay has it, or UnifiedPush through the free
+  ntfy app (no Google account, encrypted for the app); the app sets it up during pairing.
+- **Easy to set up and check**: a one-line install, pairing by scanning a QR with the phone's camera,
+  a web panel on the relay (`/admin`: status, pairing, agents with setup to copy, a test call),
+  `hivepal doctor` to find what's wrong, `hivepal connect claude-code|codex|cursor|openclaw|hermes`,
+  and "Ring me in 10 s" in the app to see a locked phone ring.
 - **The app**: Material 3 in electric blue, in English or Spanish, with search, pinned and muted chats, Markdown, missed calls
-  in the Phone app, a home-screen widget, and when each agent was last seen.
+  in the Phone app, a home-screen widget, when each agent was last seen, a settings backup to a file,
+  and update checks (releases, or the `android-preview` channel).
 
 ## Install
 
-You need a Linux server with Docker and a domain, **or** just your own computer with Docker (the phone
-on the same Wi-Fi or Tailscale).
+Two pieces: the **relay**, which your agents and your phone talk to, and the **app** on your Android
+phone. The relay goes in **one** place, whichever suits you:
 
-```bash
-git clone https://github.com/mixx86/hivepal && cd hivepal
-./install.sh            # on a server with a domain: relay, calls, HTTPS and the daemon
-./install.sh --local    # or on this computer
-```
+| Where the relay runs | Good for | Install | Guide |
+|---|---|---|---|
+| **Your own computer** | trying it; the phone on the same Wi-Fi or Tailscale | `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh \| sh -s -- --local` | [Quickstart](https://mixx86.github.io/hivepal-web/guide/quickstart/) (15 min) |
+| **A server** | reachable from anywhere, always on | `curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh \| sh` | [Install on a server](https://mixx86.github.io/hivepal-web/guide/server/) |
 
-It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional
-[Gemini key](https://aistudio.google.com/apikey) for voice, and an optional
-[Firebase project](docs/firebase.md) (needed for notifications while the app is closed and for the
-phone to ring when locked). Then it builds and starts everything, configures the daemon and shows
-the QR code to pair the phone. Running it again updates and restarts.
+Either way the installer asks a few questions (all optional but the first), starts everything and
+shows a QR code. Scan it with the phone's camera: it offers the app and pairs it
+([the app](https://mixx86.github.io/hivepal-web/guide/app/)).
 
-**The app:**
-
-```bash
-./scripts/build-app.sh --install   # JDK 17+ and the Android SDK; installs over USB (adb)
-```
-
-Open Hivepal on the phone and scan the QR code from `hivepal pair`.
+Optional, any time later: [a voice AI](https://mixx86.github.io/hivepal-web/voice/) for calls and
+voice-note transcripts (Gemini's free tier works), [Firebase](https://mixx86.github.io/hivepal-web/firebase/)
+(otherwise the free ntfy app wakes the phone), and
+[how agents hear from you, and remember](https://mixx86.github.io/hivepal-web/guide/agents/#how-agents-hear-from-you-and-remember)
+(wake-up emails, Markdown mailboxes, memory).
 
 ## Use it from your agents
 
 ```bash
 hivepal bots add nubi Nubi                       # an agent with its own key and chat
-hivepal msg "Plan for today" -o "OK" -o "Later"  # (as Nubi) with quick replies
+hivepal msg "Dentist at 10:00 or 16:00?" -o 10:00 -o 16:00  # (as Nubi) with quick replies
 hivepal msg --group todos "Weekly review at 18:00"
-hivepal remind --in 30m "Gym" --insist 10m --call            # repeats after 10 min, then rings
+hivepal remind --at 09:00 "Pay the rent" --insist 10m --call  # repeats after 10 min, then rings
 hivepal replies                                  # what you answered, with voice-note transcripts
 hivepal call "The deploy failed: roll back?"     # rings your phone; a voice AI explains
 ```
 
 Each agent runs the CLI with its own key (`hivepal init --relay … --api-key ak_…`), or uses the MCP
-server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([docs/agents.md](docs/agents.md)).
-The full multi-agent design and API: [docs/multiagent.md](docs/multiagent.md).
+server (`hivepal mcp`) from Claude Code, Codex, Cursor and others ([Agents and MCP](https://mixx86.github.io/hivepal-web/agents/)).
+The full multi-agent design and API: [Multi-agent design](https://mixx86.github.io/hivepal-web/multiagent/).
 
 ## Documentation
 
 Step-by-step guides (quickstart, server, app, agents, and [building a hive of personal
-agents](docs/guide/hive.md)), how it works with diagrams, and the reference:
-**[docs/](docs/README.md)**, also on the [website](https://mixx86.github.io/hivepal-site/).
+agents](https://mixx86.github.io/hivepal-web/guide/hive/)), how it works with diagrams, and the reference:
+on the **[website](https://mixx86.github.io/hivepal-web/)** (their sources are in [docs/](docs/)).
 
 ## How it works
 
@@ -102,5 +118,5 @@ on your server; the only outside services are Firebase (push) and the voice AI y
 
 Hivepal is a fork of [agentring](https://github.com/mutonby/agentring) by its contributors,
 Apache-2.0, like this repository ([LICENSE](LICENSE), [NOTICE](NOTICE)). Its original README, with the
-upstream setup guide, is in [docs/upstream-README.md](docs/upstream-README.md). The Android package
+upstream setup guide, is in [agentring's README](https://mixx86.github.io/hivepal-web/upstream-README/). The Android package
 keeps the name `dev.agentring.app`, and the CLI still answers to `agentring`.

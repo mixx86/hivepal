@@ -7,7 +7,7 @@ with the [quickstart](../guide/quickstart.md).
 ## The pieces
 
 ```mermaid
-flowchart LR
+flowchart TB
     A["Your agents<br/>Claude Code · Grok bots<br/>scripts · n8n"]
     subgraph server["Your server (Docker, behind Caddy/HTTPS)"]
         R["Relay<br/>Node + SQLite"]
@@ -67,17 +67,17 @@ sequenceDiagram
     participant Ag as Agent (Nubi)
     participant R as Relay
     participant P as Phone
-    Ag->>R: POST /v1/messages {text, options: ["OK","Later"]}<br/>(Nubi's key)
-    R->>R: store in agent:nubi, add to the event log
+    Ag->>R: POST /v1/messages<br/>{text, options: ["OK","Later"]}<br/>(Nubi's key)
+    R->>R: store in agent:nubi,<br/>add to the event log
     alt app open
         R-->>P: event over WebSocket
     else app closed
         R-->>P: Firebase push (the event, signed)
     end
     P->>P: notification with the two buttons
-    P->>R: POST /v1/messages {text: "OK", reply_to}<br/>(tapped on the notification)
+    P->>R: POST /v1/messages<br/>{text: "OK", reply_to}<br/>(tapped on the notification)
     Note over R: if Nubi has a wake-up address,<br/>the relay emails it now (see below)
-    Ag->>R: hivepal replies → GET /v1/events
+    Ag->>R: hivepal replies<br/>→ GET /v1/events
     R-->>Ag: "OK" (reply to the plan)
 ```
 
@@ -93,15 +93,15 @@ sequenceDiagram
     participant R as Relay
     participant L as LiveKit
     participant P as Phone
-    participant D as Switchboard (daemon)
-    Ag->>R: hivepal call "You skipped the gym twice. Two minutes?"
-    R->>L: create room (lives for the ring time + 30 s)
-    R-->>P: call invite (high-priority push / WebSocket)
-    P->>P: rings like a phone call (Android Telecom, full screen when locked)
+    participant D as Switchboard<br/>(daemon)
+    Ag->>R: hivepal call<br/>"Gym? Two minutes?"
+    R->>L: create room<br/>(ring time + 30 s)
+    R-->>P: call invite<br/>(high-priority push / WebSocket)
+    P->>P: rings like a phone call,<br/>full screen when locked
     P->>R: accept
-    P->>L: join the room (token from the relay)
-    D->>L: join as Coach, with Coach's persona
-    Note over P,D: you talk to the voice AI (Gemini Live by default)
+    P->>L: join the room<br/>(token from the relay)
+    D->>L: join as Coach,<br/>with Coach's persona
+    Note over P,D: you talk to the voice AI<br/>(Gemini Live by default)
     P->>R: hang up
     R-->>Ag: call ended + transcript
 ```
@@ -138,21 +138,39 @@ sequenceDiagram
     participant B as Bot platform
     participant Ag as Agent
     P->>R: message to Nubi (or to a group)
-    R->>R: Nubi has a wake-up address → queue it<br/>(one email per address per minute)
-    R->>SMTP: To: bots@… Subject: "Hivepal: nubi coach"
+    R->>R: Nubi has a wake-up address:<br/>queue it (one email per<br/>address per minute)
+    R->>SMTP: To: bots@…<br/>Subject: "Hivepal: nubi coach"
     SMTP->>B: email arrives
     B->>Ag: routine "on email" runs
-    Ag->>Ag: my id is in the subject? yes
-    Ag->>R: hivepal replies, then answers
+    Ag->>Ag: my id is in<br/>the subject? yes
+    Ag->>R: hivepal replies,<br/>then answers
 ```
 
 The email never carries your message, only the agent ids: a leaked address gets nothing, and the
 agent is told to ignore anything written in an email. See [Connect your agents](../guide/agents.md#wake-up-emails).
 
+### Or a mailbox folder
+
+Agents that work from files (a notes repository with a folder per agent) can get their messages there
+instead. `hivepal mailbox`, run with the agent's key from cron, catches up with the relay like `hivepal
+replies` and writes each new message as a Markdown file in the agent's folder; with `--git` it commits
+and pushes them. The relay doesn't change: the daemon does it on your side.
+
+```mermaid
+flowchart TB
+    P["You (app)"] -- "message to Hearth" --> R["Relay"]
+    R -- "events" --> D["hivepal mailbox<br/>(cron, Hearth's key)"]
+    D -- "one .md per message<br/>(--git: commit + push)" --> F["notes/mailbox/hearth/"]
+    F -- "read on schedule" --> A["Agent"]
+    A -- "hivepal msg" --> R
+```
+
+Wake-up emails and mailbox files can be used together. See [Mailbox files](../guide/agents.md#mailbox-files).
+
 ## Subscriptions
 
 ```mermaid
-flowchart LR
+flowchart TB
     U["You, once:<br/>log in inside the app,<br/>open the billing page,<br/>Use this page"] --> S["App remembers<br/>the page (cookies<br/>stay on the phone)"]
     S --> W["Every day and when<br/>you open the screen:<br/>load it off-screen"]
     W --> X["Read the text:<br/>plan · renewal date · price"]
@@ -166,14 +184,16 @@ Only plan, status, date and price leave the phone. Your logins stay in the app's
 
 ```mermaid
 erDiagram
-    AGENTS ||--o{ MESSAGES : writes
+    direction LR
     AGENTS }o--o{ AGENT_GROUPS : "member of"
     AGENTS ||--o{ REMINDERS : schedules
     AGENTS ||--o| AGENT_WAKE : "woken at"
+    AGENTS ||--o{ MESSAGES : writes
     DEVICES ||--o{ MESSAGES : writes
     MESSAGES }o--o{ FILES : attaches
+    EVENTS }o--|| MESSAGES : records
+    DEVICES ||--o{ CALL_PARTICIPANTS : "joins as"
     CALLS ||--o{ CALL_PARTICIPANTS : has
-    EVENTS }o--|| MESSAGES : "records"
     SUBSCRIPTIONS
 ```
 

@@ -5,6 +5,9 @@ import { type Ctx, principal, requireAgentKey, requireAuth } from "../context.js
 import { ApiError, notFound } from "../errors.js";
 import { newId, randomToken } from "../ids.js";
 import type { Device, Schemas } from "../protocol.js";
+import { pairUrl } from "./pairpage.js";
+import { endpointProblem } from "../push/unifiedpush.js";
+import { encrypt } from "../push/webpush.js";
 import { checkPair } from "../quota.js";
 
 const PAIR_WINDOW_MS = 60_000;
@@ -18,6 +21,7 @@ interface DeviceRow {
   platform: string;
   app_version: string | null;
   fcm_token: string | null;
+  up_endpoint?: string | null;
   created_at: number;
   last_seen_at: number | null;
   revoked_at: number | null;
@@ -32,7 +36,8 @@ export function deviceFromRow(r: DeviceRow): Device {
     created_at: r.created_at,
     ...(r.last_seen_at ? { last_seen_at: r.last_seen_at } : {}),
     ...(r.revoked_at ? { revoked_at: r.revoked_at } : {}),
-    has_push_token: r.fcm_token !== null,
+    has_push_token: r.fcm_token !== null || (r.up_endpoint ?? null) !== null,
+    push_via: r.up_endpoint ? "unifiedpush" : r.fcm_token ? "fcm" : "none",
   };
 }
 
@@ -48,8 +53,8 @@ export function createPairingToken(ctx: Ctx, ttlS = 600): Schemas["PairingToken"
     expiresAt,
     now,
   );
-  const qr = { v: 1, relay_url: ctx.cfg.publicUrl, pairing_token: token };
-  return { pairing_token: token, expires_at: expiresAt, qr_payload: JSON.stringify(qr) };
+  const qr = JSON.stringify({ v: 1, relay_url: ctx.cfg.publicUrl, pairing_token: token });
+  return { pairing_token: token, expires_at: expiresAt, qr_payload: qr, qr_url: pairUrl(ctx.cfg.publicUrl, qr) };
 }
 
 export function listDevices(ctx: Ctx, includeRevoked = false): Device[] {
@@ -64,7 +69,7 @@ export function revokeDevice(ctx: Ctx, deviceId: string): void {
   const row = ctx.db.prepare("SELECT revoked_at FROM devices WHERE device_id = ?").get(deviceId);
   if (!row) throw notFound("Device");
   ctx.db
-    .prepare("UPDATE devices SET revoked_at = COALESCE(revoked_at, ?), fcm_token = NULL WHERE device_id = ?")
+    .prepare("UPDATE devices SET revoked_at = COALESCE(revoked_at, ?), fcm_token = NULL, up_endpoint = NULL WHERE device_id = ?")
     .run(Date.now(), deviceId);
   ctx.hub.disconnectDevice(deviceId);
   ctx.calls?.deviceRevoked(deviceId);
@@ -168,6 +173,55 @@ export function pairingRoutes(app: FastifyInstance, ctx: Ctx): void {
       return reply.code(204).send();
     },
   );
+
+  // Hivepal: UnifiedPush instead of FCM for this device.
+  app.post<{ Body: { endpoint: string; p256dh?: string; auth?: string } }>(
+    "/v1/device/unifiedpush",
+    {
+      preHandler: requireAuth(ctx, "device"),
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["endpoint"],
+          properties: {
+            endpoint: { type: "string", minLength: 1, maxLength: 2048 },
+            p256dh: { type: "string", pattern: "^[A-Za-z0-9_-]{86,88}={0,2}$" },
+            auth: { type: "string", pattern: "^[A-Za-z0-9_-]{22,24}={0,2}$" },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const p = principal(req);
+      if (p.kind !== "device") throw new Error("unreachable");
+      const problem = endpointProblem(req.body.endpoint);
+      if (problem) throw new ApiError(400, "invalid_request", `UnifiedPush endpoint ${problem}`);
+      const { p256dh, auth } = req.body;
+      if (!!p256dh !== !!auth) throw new ApiError(400, "invalid_request", "p256dh and auth go together");
+      if (p256dh && auth) {
+        try {
+          encrypt(Buffer.from("{}"), { p256dh, auth }); // a key that can't be used is refused now, not at push time
+        } catch (e) {
+          throw new ApiError(400, "invalid_request", `Web Push keys: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      db.prepare("UPDATE devices SET up_endpoint = ?, up_p256dh = ?, up_auth = ? WHERE device_id = ?").run(
+        req.body.endpoint,
+        p256dh ?? null,
+        auth ?? null,
+        p.deviceId,
+      );
+      return reply.code(204).send();
+    },
+  );
+
+  app.delete("/v1/device/unifiedpush", { preHandler: requireAuth(ctx, "device") }, async (req, reply) => {
+    const p = principal(req);
+    if (p.kind !== "device") throw new Error("unreachable");
+    db.prepare("UPDATE devices SET up_endpoint = NULL, up_p256dh = NULL, up_auth = NULL WHERE device_id = ?").run(p.deviceId);
+    return reply.code(204).send();
+  });
 
   app.get<{ Querystring: { include_revoked?: boolean } }>(
     "/v1/devices",

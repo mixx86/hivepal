@@ -11,9 +11,16 @@ for d in S.glob("demo-*"):
         shutil.rmtree(d)
 (S / "demo-home").mkdir()
 env = {**os.environ, "HIVEPAL_HOME": str(S / "demo-home"), "UV_TOOL_DIR": str(S / "demo-uv"), "UV_TOOL_BIN_DIR": str(S / "demo-bin")}
+# Voice notes need a Gemini key on the demo relay: a file outside the repo (DEMO_GEMINI_KEY_FILE), never committed.
+if os.environ.get("DEMO_GEMINI_KEY_FILE"):
+    env["HIVEPAL_GEMINI_API_KEY"] = open(os.environ["DEMO_GEMINI_KEY_FILE"]).read().strip()
 r = subprocess.run([f"{R}/install.sh", "--local", "--yes"], env=env, capture_output=True, text=True)
 print("install:", "ok" if "The relay answers" in r.stdout else r.stdout[-500:] + r.stderr[-500:])
 demo.setup_agents()
+# No on-screen keyboard: `input text` types anyway, and the keyboard's suggestion strip would show
+# whatever the emulator synced from the computer's clipboard.
+for ime in demo.adb("shell", "ime", "list", "-s").split():
+    demo.adb("shell", "ime", "disable", ime)
 demo.adb("shell", "pm", "clear", "dev.agentring.app")
 for perm in ("POST_NOTIFICATIONS", "RECORD_AUDIO"):
     demo.adb("shell", "pm", "grant", "dev.agentring.app", f"android.permission.{perm}")
@@ -31,17 +38,25 @@ demo.adb("shell", "input", "tap", str(f["x"]), str(f["y"])); time.sleep(0.5)
 demo.adb("shell", "input text '" + code + "'"); time.sleep(1)
 demo.adb("shell", "input", "keyevent", "4"); time.sleep(1)
 demo.tap("Pair"); time.sleep(6)
-demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300"); time.sleep(1)
-lab = [(n["text"] or n["desc"]) for n in demo.nodes()]
-demo.tap(next(l for l in ("Continue", "Skip for now", "Next") if l in lab)); time.sleep(2.5)
-demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300"); time.sleep(1)
+# The rest of the setup (push, permissions, how agents hear from you) is skipped, page by page.
+SKIP = ("Skip for now (Settings → Notifications later)", "Skip for now", "Continue", "Next")
+for _ in range(10):
+    lab = [(n["text"] or n["desc"]) for n in demo.nodes()]
+    if "Open Hivepal" in lab:
+        break
+    step = next((l for l in SKIP if l in lab), None)
+    if step:
+        demo.tap(step)
+    else:
+        demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300")
+    time.sleep(2.5)
 demo.tap("Open Hivepal"); time.sleep(2)
 p.terminate()
-demo.hp("ink", "msg", "Yesterday you wrote 620 words. Chapter 3 is waiting: 20 minutes tonight?", "-o", "Yes", "-o", "Tomorrow")
-demo.hp("coach", "msg", "Leg day logged: squat 5x5 at 80 kg. New best! 💪")
+demo.hp("penny", "msg", "May so far: €1,240 of €1,600. Groceries are under budget 👍")
+demo.hp("hearth", "msg", "Boiler service done. Next one in November.")
 d = lambda n: (datetime.now() + timedelta(days=n)).strftime("%Y-%m-%d")
-demo.hp("main", "subs", "set", "claude", "--name", "Claude", "--plan", "Pro", "--until", d(12), "--price", "€21.78 / month")
-demo.hp("main", "subs", "set", "grok", "--name", "Grok", "--plan", "SuperGrok", "--until", d(3), "--price", "$30.00 / month")
-demo.hp("main", "subs", "set", "server", "--name", "VPS", "--plan", "Bit", "--until", d(24), "--price", "€5.99 / month")
+demo.hp("main", "subs", "set", "claude", "--name", "Claude", "--plan", "Max 5x", "--until", d(12), "--price", "€108.90 / month")
+demo.hp("main", "subs", "set", "openrouter", "--name", "OpenRouter", "--plan", "Credits", "--until", d(3), "--price", "$20.00")
+demo.hp("main", "subs", "set", "hetzner", "--name", "Hetzner", "--plan", "CX22", "--until", d(24), "--price", "€4.59 / month")
 time.sleep(2)
 print([ (n['text'] or n['desc'])[:20] for n in demo.nodes() if n['text'] or n['desc']][:8])

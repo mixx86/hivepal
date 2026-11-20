@@ -33,6 +33,21 @@ class Directory(context: Context) {
     private val _online = MutableStateFlow<Set<String>>(emptySet())
     val online: StateFlow<Set<String>> = _online
 
+    /**
+     * Hivepal: who is writing where (live, from `agent.typing`): conversation → agent → until, in this
+     * phone's clock. Screens drop the ones past their time ([dev.agentring.app.ui.rememberTyping]).
+     */
+    private val _typing = MutableStateFlow<Map<String, Map<String, Long>>>(emptyMap())
+    val typing: StateFlow<Map<String, Map<String, Long>>> = _typing
+
+    private fun setTyping(conv: String, agentId: String, until: Long?) {
+        _typing.update { all ->
+            val m = (all[conv] ?: emptyMap()).toMutableMap()
+            if (until != null) m[agentId] = until else m.remove(agentId)
+            if (m.isEmpty()) all - conv else all + (conv to m)
+        }
+    }
+
     private fun <T> load(key: String, ser: kotlinx.serialization.KSerializer<List<T>>): List<T> =
         prefs.getString(key, null)?.let { runCatching { ProtocolJson.decodeFromString(ser, it) }.getOrNull() } ?: emptyList()
 
@@ -82,6 +97,15 @@ class Directory(context: Context) {
                 val id = event.agentId ?: Conv.MAIN_AGENT
                 _online.update { if (event.online) it + id else it - id }
             }
+            is Event.AgentTyping -> {
+                // The relay's clock may differ from the phone's: keep the time left, not the instant.
+                val left = (event.until ?: (event.ts + 20_000)) - event.ts
+                setTyping(event.conv, event.agentId, if (event.typing) System.currentTimeMillis() + left else null)
+            }
+            // Its message is the answer.
+            is Event.MsgNew -> if (event.from == "agent") setTyping(event.conv ?: Conv.ofAgent(Conv.MAIN_AGENT), event.agentId ?: Conv.MAIN_AGENT, null)
+            // A new connection: the relay tells again who is writing.
+            is Event.WsHello -> _typing.value = emptyMap()
             is Event.AgentUpdated -> {
                 _agents.update { list ->
                     val rest = list.filter { it.agentId != event.agentId }
@@ -126,6 +150,7 @@ class Directory(context: Context) {
         _agents.value = emptyList()
         _groups.value = emptyList()
         _online.value = emptySet()
+        _typing.value = emptyMap()
         prefs.edit().clear().apply()
     }
 

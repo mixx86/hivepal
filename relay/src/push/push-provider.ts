@@ -5,6 +5,8 @@
 export interface PushTarget {
   deviceId: string;
   token: string;
+  /** Hivepal, UnifiedPush: the app's Web Push keys, to encrypt the body for it. */
+  webPush?: { p256dh: string; auth: string };
 }
 
 /** String map delivered to the app (FCM `data`). See `PushData` in the OpenAPI. */

@@ -14,4 +14,5 @@
 - [ ] Protocol changes: `protocol/relay.openapi.yaml` updated first, `protocol/examples/` still valid, `npm run gen:types` re-run
 - [ ] New or updated dependencies are pinned, ≥ ~2 weeks old and checked against OSV
 - [ ] Docs updated (and they describe only what the code does)
+- [ ] `CHANGELOG.md`: a line under Unreleased, if users or operators will notice the change
 - [ ] No secrets, keys or personal data in the diff

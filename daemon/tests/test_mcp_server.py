@@ -60,7 +60,7 @@ def test_mcp_server_messages(relay: str, hivepal_home):
         c.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         assert c.request("ping")["result"] == {}
         names = [t["name"] for t in c.request("tools/list")["result"]["tools"]]
-        assert names == ["send_message", "get_replies", "call", "status"]
+        assert names == ["send_message", "get_replies", "call", "typing", "status"]
 
         st = c.tool("status")
         assert not st["isError"] and st["structuredContent"]["phones"][0]["name"] == "Test Phone"
@@ -109,6 +109,6 @@ def test_server_starts_without_configuration() -> None:
         return listed, called
 
     listed, called = asyncio.run(run())
-    assert {t["name"] for t in listed["result"]["tools"]} == {"send_message", "get_replies", "call", "status"}
+    assert {t["name"] for t in listed["result"]["tools"]} == {"send_message", "get_replies", "call", "typing", "status"}
     assert called["result"]["isError"] is True
     assert "not set up" in called["result"]["content"][0]["text"] and "hivepal init" in called["result"]["content"][0]["text"]

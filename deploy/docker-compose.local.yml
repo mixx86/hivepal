@@ -34,6 +34,8 @@ services:
       # Hivepal: voice-note transcripts and text-to-speech (Gemini), and wake-up emails to agents.
       GEMINI_API_KEY: ${HIVEPAL_GEMINI_API_KEY:-}
       HIVEPAL_SMTP_URL: ${HIVEPAL_SMTP_URL:-}
+      # Dates in agents' mailboxes and memory are in this time zone (the installer sets the host's).
+      TZ: ${TZ:-UTC}
       LIVEKIT_URL: ws://${HIVEPAL_HOST_IP}:7880
       LIVEKIT_API_URL: http://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-hivepal}
@@ -52,7 +54,7 @@ services:
     pids_limit: 256
 
   livekit:
-    image: livekit/livekit-server:v1.13.10@sha256:89ca9ce0791e18d6e03bf6e2c49ceb27e1c754eae8bd50c989386c1a5963791a
+    image: livekit/livekit-server:v1.13.11@sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20
     restart: unless-stopped
     depends_on:
       livekit-init:
@@ -75,7 +77,7 @@ services:
     pids_limit: 512
 
   livekit-init:
-    image: caddy:2.11.6@sha256:3422ce6de165df66534f9b9ba50efaf457114ec961763cc52f5dbdaac2972d73
+    image: caddy:2.11.8@sha256:4fcafa98afd1c2e642e353e3c5cf9ddbe892fcee14bc990e7ba2c5b78e51f9cf
     restart: "no"
     entrypoint: ["/bin/sh", "/in/livekit-init.sh"]
     environment:

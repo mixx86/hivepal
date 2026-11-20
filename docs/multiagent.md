@@ -39,13 +39,45 @@ Tests: `relay/test/multiagent.test.ts`, `daemon/tests/test_multiagent.py`.
   (for example synced from wherever you keep each agent's notes).
 - **Last seen**: `last_seen_at` on `/v1/agents`, updated (once a minute at most) on every
   request with the agent's key; the app shows it and turns it red after a day.
+- **Pairing link**: `PairingToken.qr_url` = `<relay>/pair#<base64url of qr_payload>`. `GET /pair` is a
+  static page (CSP by script hash; the code stays in the fragment) that offers to install the app and
+  opens it with `hivepal://pair?c=<code>`; the app shows the relay's host and asks before pairing.
+- **Test call**: `POST /v1/calls/test {delay_s}` (phones only): after the delay the relay places a call
+  from `main` targeted at that phone, through the normal call path ("Ring me in 10 s").
+- **UnifiedPush**: `POST /v1/device/unifiedpush {endpoint, p256dh?, auth?}` (https on a public host,
+  re-checked after DNS; `DELETE` goes back to FCM). The relay POSTs the same signed `PushData` there,
+  encrypted for the app with RFC 8291 when it gave keys; 404/410 forget it. `Device.push_via` says
+  `unifiedpush`, `fcm` or `none`. Accepted deviation: [architecture](architecture.md#accepted-deviations).
+- **Wake-up emails**: `PUT /v1/agents/{id}/wake {email}` (relay key; the address never shows in
+  views, only `wakes`), and `POST /v1/agents/{id}/wake/test`, which sends it now and answers `204` or
+  `502 email_failed` with what the mail server said.
+- **Delivery and memory** (issue #41, [accepted deviation](architecture.md#accepted-deviations)): the
+  relay's email account (`PUT /v1/settings/email`, logs in before saving; replaces `HIVEPAL_SMTP_URL`),
+  mailboxes per agent or for all (`PUT /v1/agents/{id}/mailbox`, `PUT /v1/settings/mailboxes`): an
+  `inbox/` file per message received, in a git repository per agent in the relay
+  (`git clone https://x:<key>@relay/v1/agents/<id>/mailbox.git`) and, when set, an external repository
+  (`PUT /v1/settings/mailbox-repo`, the relay's deploy key in `GET /v1/settings/delivery`), pushed after a
+  short batch and then the wake-up email. Memory (`PUT /v1/settings/memory {markdown, sqlite}`):
+  `history/<conversation>/<day>.md` in the mailbox, and/or `GET /v1/agents/{id}/memory?q=` (FTS5) and
+  `/memory.sqlite`. Phones may change all of it (the app); an agent reads only its own.
+- **Typing** (issue #48): `POST /v1/typing {conv?, typing?}` (agents) shows "typing…" on the phones
+  for 20 s; the relay also sets it for 60 s when an agent marks a message the user sent in the last 10
+  minutes as read (what `hivepal replies` does), and ends it when the agent writes there. It's an
+  ephemeral `agent.typing` event, like `agent.presence`: never stored, never pushed.
+- **What a relay is configured for**: `Status.features {calls, voice, wake_email}`, to agents (used by
+  `hivepal doctor` and the web panel).
+- **Web panel**: `GET /admin`, a static page that uses the REST API with the relay's key pasted into
+  it (kept in that tab): status, phones and a pairing QR, agents with setup to copy, a test message
+  and a test call.
 
 ## App
 
-Navigation drawer (Chats, Calls, Agents, Status, Settings). One chat per agent and per group,
+Navigation drawer (Chats, Calls, Agents, Reminders, Subscriptions, Status, Settings). One chat per agent and per group,
 with a colour per agent; a chat's menu clears it on this phone (the relay keeps the messages),
 renames the agent or edits the group. Calls lists the call history with missed calls marked;
-Settings can copy agent calls into the Phone app's call log (`WRITE_CALL_LOG`, optional).
+Settings can copy agent calls into the Phone app's call log (`WRITE_CALL_LOG`, optional), choose how
+the phone is woken (Firebase or UnifiedPush), check for updates, save and restore the app's settings
+to a file, and ring the phone as a test.
 
 The app keeps the package `dev.agentring.app`, so it can't be installed over the Play Store
 build (different signing key): uninstall that first and pair again.

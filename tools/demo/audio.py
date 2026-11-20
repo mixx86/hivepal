@@ -85,10 +85,25 @@ if ring_start is not None:
 
 # The agent's voice once answered
 if ring_end is not None:
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(S / "coach.wav"), "-ar", str(SR), "-ac", "1",
-                    "-f", "f32le", str(S / "coach.f32")], check=True)
-    voice = np.fromfile(S / "coach.f32", dtype=np.float32).astype(np.float64)
-    voice /= max(1e-9, np.abs(voice).max())
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(S / "hearth.wav"), "-ar", str(SR), "-ac", "1",
+                    "-f", "f32le", str(S / "hearth.f32")], check=True)
+    voice = np.fromfile(S / "hearth.f32", dtype=np.float32).astype(np.float64)
+    # Text-to-speech sometimes ends with a short burst of noise after the last word: cut whatever
+    # follows the last pause (>= 0.1 s under 1 % of full scale) if it's shorter than 0.4 s, then fade.
+    w = int(0.05 * SR)
+    rms = np.sqrt(np.convolve(voice ** 2, np.ones(w) / w, mode="same"))
+    quiet = rms < 0.01
+    end = len(voice)
+    run = 0
+    for i in range(len(voice) - 1, -1, -w // 2):
+        run = run + w // 2 if quiet[i] else 0
+        if run >= int(0.1 * SR):
+            if len(voice) - i < int(0.6 * SR):
+                end = i
+            break
+    voice = voice[:end]
+    voice[-int(0.03 * SR):] *= np.linspace(1, 0, int(0.03 * SR))
+    voice /= max(1e-9, np.abs(voice[: int(len(voice) * 0.98)]).max())
     at(ring_end + 0.25, tone([1200.0], 0.12, 0.04), 0.12)  # connected
     at(ring_end + 0.7, voice, 0.75)
 
@@ -99,7 +114,7 @@ pad *= 0.010 * (0.6 + 0.4 * np.sin(2 * np.pi * t / 9.0))
 fade = np.minimum(1, t / 2.0) * np.minimum(1, (dur - t) / 2.0)
 if ring_end is not None:
     duck = np.ones_like(t)
-    duck[(t > ring_end + 0.5) & (t < ring_end + 7.2)] = 0.35
+    duck[(t > ring_end + 0.5) & (t < ring_end + 11.5)] = 0.35
     pad *= duck
 out += pad * fade
 

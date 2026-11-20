@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import kotlinx.coroutines.delay
@@ -39,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
@@ -84,7 +87,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Step { WELCOME, HOW, PAIR, CALLS, DONE }
+private enum class Step { WELCOME, HOW, PAIR, PUSH, CALLS, AGENTS, DONE }
 
 /** Where the user's relay lives; only changes which instructions the tutorial shows. */
 private enum class Setup { CLOUD, SELF_HOSTED }
@@ -100,26 +103,39 @@ internal fun Pairing.dashboardUrl(): String? = if (isCloud()) BuildConfig.CLOUD_
 
 @Composable
 fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
-    var step by rememberSaveable { mutableStateOf(if (paired != null) Step.CALLS else Step.WELCOME) }
+    var step by rememberSaveable {
+        mutableStateOf(if (paired?.pushConfig == null && paired != null) Step.PUSH else if (paired != null) Step.CALLS else Step.WELCOME)
+    }
     var setup by rememberSaveable {
         mutableStateOf(if (paired?.isCloud() == true || (paired == null && BuildConfig.CLOUD_URL.isNotEmpty())) Setup.CLOUD else Setup.SELF_HOSTED)
     }
     // Once paired there is no going back to the pairing pages.
     val canGoBack = step == Step.HOW || step == Step.PAIR
+    // The agents step goes back through its own questions.
+    var deliveryBack by remember { mutableStateOf<(() -> Unit)?>(null) }
     // Builds without a hosted service skip the "cloud or own server" question.
     val offerCloud = BuildConfig.CLOUD_URL.isNotEmpty()
+    // Before pairing, reserve the optional step; once the relay answers, hide it for Firebase.
+    val needsPushSetup = paired?.pushConfig == null
+    fun displayedIndex(s: Step) = if (!needsPushSetup && s.ordinal > Step.PUSH.ordinal) s.ordinal - 1 else s.ordinal
+    val displayedTotal = Step.entries.size - 1 - if (needsPushSetup) 0 else 1
     fun back() {
         step = if (step == Step.PAIR && !offerCloud) Step.WELCOME else Step.entries[step.ordinal - 1]
     }
     BackHandler(enabled = canGoBack) { back() }
+    // Opened from a pairing link: straight to the pairing page, which asks before pairing.
+    val pendingLink by Graph.pendingPairLink.collectAsState()
+    LaunchedEffect(pendingLink) {
+        if (pendingLink != null && step.ordinal < Step.PAIR.ordinal) step = Step.PAIR
+    }
 
     Scaffold(
         topBar = {
             if (step != Step.WELCOME) {
                 TutorialTopBar(
-                    index = step.ordinal,
-                    total = Step.entries.size - 1,
-                    onBack = if (canGoBack) ::back else null,
+                    index = displayedIndex(step),
+                    total = displayedTotal,
+                    onBack = if (canGoBack) ::back else if (step == Step.AGENTS) deliveryBack else null,
                 )
             }
         },
@@ -139,9 +155,127 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
                     setup = it
                     step = Step.PAIR
                 }
-                Step.PAIR -> PairPage(setup, onPaired = { step = Step.CALLS })
-                Step.CALLS -> CallsPage(onNext = { step = Step.DONE })
+                Step.PAIR -> PairPage(setup, onPaired = {
+                    step = if (Graph.pairing.current?.pushConfig == null) Step.PUSH else Step.CALLS
+                })
+                Step.PUSH -> PushSetupPage(onReady = { step = Step.CALLS })
+                Step.CALLS -> CallsPage(onNext = { step = Step.AGENTS })
+                Step.AGENTS -> AgentsDeliveryPage(onNext = { deliveryBack = null; step = Step.DONE }, setBack = { deliveryBack = it })
                 Step.DONE -> DonePage(Graph.pairing.current ?: paired, onFinished)
+            }
+        }
+    }
+}
+
+/** Set up the wake-up channel while the pairing result still tells us Firebase is unavailable. */
+@Composable
+private fun PushSetupPage(onReady: () -> Unit) {
+    val ctx = LocalContext.current
+    val activity = ctx as? android.app.Activity
+    val setup = dev.agentring.app.push.UnifiedPushSetup
+    var distributors by remember { mutableStateOf(setup.distributors(ctx)) }
+    var endpoint by remember { mutableStateOf(setup.endpoint(ctx)) }
+    var attemptedDistributor by remember { mutableStateOf<String?>(null) }
+    var registering by remember { mutableStateOf(false) }
+    var checking by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+
+    // The user may install ntfy from this page. Its package appears without restarting Hivepal.
+    LaunchedEffect(Unit) {
+        while (!ready) {
+            distributors = setup.distributors(ctx)
+            endpoint = setup.endpoint(ctx)
+            delay(1_000)
+        }
+    }
+
+    fun startRegistration() {
+        if (activity == null || registering) return
+        registering = true
+        failed = false
+        setup.enable(activity) { accepted ->
+            registering = false
+            failed = !accepted
+        }
+    }
+
+    val distributorKey = distributors.sorted().joinToString(",")
+    LaunchedEffect(distributorKey, endpoint) {
+        if (endpoint == null && distributorKey.isNotEmpty() && attemptedDistributor != distributorKey) {
+            attemptedDistributor = distributorKey
+            startRegistration()
+        }
+    }
+    LaunchedEffect(endpoint) {
+        if (endpoint != null && !ready && !checking) {
+            checking = true
+            ready = withContext(Dispatchers.IO) { setup.sendEndpoint(ctx) }
+            failed = !ready
+            checking = false
+        }
+    }
+
+    fun installNtfy() {
+        val store = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=io.heckel.ntfy"))
+        val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=io.heckel.ntfy"))
+        runCatching { ctx.startActivity(store) }.getOrElse { runCatching { ctx.startActivity(web) } }
+    }
+
+    Page(bottom = {
+        when {
+            ready -> PrimaryButton(stringResource(R.string.continue_), "push_continue", onClick = onReady)
+            distributors.isEmpty() -> OutlinedButton(
+                onClick = ::installNtfy,
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("install_ntfy"),
+            ) { Text(stringResource(R.string.push_install_ntfy), style = MaterialTheme.typography.titleMedium) }
+            failed && !registering && !checking -> OutlinedButton(
+                onClick = ::startRegistration,
+                modifier = Modifier.fillMaxWidth().height(56.dp).testTag("retry_unifiedpush"),
+            ) { Text(stringResource(R.string.push_retry), style = MaterialTheme.typography.titleMedium) }
+        }
+        // Never a dead end: without push the app still works while it's open, and
+        // Settings → Notifications can set it up later.
+        if (!ready) {
+            TextButton(onClick = onReady, modifier = Modifier.testTag("push_later")) {
+                Text(stringResource(R.string.push_later))
+            }
+        }
+    }) {
+        HeroBadge(rememberVectorPainter(Icons.Filled.Notifications), size = 88.dp, pulse = registering || checking)
+        Text(stringResource(R.string.push_setup_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.push_setup_body),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        BrandCard {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val status = when {
+                    ready -> R.string.push_ready
+                    checking -> R.string.push_checking
+                    registering -> R.string.push_registering_up
+                    distributors.isEmpty() -> R.string.push_no_distributor
+                    failed -> R.string.push_failed
+                    else -> R.string.push_registering_up
+                }
+                Text(stringResource(status), style = MaterialTheme.typography.bodyMedium)
+                if (distributors.isEmpty()) {
+                    Text(stringResource(R.string.push_install_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        // The other way: Firebase, set up on the relay (then pair again). Offered, not pushed.
+        if (!ready) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.push_prefer_fcm), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.push_option_fcm_missing), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(
+                    onClick = { runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FIREBASE_GUIDE))) } },
+                    modifier = Modifier.testTag("push_fcm_howto"),
+                ) { Text(stringResource(R.string.push_fcm_howto)) }
             }
         }
     }
@@ -224,29 +358,30 @@ private fun WelcomePage(onNext: () -> Unit) {
     }) {
         LanguageToggle()
         Spacer(Modifier.height(8.dp))
-        HeroBadge(painterResource(R.drawable.ic_call), pulse = true)
+        HiveLogo(size = 190.dp)
         Text(
             stringResource(R.string.welcome_title),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("title"),
+            modifier = Modifier.appear(2).testTag("title"),
         )
         Text(
             stringResource(R.string.welcome_body),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            modifier = Modifier.appear(3),
         )
         Spacer(Modifier.height(4.dp))
-        Feature(painterResource(R.drawable.ic_chat), R.string.feature_messages_title, R.string.feature_messages_body)
-        Feature(painterResource(R.drawable.ic_call), R.string.feature_calls_title, R.string.feature_calls_body)
-        Feature(painterResource(R.drawable.ic_mic), R.string.feature_callback_title, R.string.feature_callback_body)
+        Feature(painterResource(R.drawable.ic_chat), R.string.feature_messages_title, R.string.feature_messages_body, order = 5)
+        Feature(painterResource(R.drawable.ic_call), R.string.feature_calls_title, R.string.feature_calls_body, order = 6)
+        Feature(painterResource(R.drawable.ic_mic), R.string.feature_callback_title, R.string.feature_callback_body, order = 7)
     }
 }
 
 @Composable
-private fun Feature(icon: Painter, title: Int, body: Int) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Feature(icon: Painter, title: Int, body: Int, order: Int = 0) {
+    Row(Modifier.fillMaxWidth().appear(order), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium),
@@ -291,7 +426,7 @@ private fun HowPage(current: Setup, onPick: (Setup) -> Unit) {
 
 @Composable
 private fun SetupOption(icon: Painter, title: String, badge: String, body: String, selected: Boolean, tag: String, onClick: () -> Unit) {
-    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.testTag(tag)) {
+    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.appear(3).selectBounce(selected).testTag(tag)) {
         Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -319,20 +454,21 @@ private fun SetupOption(icon: Painter, title: String, badge: String, body: Strin
 }
 
 @Composable
-private fun PageHeader(title: Int, body: Int, icon: Painter? = null) {
-    if (icon != null) HeroBadge(icon, size = 80.dp)
+private fun PageHeader(title: Int, body: Int, icon: Painter? = null, success: Boolean = false) {
+    if (success) SuccessBadge(size = 80.dp)
+    else if (icon != null) Box(Modifier.appear(0)) { HeroBadge(icon, size = 80.dp) }
     Text(
         stringResource(title),
         style = MaterialTheme.typography.headlineMedium,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().testTag("title"),
+        modifier = Modifier.fillMaxWidth().appear(1).testTag("title"),
     )
     Text(
         stringResource(body),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().appear(2),
     )
 }
 
@@ -369,6 +505,28 @@ private fun PairPage(setup: Setup, onPaired: () -> Unit) {
                 busy = false
             }
         }
+    }
+    // A pairing link: show which relay and pair only if the user says so (any web page can open one).
+    val pendingLink by Graph.pendingPairLink.collectAsState()
+    val linkRelay = remember(pendingLink) {
+        pendingLink?.let { runCatching { android.net.Uri.parse(dev.agentring.core.QrPayload.parse(it).relayUrl).host }.getOrNull() ?: "" }
+    }
+    if (pendingLink != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { Graph.pendingPairLink.value = null },
+            title = { Text(stringResource(R.string.pair_link_title)) },
+            text = { Text(stringResource(R.string.pair_link_body, linkRelay ?: "")) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val link = pendingLink
+                    Graph.pendingPairLink.value = null
+                    link?.let(::pair)
+                }, modifier = Modifier.testTag("pair_link_confirm")) { Text(stringResource(R.string.pair_link_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { Graph.pendingPairLink.value = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
     val scanFailed = stringResource(R.string.scan_failed, "%s")
     fun scan() {
@@ -471,6 +629,171 @@ private fun CallsPage(onNext: () -> Unit) {
     }
 }
 
+/** Hivepal: how agents hear from you (email, mailboxes) and whether bots remember; may be skipped. */
+/** The questions of the "how your agents hear from you" step, one per page. */
+private enum class Ask { INTRO, CHANNELS, EMAIL, MAILBOX, MEMORY, SUMMARY }
+
+/**
+ * How agents hear from you, and whether they remember: a few short questions, each on its own page,
+ * that lead to every option (email, mailboxes in the relay or your repository, memory as notes or a
+ * database). Each answer is saved in the relay as it's given; Settings shows all of it at once.
+ */
+@Composable
+private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> Unit) {
+    val m = rememberDeliveryModel()
+    var ask by rememberSaveable { mutableStateOf(Ask.INTRO) }
+    // The questions answered so far, to go back through them (names, so it survives a rotation).
+    var trail by rememberSaveable { mutableStateOf("") }
+    var wantEmail by rememberSaveable { mutableStateOf(false) }
+    var wantMailbox by rememberSaveable { mutableStateOf(false) }
+    var external by rememberSaveable { mutableStateOf(false) }
+    var seeded by rememberSaveable { mutableStateOf(false) }
+    val s = m.settings
+    LaunchedEffect(s != null) {
+        if (s != null && !seeded) {
+            seeded = true
+            wantEmail = s.email.configured
+            wantMailbox = s.mailboxes.allAgents
+            external = s.mailboxRepo.url != null
+        }
+    }
+    fun go(to: Ask) {
+        trail = if (trail.isEmpty()) ask.name else "$trail,${ask.name}"
+        ask = to
+    }
+    fun back() {
+        val steps = trail.split(',')
+        ask = Ask.valueOf(steps.last())
+        trail = steps.dropLast(1).joinToString(",")
+    }
+    val canGoBack = trail.isNotEmpty()
+    BackHandler(enabled = canGoBack) { back() }
+    SideEffect { setBack(if (canGoBack) ::back else null) }
+
+    val skip: @Composable () -> Unit = {
+        androidx.compose.material3.TextButton(onClick = onNext, modifier = Modifier.testTag("delivery_skip")) {
+            Text(stringResource(R.string.delivery_skip))
+        }
+    }
+    if (s == null) {
+        // An older relay doesn't have it: nothing to ask.
+        Page(bottom = { PrimaryButton(stringResource(R.string.continue_), "delivery_next", onClick = onNext); skip() }) {
+            PageHeader(R.string.delivery_title, R.string.delivery_intro_body, rememberVectorPainter(Icons.Filled.Email))
+            Text(
+                m.loadError?.let { stringResource(R.string.delivery_unavailable, it) } ?: stringResource(R.string.loading),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+
+    AnimatedContent(
+        targetState = ask,
+        transitionSpec = {
+            val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+            (slideInHorizontally { it * dir / 4 } + fadeIn()) togetherWith (slideOutHorizontally { -it * dir / 4 } + fadeOut())
+        },
+        label = "delivery",
+    ) { a ->
+        when (a) {
+            Ask.INTRO -> Page(bottom = { skip() }) {
+                PageHeader(R.string.delivery_title, R.string.delivery_intro_body, rememberVectorPainter(Icons.Filled.Email))
+                Text(
+                    stringResource(R.string.delivery_intro_question),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).appear(3),
+                )
+                ChoiceCard(
+                    stringResource(R.string.delivery_always), stringResource(R.string.delivery_always_body),
+                    selected = false, tag = "delivery_always", order = 4,
+                ) { go(Ask.MEMORY) }
+                ChoiceCard(
+                    stringResource(R.string.delivery_sometimes), stringResource(R.string.delivery_sometimes_body),
+                    selected = false, tag = "delivery_sometimes", order = 5,
+                ) { go(Ask.CHANNELS) }
+                Hint(R.string.delivery_change_later)
+            }
+
+            Ask.CHANNELS -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = (wantEmail || wantMailbox) && !m.busy) {
+                    if (wantMailbox != s.mailboxes.allAgents) m.change({ it.setMailboxesForAll(wantMailbox) })
+                    go(if (wantEmail) Ask.EMAIL else Ask.MAILBOX)
+                }
+            }) {
+                PageHeader(R.string.delivery_channels_title, R.string.delivery_channels_body)
+                ChoiceCard(
+                    stringResource(R.string.delivery_email), stringResource(R.string.delivery_email_body),
+                    selected = wantEmail, tag = "delivery_email", multi = true, order = 3,
+                ) { wantEmail = !wantEmail }
+                ChoiceCard(
+                    stringResource(R.string.delivery_mailboxes), stringResource(R.string.delivery_mailboxes_body),
+                    selected = wantMailbox, tag = "delivery_mailboxes", multi = true, order = 4,
+                ) { wantMailbox = !wantMailbox }
+            }
+
+            Ask.EMAIL -> Page(bottom = {
+                val next = if (wantMailbox) Ask.MAILBOX else Ask.MEMORY
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = s.email.configured && !m.busy) { go(next) }
+                if (!s.email.configured) {
+                    androidx.compose.material3.TextButton(onClick = { go(next) }, modifier = Modifier.testTag("delivery_not_now")) {
+                        Text(stringResource(R.string.delivery_not_now))
+                    }
+                }
+            }) {
+                PageHeader(R.string.delivery_email_title, R.string.delivery_email_page_body)
+                EmailForm(m, Modifier.appear(3))
+            }
+
+            Ask.MAILBOX -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = !m.busy && (!external || s.mailboxRepo.url != null)) {
+                    if (!external && s.mailboxRepo.url != null) m.change({ it.setMailboxRepo(null) })
+                    go(Ask.MEMORY)
+                }
+            }) {
+                PageHeader(R.string.delivery_where_title, R.string.delivery_where_body)
+                ChoiceCard(
+                    stringResource(R.string.delivery_repo_relay), stringResource(R.string.delivery_repo_relay_body),
+                    selected = !external, tag = "delivery_repo_relay", badge = stringResource(R.string.recommended), order = 3,
+                ) { external = false }
+                ChoiceCard(
+                    stringResource(R.string.delivery_repo_external), stringResource(R.string.delivery_repo_external_body),
+                    selected = external, tag = "delivery_repo_external", order = 4,
+                ) { external = true }
+                if (external) RepoForm(m)
+            }
+
+            Ask.MEMORY -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = !m.busy) { go(Ask.SUMMARY) }
+            }) {
+                PageHeader(R.string.delivery_memory_title, R.string.delivery_memory_page_body)
+                MemoryChoices(m, cards = true)
+            }
+
+            Ask.SUMMARY -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_done", onClick = onNext)
+            }) {
+                PageHeader(R.string.delivery_summary_title, R.string.delivery_summary_body, success = true)
+                DeliverySummary(s)
+                if (s.email.configured) Hint(R.string.delivery_summary_next_email)
+                if (s.mailboxes.allAgents) Hint(R.string.delivery_summary_next_mailbox)
+                Hint(R.string.delivery_change_later)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: Int) {
+    Text(
+        stringResource(text),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 @Composable
 private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
     val ctx = LocalContext.current
@@ -478,20 +801,22 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
     Page(bottom = {
         PrimaryButton(stringResource(R.string.open_app), "continue", onClick = onFinished)
     }) {
-        HeroBadge(rememberVectorPainter(Icons.Filled.Check), size = 88.dp, pulse = true)
+        SuccessBadge(size = 88.dp)
         Text(
             stringResource(R.string.done_title, pairing?.agentName ?: "hivepal"),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("title"),
+            modifier = Modifier.appear(2).testTag("title"),
         )
         Text(
             stringResource(R.string.done_subtitle),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            modifier = Modifier.appear(3),
         )
-        if (pairing != null && pairing.pushConfig == null) {
+        // No Firebase is fine when UnifiedPush is set up: warn only without any push channel.
+        if (pairing != null && pairing.pushConfig == null && dev.agentring.app.push.UnifiedPushSetup.endpoint(ctx) == null) {
             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium) {
                 Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.onErrorContainer)
@@ -517,11 +842,12 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
         OutlinedButton(onClick = { Notifications.showTest(ctx) }, modifier = Modifier.fillMaxWidth().testTag("test_notification")) {
             Text(stringResource(R.string.test_notification))
         }
+        TestCallButton()
     }
 }
 
 
-/** English · Español, for someone who hasn't paired yet (Settings has the same choice later). */
+/** English · Spanish (in the current language), for someone who hasn't paired yet (Settings has the same choice later). */
 @Composable
 private fun LanguageToggle() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -542,7 +868,7 @@ private fun LanguageToggle() {
                 modifier = Modifier.testTag("welcome_lang_$tag"),
             ) {
                 Text(
-                    label,
+                    stringResource(label),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (tag == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (tag == current) androidx.compose.ui.text.font.FontWeight.Bold else null,

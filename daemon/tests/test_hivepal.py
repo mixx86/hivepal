@@ -126,13 +126,20 @@ def test_bots_wake_sets_and_clears(monkeypatch):
             calls.append((agent_id, email))
             return {"agent_id": agent_id, "name": "Casa", "wakes": email is not None}
 
+        def test_agent_wake(self, agent_id):
+            calls.append((agent_id, "test"))
+
     monkeypatch.setattr(cli, "_settings", lambda: object())
     monkeypatch.setattr(cli, "_client", lambda s: FakeClient())
     r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "x@mail.grokbot.com"])
-    assert r.exit_code == 0 and "woken by email" in r.output
+    assert r.exit_code == 0 and "woken by email" in r.output and "--test" in r.output
     r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "OFF"])
     assert r.exit_code == 0 and "no wake-up email" in r.output
-    assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None)]
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa", "--test"])
+    assert r.exit_code == 0 and "test email sent" in r.output
+    r = CliRunner().invoke(cli.app, ["bots", "wake", "casa"])
+    assert r.exit_code != 0
+    assert calls == [("casa", "x@mail.grokbot.com"), ("casa", None), ("casa", "test")]
 
 
 def test_legacy_agentring_env_is_adopted():
@@ -198,3 +205,35 @@ def test_subs_set_and_list(monkeypatch):
     assert r.exit_code == 0 and "Claude" in r.output and "renews 2026-12-05" in r.output
     r = CliRunner().invoke(cli.app, ["subs", "set", "x", "--name", "X", "--until", "mañana"])
     assert r.exit_code != 0
+
+
+def test_delivery_and_memory(hive, tmp_path: Path):
+    """The relay's delivery settings and bots' memory from the CLI (issue #41)."""
+    admin, nubi, rutina = hive["admin"], hive["nubi"], hive["rutina"]
+    out = cli(admin, "delivery")
+    assert "Email:     off" in out and "Memory:    off" in out and "ssh-ed25519 " in out
+    assert "Markdown in the mailboxes" in cli(admin, "delivery", "memory", "both")
+    assert "Memory:    markdown + sqlite" in cli(admin, "delivery")
+    assert "mailbox on" in cli(admin, "bots", "mailbox", "nubi", "on")
+    assert "/v1/agents/nubi/mailbox.git" in cli(admin, "bots", "mailbox", "nubi", "on")
+    assert "every agent" in cli(admin, "delivery", "mailboxes", "on")
+
+    cli(nubi, "msg", "Gym at 18:00 on Friday?")
+    cli(rutina, "msg", "Stretch before the gym", "--to", "nubi")
+    out = cli(nubi, "memory", "gym")
+    assert "Nubi: Gym at 18:00 on Friday?" in out and "Rutina: Stretch before the gym" in out
+    assert "Nothing found." in cli(nubi, "memory", "pizza")
+    db = tmp_path / "mem.sqlite"
+    cli(nubi, "memory", "--download", str(db))
+    import sqlite3
+
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT count(*) FROM messages").fetchone()[0] == 2
+
+    r = runner.invoke(app, ["delivery", "repo", "/etc/passwd"], env={"HIVEPAL_HOME": str(admin)})
+    assert r.exit_code != 0 and "Repository" in r.output
+    r = runner.invoke(app, ["delivery", "memory", "nubi"], env={"HIVEPAL_HOME": str(admin)})
+    assert r.exit_code != 0
+    assert "Memory:    off" in (cli(admin, "delivery", "memory", "off") and cli(admin, "delivery"))
+    r = runner.invoke(app, ["memory", "gym"], env={"HIVEPAL_HOME": str(nubi)})
+    assert r.exit_code != 0 and "off" in r.output

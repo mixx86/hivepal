@@ -77,6 +77,15 @@ TOOLS: list[dict[str, Any]] = [
         }, "required": ["reason"]},
     },
     {
+        "name": "typing",
+        "description": ("Show \"typing…\" on the user's phone while you work on an answer (about 20 s; call again "
+                        "to keep it, typing=false to stop). Sending a message ends it. Reading the user's message "
+                        "with get_replies already shows it for a minute."),
+        "inputSchema": {"type": "object", "properties": {
+            "typing": {"type": "boolean", "description": "true (default) to show it, false to stop."},
+        }},
+    },
+    {
         "name": "status",
         "description": "Whether the relay is reachable and which phones are paired.",
         "inputSchema": {"type": "object", "properties": {}},
@@ -308,6 +317,10 @@ class HivepalTools:
         if call.get("end_reason") != "quota":
             return None
         return "The call was cut off: the month's call minutes ran out. " + quota_note(self.upgrade_url)
+
+    async def typing(self, typing: bool = True) -> dict[str, Any]:
+        await asyncio.to_thread(self.client.set_typing, typing)
+        return {"typing": typing}
 
     async def status(self) -> dict[str, Any]:
         st = await asyncio.to_thread(self.client.status)

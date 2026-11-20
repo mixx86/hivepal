@@ -17,8 +17,8 @@ scripts/        ci-emulator-e2e.sh, device-test.sh
 docs/           architecture, protocol, setup, Firebase, voice, OEM troubleshooting
 ```
 
-Design background: [docs/architecture.md](docs/architecture.md) and
-[docs/protocol.md](docs/protocol.md).
+Design background: [Architecture](https://mixx86.github.io/hivepal-web/architecture/) and
+[Protocol](https://mixx86.github.io/hivepal-web/protocol/).
 
 ## Build and test
 
@@ -33,12 +33,20 @@ cd app-android && ./gradlew -PcoreOnly :core:test   # when Google's Maven is unr
 ```
 
 - `daemon/tests/test_voice_live.py` needs a LiveKit server and a Gemini key; see
-  [docs/voice.md](docs/voice.md#testing).
+  [Voice AI](https://mixx86.github.io/hivepal-web/voice/#testing).
 - `scripts/device-test.sh [apk]` installs and tests on a USB-connected phone
   (`--instrumented` runs the instrumented test; the phone must be unlocked).
 - CI (`.github/workflows/`) runs the relay and daemon tests, a docker compose
   smoke test, and builds the APK and runs an end-to-end test on an Android
   emulator against a real relay.
+
+## Branches, pull requests and releases
+
+`main` only changes through pull requests that pass CI (relay + daemon tests, the docker compose
+smoke test, the Android build with the emulator end-to-end test). Work on a short-lived branch,
+open a pull request, and it is squash-merged once the checks are green. If it changes what users
+see or run, add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md). Releases are cut by
+the maintainer with `scripts/release.sh` ([Releasing](https://mixx86.github.io/hivepal-web/release/)).
 
 ## Protocol first
 
@@ -54,7 +62,7 @@ protocol:
    (`openapi-typescript` → `relay/src/generated/api.ts`, committed; do not edit
    it by hand).
 4. Update the implementations (relay, daemon, `app-android/core`) and
-   [docs/protocol.md](docs/protocol.md).
+   [Protocol](https://mixx86.github.io/hivepal-web/protocol/).
 
 Design changes that deviate from `docs/architecture.md` or `docs/protocol.md`
 should be discussed in an issue first and recorded in those documents.

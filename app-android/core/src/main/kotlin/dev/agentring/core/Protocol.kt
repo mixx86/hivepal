@@ -24,10 +24,16 @@ data class QrPayload(
     @SerialName("pairing_token") val pairingToken: String,
 ) {
     companion object {
-        /** Parses the QR / pasted pairing code. Throws [IllegalArgumentException] with a user-facing reason. */
+        /**
+         * Parses the QR / pasted pairing code: the JSON itself, or a pairing link (Hivepal relays):
+         * `https://<relay>/pair#<base64url JSON>` or `hivepal://pair?c=<base64url JSON>`.
+         * Throws [IllegalArgumentException] with a user-facing reason.
+         */
         fun parse(raw: String): QrPayload {
+            val text = raw.trim()
+            val json = if (text.startsWith("{")) text else fromLink(text)
             val p = try {
-                ProtocolJson.decodeFromString<QrPayload>(raw.trim())
+                ProtocolJson.decodeFromString<QrPayload>(json ?: throw IllegalArgumentException())
             } catch (e: Exception) {
                 throw IllegalArgumentException("This is not a Hivepal pairing code")
             }
@@ -35,6 +41,18 @@ data class QrPayload(
             require(p.pairingToken.startsWith("pt_")) { "Invalid pairing token" }
             RelayUrlPolicy.check(p.relayUrl)
             return p
+        }
+
+        private val LINK_CODE = Regex("""[?&]c=([A-Za-z0-9_-]+)""")
+
+        /** The JSON inside a pairing link, or null if [text] isn't one. */
+        private fun fromLink(text: String): String? {
+            val lower = text.lowercase()
+            if (!(lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("hivepal:"))) return null
+            val code = text.substringAfter('#', "").takeIf { it.isNotEmpty() && !it.startsWith("Intent;") }
+                ?: LINK_CODE.find(text)?.groupValues?.get(1)
+                ?: return null
+            return runCatching { String(java.util.Base64.getUrlDecoder().decode(code), Charsets.UTF_8) }.getOrNull()
         }
     }
 }
@@ -174,6 +192,45 @@ data class Agent(
     val online: Boolean? = null,
     /** Hivepal: when the agent last used its key. */
     @SerialName("last_seen_at") val lastSeenAt: Long? = null,
+    /** Hivepal: the relay emails it when you write (the address is never shown back). */
+    val wakes: Boolean? = null,
+    /** Hivepal: the relay writes its messages as Markdown files in its mailbox. */
+    val mailbox: Boolean? = null,
+)
+
+// ---------- Hivepal: how agents hear from the user, and remember (issue #41) ----------
+
+@Serializable
+data class EmailSettings(
+    val configured: Boolean = false,
+    val address: String? = null,
+    val server: String? = null,
+    @SerialName("from_env") val fromEnv: Boolean? = null,
+)
+
+@Serializable
+data class MailboxesSettings(@SerialName("all_agents") val allAgents: Boolean = false)
+
+@Serializable
+data class MemorySettings(val markdown: Boolean = false, val sqlite: Boolean = false) {
+    val on: Boolean get() = markdown || sqlite
+}
+
+@Serializable
+data class MailboxRepo(
+    val url: String? = null,
+    val branch: String? = null,
+    @SerialName("public_key") val publicKey: String? = null,
+    @SerialName("last_push_at") val lastPushAt: Long? = null,
+    @SerialName("last_error") val lastError: String? = null,
+)
+
+@Serializable
+data class DeliverySettings(
+    val email: EmailSettings = EmailSettings(),
+    val mailboxes: MailboxesSettings = MailboxesSettings(),
+    val memory: MemorySettings = MemorySettings(),
+    @SerialName("mailbox_repo") val mailboxRepo: MailboxRepo = MailboxRepo(),
 )
 
 @Serializable
@@ -334,6 +391,16 @@ sealed interface Event {
         @SerialName("agent_id") val agentId: String? = null,
     ) : Event
 
+    /** Hivepal: an agent started or stopped writing (ephemeral; `until` is when it ends by itself). */
+    @Serializable
+    data class AgentTyping(
+        override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
+        @SerialName("agent_id") val agentId: String,
+        val conv: String,
+        val typing: Boolean,
+        val until: Long? = null,
+    ) : Event
+
     /** Hivepal: its author deleted a message. */
     @Serializable
     data class MsgDeleted(
@@ -393,6 +460,7 @@ sealed interface Event {
                 "agent.updated" -> j.decodeFromJsonElement(AgentUpdated.serializer(), obj)
                 "group.updated" -> j.decodeFromJsonElement(GroupUpdated.serializer(), obj)
                 "msg.deleted" -> j.decodeFromJsonElement(MsgDeleted.serializer(), obj)
+                "agent.typing" -> j.decodeFromJsonElement(AgentTyping.serializer(), obj)
                 else -> Unknown(
                     type = type,
                     id = obj["id"]?.jsonPrimitive?.content ?: "",

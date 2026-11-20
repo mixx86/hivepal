@@ -39,6 +39,10 @@ bots_app = typer.Typer(help="Agents with their own key and conversation on the r
 app.add_typer(bots_app, name="bots")
 groups_app = typer.Typer(help="Group conversations: the user and several agents, who all read them.", no_args_is_help=False)
 app.add_typer(groups_app, name="groups")
+delivery_app = typer.Typer(
+    help="How agents hear from you and remember: the relay's email account, mailboxes in git, memory.",
+    no_args_is_help=False, invoke_without_command=True)
+app.add_typer(delivery_app, name="delivery")
 subs_app = typer.Typer(help="Your subscriptions and when each renews (the app reads each service's billing page).",
                        no_args_is_help=False, invoke_without_command=True)
 app.add_typer(subs_app, name="subs")
@@ -230,9 +234,10 @@ def pair(
         if json_out:
             _emit_json(tok)
         else:
-            qr = segno.make(tok["qr_payload"], error="m")
+            # The link form (newer relays) also works from the phone's camera: it offers to install the app.
+            qr = segno.make(tok.get("qr_url") or tok["qr_payload"], error="m")
             qr.terminal(compact=True, border=2)
-            typer.echo("\nScan this QR code with the hivepal app (Pair → Scan QR).")
+            typer.echo("\nScan this QR code with the phone's camera or the Hivepal app (Get started → Scan).")
             typer.echo("No camera? Copy this pairing code into the app (Pair → Paste code):\n")
             typer.echo(f"  {tok['qr_payload']}\n")
             typer.echo(f"Valid until {_fmt_ts(tok['expires_at'])}, single use.")
@@ -442,6 +447,30 @@ def msg(
         _emit_json({"msg_id": m["msg_id"]})
     else:
         typer.echo(m["msg_id"])
+
+
+@app.command()
+def typing(
+    stop: Annotated[bool, typer.Option("--stop", help="Stop showing it.")] = False,
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="In this group instead of your own conversation.")] = None,
+    to: Annotated[Optional[str], typer.Option("--to", help="In your conversation with another agent.")] = None,
+) -> None:
+    """Show "typing…" on the phone while you work on an answer (about 20 s: repeat it for longer).
+
+    Sending a message there ends it. `hivepal replies` already shows it for a minute when it reads
+    a new message from the user."""
+    if group and to:
+        raise _fail("use --group or --to, not both")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            conv = f"group:{group}" if group else None
+            if to:
+                me = (c.status().get("self") or {}).get("agent_id") or "main"
+                conv = "bots:" + ".".join(sorted([me, to]))
+            c.set_typing(not stop, conv)
+        except RelayError as e:
+            raise _fail(str(e)) from None
 
 
 _MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
@@ -669,6 +698,113 @@ def replies(
         quoted = r.get("reply_to_text")
         answer = f" (reply to: «{quoted[:80] + ('…' if len(quoted) > 80 else '')}»)" if quoted else ""
         typer.echo(f"[{_fmt_ts(r['created_at'])}] {prefix}{r['text']}{files}{answer}")
+
+
+@app.command()
+def mailbox(
+    folder: Annotated[str, typer.Argument(help="The mailboxes folder: each agent's files go in <folder>/<agent id>/.")],
+    since: Annotated[
+        str, typer.Option("--since", help="On the first run in this folder, start from: 10m, 2h, 1d, epoch ms or ISO date.")
+    ] = "1d",
+    git: Annotated[bool, typer.Option("--git", help="Commit the new files in the folder's git repository and push.")] = False,
+    install: Annotated[
+        bool, typer.Option("--install", help="Run this every minute from now on (adds it to your crontab), then run it once.")
+    ] = False,
+    uninstall: Annotated[bool, typer.Option("--uninstall", help="Stop running it every minute.")] = False,
+    json_out: JsonOpt = False,
+) -> None:
+    """Write your new messages as Markdown files, one per message, in your mailbox folder.
+
+    For agents that read a folder (a notes repo, say) instead of running `hivepal replies`. `--install`
+    runs it every minute (cron), with this agent's key. It doesn't mark messages as seen for `replies`."""
+    import shutil
+    import sys
+    from pathlib import Path
+
+    from . import mailbox as mb
+    from .config import home_dir
+
+    s = _settings()
+    root = Path(folder).expanduser().resolve()
+    if install or uninstall:
+        home = home_dir().resolve()
+        if uninstall:
+            try:
+                mb.set_cron(None, home, root)
+            except OSError as e:
+                raise _fail(str(e)) from None
+            typer.echo(f"Stopped: {root} is no longer filled every minute for this agent.")
+            return
+        exe = shutil.which("hivepal") or sys.argv[0]
+        # The command's own path, not where its symlink points: that one survives `uv tool upgrade`.
+        line = mb.cron_line(str(Path(exe).absolute()), home, root, git)
+        try:
+            mb.set_cron(line, home, root)
+        except OSError as e:
+            raise _fail(f"{e}\n{line}") from None
+        typer.echo(f"Every minute from now on (crontab -l shows it; log in {home / 'mailbox.log'}).")
+        if git:
+            typer.echo("Cron runs without your SSH agent: the folder's repository must push without a passphrase prompt.")
+        typer.echo("Now once:")
+    store = Store(s.db_path)
+    names: dict[str, str] = {}
+    try:
+        with _client(s) as c:
+            try:
+                catch_up(c, store)
+            except RelayError as e:
+                raise _fail(str(e)) from None
+            rows = mb.pending(store, root, parse_since(since))
+            if any((r["conv"] or "").startswith(("group:", "bots:")) for r in rows):
+                try:
+                    names = {f"agent:{a['agent_id']}": a["name"] for a in c.list_agents()}
+                    names.update({f"group:{g['group_id']}": g["name"] for g in c.list_groups()})
+                except RelayError:
+                    pass  # names are cosmetic; ids are shown instead
+
+            def transcript(file_id: str) -> str | None:
+                try:
+                    return c.transcript(file_id)
+                except RelayError:
+                    return None
+
+            written = mb.write(store, root, rows, names, transcript)
+        me = store.self_agent_id
+    finally:
+        store.close()
+    if git and written:
+        try:
+            mb.git_publish(root, [w.path for w in written],
+                           f"mailbox/{me}: {len(written)} message{'s' if len(written) != 1 else ''}")
+        except (mb.GitError, OSError) as e:
+            raise _fail(f"the files are written, but publishing them failed: {e}") from None
+    if json_out:
+        _emit_json({"written": [{"msg_id": w.msg_id, "path": str(w.path)} for w in written]})
+        return
+    for w in written:
+        typer.echo(str(w.path))
+    if not written:
+        typer.echo("No new messages.")
+
+
+@app.command()
+def doctor(json_out: JsonOpt = False) -> None:
+    """Check that everything works (relay, HTTPS, key, push, calls, voice, phones) and say how to fix what doesn't."""
+    from . import doctor as dr
+
+    checks = dr.run()
+    if json_out:
+        _emit_json(dr.as_json(checks))
+    else:
+        mark = {dr.OK: ("✓", typer.colors.GREEN), dr.WARN: ("!", typer.colors.YELLOW), dr.FAIL: ("✗", typer.colors.RED)}
+        for c in checks:
+            sym, color = mark[c.status]
+            typer.secho(f"{sym} ", fg=color, nl=False)
+            typer.echo(f"{c.name}: {c.detail}")
+            if c.fix and c.status != dr.OK:
+                typer.echo(f"    → {c.fix}")
+    if any(c.status == dr.FAIL for c in checks):
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -903,20 +1039,57 @@ def bots_rename(
 @bots_app.command("wake")
 def bots_wake(
     agent_id: Annotated[str, typer.Argument()],
-    email: Annotated[str, typer.Argument(help="Address to email when the user writes to this agent, or 'off'.")],
+    email: Annotated[
+        Optional[str], typer.Argument(help="Address to email when the user writes to this agent, or 'off'.")
+    ] = None,
+    test: Annotated[bool, typer.Option("--test", help="Send the wake-up email now and report what the mail server said.")] = False,
 ) -> None:
     """Wake an agent by email when the user writes to it (for agents that only run on a trigger).
 
     The email never carries the message, only the agent ids in its subject ("Hivepal: casa nubi"), since
     several agents may share an address; each reads its messages from the relay as usual. At most one
-    a minute. Needs the relay's API key and HIVEPAL_SMTP_URL on the relay."""
+    a minute. Needs the relay's API key and a mail server on the relay (HIVEPAL_SMTP_URL).
+    `--test` sends one now (with an address: right after setting it)."""
+    if email is None and not test:
+        raise _fail("give an address, 'off', or --test")
     s = _settings()
     with _client(s) as c:
         try:
-            a = c.set_agent_wake(agent_id, None if email.lower() == "off" else email)
+            if email is not None:
+                a = c.set_agent_wake(agent_id, None if email.lower() == "off" else email)
+                typer.echo(f"{a['agent_id']}: " + ("woken by email" if a.get("wakes") else "no wake-up email"))
+                if not a.get("wakes"):
+                    return
+            if test:
+                c.test_agent_wake(agent_id)
+                typer.echo(f"{agent_id}: test email sent (check that its routine ran; look in spam too)")
+            elif email is not None:
+                typer.echo(f"Check it arrives: hivepal bots wake {agent_id} --test")
         except RelayError as e:
             raise _fail(str(e)) from None
-    typer.echo(f"{a['agent_id']}: " + ("woken by email" if a.get("wakes") else "no wake-up email"))
+
+
+@bots_app.command("mailbox")
+def bots_mailbox(
+    agent_id: Annotated[str, typer.Argument()],
+    state: Annotated[str, typer.Argument(help="on, off, or default (follow `hivepal delivery mailboxes`).")],
+) -> None:
+    """Whether the relay writes this agent's messages as Markdown files in its mailbox (git)."""
+    st = state.lower()
+    if st not in ("on", "off", "default"):
+        raise _fail("on, off or default")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            a = c.set_agent_mailbox(agent_id, None if st == "default" else st == "on")
+            relay = c.relay_url
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if a.get("mailbox"):
+        typer.echo(f"{agent_id}: mailbox on. The agent clones it with its own key:")
+        typer.echo(f"  git clone https://x:<{agent_id}'s key>@{relay.split('://', 1)[-1]}/v1/agents/{agent_id}/mailbox.git")
+    else:
+        typer.echo(f"{agent_id}: no mailbox")
 
 
 @bots_app.command("key")
@@ -1104,6 +1277,162 @@ def mcp(
     run_stdio(settings, agent_name=agent_name, device_ids=device or None)
 
 
+def _delivery_summary(d: dict) -> list[str]:
+    e = d.get("email") or {}
+    r = d.get("mailbox_repo") or {}
+    m = d.get("memory") or {}
+    kinds = [k for k in ("markdown", "sqlite") if m.get(k)]
+    lines = [
+        "Email:     " + (f"{e.get('address')} via {e.get('server')}" + (" (from the environment)" if e.get("from_env") else "") if e.get("configured") else "off"),
+        "Mailboxes: " + ("every agent" if (d.get("mailboxes") or {}).get("all_agents") else "only agents turned on (hivepal bots mailbox <id> on)"),
+        "Repo:      " + (r["url"] + (f" ({r['branch']})" if r.get("branch") else "") if r.get("url") else "kept in the relay only"),
+    ]
+    if r.get("url"):
+        if r.get("last_error"):
+            lines.append(f"           last error: {r['last_error']}")
+        elif r.get("last_push_at"):
+            lines.append(f"           last push: {_fmt_ts(r['last_push_at'])}")
+    if r.get("public_key"):
+        lines.append(f"Deploy key (add it to the repo with write access):\n  {r['public_key']}")
+    lines.append("Memory:    " + (" + ".join(kinds) if kinds else "off (each run starts from the bot's own instructions)"))
+    return lines
+
+
+@delivery_app.callback()
+def delivery_show(ctx: typer.Context, json_out: JsonOpt = False) -> None:
+    """Show how agents hear from you and remember (needs the relay's key)."""
+    if ctx.invoked_subcommand:
+        return
+    s = _settings()
+    with _client(s) as c:
+        try:
+            d = c.delivery()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json(d)
+        return
+    typer.echo("\n".join(_delivery_summary(d)))
+
+
+@delivery_app.command("email")
+def delivery_email(
+    address: Annotated[str, typer.Argument(help="The account wake-up emails are sent from, or 'off'.")],
+    server: Annotated[Optional[str], typer.Option("--server", help="host:port, for providers it doesn't know (465 = TLS, 587 = STARTTLS).")] = None,
+    password_stdin: Annotated[bool, typer.Option("--password-stdin", help="Read the password from stdin instead of asking.")] = False,
+) -> None:
+    """The relay's email account for wake-up emails. It logs in before saving it."""
+    import sys
+
+    s = _settings()
+    if address.lower() == "off":
+        password = None
+    elif password_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+    else:
+        hint = " (an app password: https://myaccount.google.com/apppasswords)" if address.lower().endswith(("@gmail.com", "@googlemail.com")) else ""
+        password = typer.prompt(f"Password for {address}{hint}", hide_input=True)
+    with _client(s) as c:
+        try:
+            d = c.set_delivery_email(None if address.lower() == "off" else address, password, server)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    e = d["email"]
+    typer.echo(f"Email: {e['address']} via {e['server']}. Give agents an address: hivepal bots wake <id> <address>" if e.get("configured") else "Email: off")
+
+
+@delivery_app.command("repo")
+def delivery_repo(
+    url: Annotated[Optional[str], typer.Argument(help="git@github.com:me/notes.git, an https:// URL (a token in it if needed), or 'off'.")] = None,
+    branch: Annotated[Optional[str], typer.Option("--branch")] = None,
+    test: Annotated[bool, typer.Option("--test", help="Clone it again and check the relay may push.")] = False,
+) -> None:
+    """An external git repository the relay writes agents' mailboxes to (mailbox/<agent>/) and pushes."""
+    if url is None and not test:
+        raise _fail("give a repository URL, 'off', or --test")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            if url is not None:
+                d = c.set_mailbox_repo(None if url.lower() == "off" else url, branch)
+                r = d["mailbox_repo"]
+                if not r.get("url"):
+                    typer.echo("Repo: off (the mailboxes in the relay stay)")
+                    return
+                typer.echo(f"Repo: {r['url']}. Add the relay's deploy key to it, with write access:\n  {r.get('public_key', '?')}")
+                if not test:
+                    typer.echo("Then check it: hivepal delivery repo --test")
+            if test:
+                c.test_mailbox_repo()
+                typer.echo("The relay can clone and push to it.")
+        except RelayError as e:
+            raise _fail(str(e)) from None
+
+
+@delivery_app.command("mailboxes")
+def delivery_mailboxes(state: Annotated[str, typer.Argument(help="on: every agent has a mailbox (unless turned off for it); off.")]) -> None:
+    """A Markdown mailbox for every agent, or only for those turned on with `hivepal bots mailbox`."""
+    if state.lower() not in ("on", "off"):
+        raise _fail("on or off")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.set_mailboxes_for_all(state.lower() == "on")
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo("Mailboxes: every agent" if state.lower() == "on" else "Mailboxes: only agents turned on")
+
+
+@delivery_app.command("memory")
+def delivery_memory(kind: Annotated[str, typer.Argument(help="off, markdown, sqlite or both.")]) -> None:
+    """How bots remember their Hivepal conversations: Markdown in their mailbox, SQLite (search), both, or off."""
+    k = kind.lower()
+    if k not in ("off", "markdown", "sqlite", "both"):
+        raise _fail("off, markdown, sqlite or both")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.set_memory(k in ("markdown", "both"), k in ("sqlite", "both"))
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo({"off": "Memory: off", "markdown": "Memory: each day's conversation in the agents' mailboxes (history/)",
+                "sqlite": "Memory: searchable with `hivepal memory`, or as a SQLite file",
+                "both": "Memory: Markdown in the mailboxes, and searchable as SQLite"}[k])
+
+
+@app.command("memory")
+def memory_cmd(
+    query: Annotated[Optional[str], typer.Argument(help="Words to look for (all of them); none: the latest messages.")] = None,
+    conv: Annotated[Optional[str], typer.Option("--conv", help="Only this conversation (agent:<id>, group:<id>, bots:<a>.<b>).")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 20,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Another agent's memory (with the relay's key).")] = None,
+    download: Annotated[Optional[str], typer.Option("--download", help="Save your conversations as a SQLite file here.")] = None,
+    json_out: JsonOpt = False,
+) -> None:
+    """Search your memory of Hivepal: your conversations, newest first (needs memory as SQLite on the relay)."""
+    from pathlib import Path
+
+    s = _settings()
+    with _client(s) as c:
+        try:
+            me = agent or ((c.status().get("self") or {}).get("agent_id") or "main")
+            if download:
+                Path(download).expanduser().write_bytes(c.memory_file(me))
+                typer.echo(f"Saved {download} (tables: messages, messages_fts, about)")
+                return
+            rows = c.memory(me, query, conv, limit)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json(rows)
+        return
+    for r in reversed(rows):
+        where = "" if r["conv"] == f"agent:{me}" else f" [{r['conv']}]"
+        typer.echo(f"[{_fmt_ts(r['created_at'])}]{where} {r['from_name']}: {r['text']}")
+    if not rows:
+        typer.echo("Nothing found.")
+
+
 @app.command("mcp-http")
 def mcp_http(
     host: Annotated[Optional[str], typer.Option("--host", help="Address to bind (default HIVEPAL_MCP_HOST, else 127.0.0.1).")] = None,
@@ -1248,7 +1577,7 @@ def serve(
 
 @app.command()
 def connect(
-    harness: Annotated[str, typer.Argument(help="The agent harness to connect: openclaw or hermes.")],
+    harness: Annotated[str, typer.Argument(help="The agent harness to connect: claude-code, codex, cursor, openclaw or hermes.")],
     url: Annotated[Optional[str], typer.Option(
         "--url", help="Use a remote MCP server instead of the local one, e.g. https://agentring.io/mcp. "
         "The API key comes from HIVEPAL_API_KEY (or this machine's hivepal config).")] = None,
@@ -1259,7 +1588,7 @@ def connect(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would change; change nothing.")] = False,
     json_out: JsonOpt = False,
 ) -> None:
-    """Connect OpenClaw or Hermes: MCP server, skill and agents.yaml. Safe to run again."""
+    """Connect Claude Code, Codex, Cursor, OpenClaw or Hermes: MCP server, skill and agents.yaml. Safe to run again."""
     from dataclasses import asdict
 
     from .config import secret
@@ -1282,10 +1611,13 @@ def connect(
         typer.echo(f"{s.what:<20} {s.status:<12} {s.detail}".rstrip())
     if dry_run:
         return
-    if harness.lower() == "openclaw":
-        typer.echo("\nOpenClaw picks it up on the next turn. Check: openclaw mcp probe hivepal")
-    else:
-        typer.echo("\nIn Hermes, run /reload-mcp or start a new session. Check: hermes mcp test hivepal")
+    typer.echo("\n" + {
+        "openclaw": "OpenClaw picks it up on the next turn. Check: openclaw mcp probe hivepal",
+        "hermes": "In Hermes, run /reload-mcp or start a new session. Check: hermes mcp test hivepal",
+        "claude-code": "Start a new Claude Code session (or /mcp). Check: claude mcp get hivepal",
+        "codex": "Start a new Codex session. Check: codex mcp list",
+        "cursor": "Restart Cursor (or reload MCP servers in its settings).",
+    }.get(harness.lower(), ""))
 
 
 def main() -> None:

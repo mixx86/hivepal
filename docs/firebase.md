@@ -5,9 +5,10 @@ data messages. You use **your own** free Firebase project: nothing goes through
 anyone else's servers, and the prebuilt APK works with it without rebuilding —
 the relay hands the app the (public) client settings when you pair.
 
-Without Firebase everything still works while the app is open on screen (it keeps a
-WebSocket to the relay), but a locked phone or a closed app won't notice new messages
-or **ring for calls**. So for calls, it is not optional.
+Firebase is **optional**: without it the app is woken through UnifiedPush, with the free
+[ntfy](https://ntfy.sh) app (no Google account), and a locked phone rings the same. Choose Firebase
+if you'd rather not install another app and already use Google services on the phone; with both
+available, each phone picks one in Settings → Notifications.
 
 Time: ~5 minutes. Cost: free (FCM has no usage charges).
 
@@ -74,7 +75,7 @@ then `hivepal pair` on your computer. The app's Home screen should show
 |---|---|
 | Relay keeps restarting with `EACCES: permission denied` on `/secrets/…json` | The files are `chmod 600` and owned by a user other than uid 1000, the relay's user in the container: `sudo chown 1000:1000 deploy/secrets/*.json`. |
 | Relay fails to start: `google-services.json has no Android app with package name "dev.agentring.app"` | You registered a different package name. Add another Android app with `dev.agentring.app` and download the new file. If you build the app under your own id (`-PhivepalApplicationId=…`), register that id and set `HIVEPAL_ANDROID_PACKAGE` to it in `deploy/.env`. |
-| Home shows *Push: Unavailable: Google Play services* | The phone has no Google Play services (e.g. some Huawei / de-Googled ROMs). UnifiedPush support is planned. |
+| Home shows *Push: Unavailable: Google Play services* | The phone has no Google Play services (e.g. some Huawei / de-Googled ROMs). Use a UnifiedPush distributor such as ntfy in **Settings → Notifications**. |
 | Home shows *Push: Error …* | Check the phone has internet, then reopen the app. Make sure the relay was restarted after adding the files and that you re-paired. |
 | `hivepal status` says `NO push token` | The app never registered: open it once; check the Home screen's Push row. |
 | Pushes arrive late or not at all with the screen off | Battery optimisation: see [troubleshooting-oem.md](troubleshooting-oem.md). |

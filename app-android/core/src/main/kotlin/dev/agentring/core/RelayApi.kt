@@ -3,6 +3,9 @@ package dev.agentring.core
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -62,6 +65,26 @@ class RelayApi(
 
     fun pair(req: PairRequest): PairResponse =
         call("POST", "/v1/pair", body(PairRequest.serializer(), req), PairResponse.serializer(), auth = false)
+
+    /**
+     * Hivepal: wake this device through UnifiedPush (the distributor's endpoint) instead of FCM. With
+     * the app's Web Push keys ([p256dh], [auth]) the relay encrypts every push for it (RFC 8291).
+     */
+    fun setUnifiedPush(endpoint: String, p256dh: String? = null, auth: String? = null) {
+        val body = kotlinx.serialization.json.buildJsonObject {
+            put("endpoint", kotlinx.serialization.json.JsonPrimitive(endpoint))
+            if (p256dh != null && auth != null) {
+                put("p256dh", kotlinx.serialization.json.JsonPrimitive(p256dh))
+                put("auth", kotlinx.serialization.json.JsonPrimitive(auth))
+            }
+        }
+        call<Unit>("POST", "/v1/device/unifiedpush", body.toString().toRequestBody(JSON), null)
+    }
+
+    /** Hivepal: back to FCM for this device. */
+    fun clearUnifiedPush() {
+        call<Unit>("DELETE", "/v1/device/unifiedpush", null, null)
+    }
 
     fun updateFcmToken(token: String) {
         call<Unit>("POST", "/v1/device/fcm", body(FcmBody.serializer(), FcmBody(token)), null)
@@ -154,6 +177,60 @@ class RelayApi(
         call<Unit>("DELETE", "/v1/groups/$groupId", null, null)
     }
 
+    // ---------- Hivepal: delivery to agents and their memory (issue #41; 404 on older relays) ----------
+
+    private fun json(vararg pairs: Pair<String, Any?>): RequestBody =
+        JsonObject(pairs.associate { (k, v) ->
+            k to when (v) {
+                null -> JsonNull
+                is Boolean -> JsonPrimitive(v)
+                is Number -> JsonPrimitive(v)
+                else -> JsonPrimitive(v.toString())
+            }
+        }).toString().toRequestBody(JSON)
+
+    fun delivery(): DeliverySettings = call("GET", "/v1/settings/delivery", null, DeliverySettings.serializer())
+
+    /** The relay logs in before saving: a wrong password is a [RelayException] with code `email_failed`. */
+    fun setDeliveryEmail(address: String?, password: String? = null, server: String? = null): DeliverySettings {
+        val fields = buildList<Pair<String, Any?>> {
+            add("address" to address)
+            if (!password.isNullOrEmpty()) add("password" to password)
+            if (!server.isNullOrBlank()) add("server" to server.trim())
+        }
+        return call("PUT", "/v1/settings/email", json(*fields.toTypedArray()), DeliverySettings.serializer())
+    }
+
+    fun setMailboxRepo(url: String?, branch: String? = null): DeliverySettings {
+        val fields = buildList<Pair<String, Any?>> {
+            add("url" to url)
+            if (!branch.isNullOrBlank()) add("branch" to branch.trim())
+        }
+        return call("PUT", "/v1/settings/mailbox-repo", json(*fields.toTypedArray()), DeliverySettings.serializer())
+    }
+
+    fun testMailboxRepo() {
+        call<Unit>("POST", "/v1/settings/mailbox-repo/test", EMPTY, null)
+    }
+
+    fun setMailboxesForAll(on: Boolean): DeliverySettings =
+        call("PUT", "/v1/settings/mailboxes", json("all_agents" to on), DeliverySettings.serializer())
+
+    fun setMemory(markdown: Boolean, sqlite: Boolean): DeliverySettings =
+        call("PUT", "/v1/settings/memory", json("markdown" to markdown, "sqlite" to sqlite), DeliverySettings.serializer())
+
+    /** On, off, or null: the relay-wide default. */
+    fun setAgentMailbox(agentId: String, enabled: Boolean?): Agent =
+        call("PUT", "/v1/agents/$agentId/mailbox", json("enabled" to enabled), Agent.serializer())
+
+    /** The address the relay emails when you write to the agent; null turns it off. */
+    fun setAgentWake(agentId: String, email: String?): Agent =
+        call("PUT", "/v1/agents/$agentId/wake", json("email" to email), Agent.serializer())
+
+    fun testAgentWake(agentId: String) {
+        call<Unit>("POST", "/v1/agents/$agentId/wake/test", EMPTY, null)
+    }
+
     fun listCalls(limit: Int = 100): List<Call> = call("GET", "/v1/calls?limit=$limit", null, CallList.serializer()).calls
 
     /** Hivepal: deletes one of the user's own messages. */
@@ -196,6 +273,11 @@ class RelayApi(
     fun declineCall(callId: String): Call = call("POST", "/v1/calls/$callId/decline", EMPTY, Call.serializer())
 
     fun endCall(callId: String): Call = call("POST", "/v1/calls/$callId/end", EMPTY, Call.serializer())
+
+    /** Hivepal: ring this phone after [delayS] seconds, as a call from the switchboard (time to lock it). */
+    fun testCall(delayS: Int = 10) {
+        call<Unit>("POST", "/v1/calls/test", """{"delay_s":$delayS}""".toRequestBody(JSON), null)
+    }
 
     fun webSocketRequest(afterSeq: Long): Request {
         val url = "${baseUrl.trimEnd('/')}/v1/ws".toHttpUrl().newBuilder()

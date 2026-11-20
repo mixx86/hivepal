@@ -222,6 +222,8 @@ export function wsRoutes(app: FastifyInstance, ctx: Ctx): void {
           for (const a of hub.onlineAgents()) {
             if (a !== "main") send(ephemeral({ type: "agent.presence", online: true, agent_id: a } as Omit<Event, "id" | "ts">));
           }
+          // Hivepal: and who is writing right now.
+          for (const t of ctx.typing?.current() ?? []) send(ephemeral(t as Omit<Event, "id" | "ts">));
         }
       };
       replay().catch((err: unknown) => {

@@ -122,6 +122,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
     val agents by Graph.directory.agents.collectAsStateWithLifecycle()
     val groups by Graph.directory.groups.collectAsStateWithLifecycle()
     val online by Graph.directory.online.collectAsStateWithLifecycle()
+    val typers = rememberTyping()[conv].orEmpty()
     val messages = remember(all, conv) { all.filter { it.convId == conv } }
     val main = pairing.agentName
     val isGroup = Conv.isGroup(conv)
@@ -283,7 +284,9 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.testTag("chat_title"),
                             )
+                            val typingNow = typers.isNotEmpty()
                             val subtitle = when {
+                                typingNow -> typingLabel(typers, named = group != null || isBots, main)
                                 group != null -> group.members.joinToString(", ") { Graph.directory.nameOf(it, main) }
                                 Conv.id(conv) in online -> stringResource(R.string.agent_online)
                                 else -> null
@@ -292,7 +295,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                                 Text(
                                     subtitle,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (typingNow) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -368,6 +371,15 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     modifier = Modifier.weight(1f).fillMaxWidth().testTag("message_list"),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 ) {
+                    // Hivepal: the "…" bubble, below the last message (the list is upside down).
+                    if (typers.isNotEmpty()) {
+                        item(key = "typing") {
+                            TypingBubble(
+                                if (isGroup || isBots) typingLabel(typers, named = true, main) else null,
+                                Modifier.animateItem(),
+                            )
+                        }
+                    }
                     items(reversed.size, key = { reversed[it].msgId }) { i ->
                         val m = reversed[i]
                         val older = reversed.getOrNull(i + 1)
@@ -442,7 +454,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     enabled = !sending,
                     interactionSource = sendSource,
                     colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(containerColor = Color.Transparent),
-                    modifier = Modifier.size(54.dp).pressBounce(sendSource).breathingGlow()
+                    modifier = Modifier.size(54.dp).pressBounce(sendSource).softGlow()
                         .background(BrandBrush, androidx.compose.foundation.shape.CircleShape).testTag("send_button"),
                 ) {
                     when {

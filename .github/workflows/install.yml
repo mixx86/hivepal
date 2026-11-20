@@ -1,0 +1,83 @@
+name: Install from scratch
+
+# The first five minutes of a new user, on a clean runner:
+# - on pull requests that touch the installer: install.sh --local --images from the PR's files
+#   (the published images of the version in daemon/pyproject.toml, nothing built);
+# - every Monday (and by hand): the one-line install of the latest release, exactly as the docs say.
+# Both end with a message reaching the relay.
+#
+# Actions are pinned by commit SHA (comment = release tag); bump them deliberately.
+
+on:
+  pull_request:
+    paths: [install.sh, scripts/get.sh, deploy/**, .github/workflows/install.yml]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  from-files:
+    name: install.sh --local --images
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install
+        env:
+          HIVEPAL_HOST_IP: 127.0.0.1
+          # Another voice provider than the default: its key must land in the daemon's .env.
+          HIVEPAL_VOICE_PROVIDER: grok
+          HIVEPAL_VOICE_API_KEY: xai-not-a-real-key
+        run: ./install.sh --local --images --yes
+      - name: The voice provider is configured
+        run: |
+          env=~/.agentring/.env
+          grep -qx 'HIVEPAL_VOICE_PROVIDER=grok' "$env"
+          grep -qx 'XAI_API_KEY=xai-not-a-real-key' "$env"
+          [[ $(stat -c %a "$env") == 600 ]]
+      - name: A message reaches the relay
+        run: |
+          bin=$(uv tool dir --bin)/hivepal
+          "$bin" status
+          id=$("$bin" msg "hello from CI")
+          echo "sent $id"
+          [[ $id == msg_* ]]
+
+  one-line:
+    name: curl … get.sh | sh (latest release)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Is the latest release new enough?
+        id: latest
+        run: |
+          tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/${{ github.repository }}/releases/latest | sed 's#.*/tag/##')
+          echo "Latest release: $tag"
+          if curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/$tag/install.sh" | grep -q -- "--images"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$tag predates the one-line install (0.6.0); nothing to test yet"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install, as the docs say
+        if: steps.latest.outputs.ok == 'true'
+        env:
+          HIVEPAL_HOST_IP: 127.0.0.1
+        run: curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/get.sh | sh -s -- --local --yes
+      - name: A message reaches the relay
+        if: steps.latest.outputs.ok == 'true'
+        run: |
+          bin=$(uv tool dir --bin)/hivepal
+          "$bin" status
+          id=$("$bin" msg "hello from CI")
+          echo "sent $id"
+          [[ $id == msg_* ]]

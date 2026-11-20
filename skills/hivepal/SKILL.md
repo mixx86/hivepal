@@ -7,7 +7,7 @@ homepage: https://agentring.io
 # hivepal
 
 hivepal rings and messages the user's own Android phone, over the internet (no phone
-number). The tools (`send_message`, `get_replies`, `call`, `status`) come from the
+number). The tools (`send_message`, `get_replies`, `call`, `typing`, `status`) come from the
 `hivepal` MCP server.
 
 **Not connected yet?** If those tools are missing, or the user asks you to set hivepal
@@ -19,6 +19,9 @@ up, follow [references/setup.md](references/setup.md).
   question with an obvious default. Keep it short; it is read on a lock screen.
 - **`get_replies(wait_s=…)`** after asking something: wait a few minutes
   (`wait_s` 300–900) instead of polling in a loop. Each reply is returned once.
+- **`typing`** while you work on an answer that takes a while: the phone shows
+  "typing…" for about 20 s (call it again to keep it). Reading a new reply already
+  shows it for a minute; your next `send_message` ends it.
 - **`call`** only when it is urgent or needs a conversation: production is down,
   a decision blocks you and a message got no answer, or the user asked for a call.
   Set `urgent: true` only for real emergencies (it rings through Do Not Disturb).

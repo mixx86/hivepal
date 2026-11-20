@@ -618,6 +618,46 @@ export function callRoutes(app: FastifyInstance, ctx: Ctx, calls: Calls): void {
     },
   );
 
+  // Hivepal: a phone asks to be rung, as a call from the switchboard, after a delay (time to lock it).
+  app.post<{ Body: { delay_s?: number } | undefined }>(
+    "/v1/calls/test",
+    {
+      preHandler: auth,
+      schema: {
+        body: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: { delay_s: { type: "integer", minimum: 0, maximum: 60 } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const p = principal(req);
+      if (p.kind !== "device") throw new ApiError(403, "forbidden", "Only a phone can ask for a test call");
+      livekit();
+      if (calls.open()) throw new ApiError(409, "busy", "Another call is ringing or active");
+      const delayMs = (req.body?.delay_s ?? 10) * 1000;
+      const at = Date.now() + delayMs;
+      const ring = () => {
+        try {
+          const row = calls.create(
+            { kind: "agent", agentId: "main" },
+            { reason: "Test call: if this rang with the screen locked, calls work.", priority: "normal", device_ids: [p.deviceId] },
+          );
+          livekit()
+            .createRoom(roomName(ctx, row.call_id), ctx.cfg.ringTimeoutS + ROOM_GRACE_S)
+            .catch((err: unknown) => req.log.warn({ err }, "could not create room"));
+          req.log.info({ call: row.call_id, device: p.deviceId }, "test call");
+        } catch (err) {
+          req.log.warn({ err, device: p.deviceId }, "test call not placed");
+        }
+      };
+      if (delayMs === 0) ring();
+      else setTimeout(ring, delayMs).unref?.();
+      return reply.code(202).send({ at });
+    },
+  );
+
   app.get<{ Querystring: { limit?: number; before?: string } }>(
     "/v1/calls",
     {

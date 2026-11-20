@@ -126,6 +126,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
     val agents by Graph.directory.agents.collectAsStateWithLifecycle()
     val groups by Graph.directory.groups.collectAsStateWithLifecycle()
     val online by Graph.directory.online.collectAsStateWithLifecycle()
+    val typing = rememberTyping()
     val pinned by Graph.chatPrefs.pinned.collectAsStateWithLifecycle()
     val muted by Graph.chatPrefs.muted.collectAsStateWithLifecycle()
     val main = pairing.agentName
@@ -162,6 +163,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
             LazyColumn(Modifier.fillMaxSize().testTag("chat_list"), contentPadding = PaddingValues(bottom = 96.dp)) {
                 items(userRows, key = { it.conv }) { r ->
                     ChatRow(modifier = Modifier.animateItem(), r = r, online = !Conv.isGroup(r.conv) && Conv.id(r.conv) in online, main = main,
+                        typing = typing[r.conv].orEmpty(),
                         pinned = r.conv in pinned, muted = r.conv in muted) { onOpen(r.conv) }
                 }
                 if (botRows.isNotEmpty()) {
@@ -174,7 +176,8 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                         )
                     }
                     items(botRows, key = { it.conv }) { r ->
-                        ChatRow(modifier = Modifier.animateItem(), r = r, online = false, main = main, pinned = r.conv in pinned, muted = true) { onOpen(r.conv) }
+                        ChatRow(modifier = Modifier.animateItem(), r = r, online = false, main = main, pinned = r.conv in pinned, muted = true,
+                            typing = typing[r.conv].orEmpty()) { onOpen(r.conv) }
                     }
                 }
             }
@@ -188,7 +191,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 interactionSource = fab,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).pressBounce(fab).breathingGlow(radius = 1.6f)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).pressBounce(fab).softGlow(radius = 1.6f)
                     .testTag("new_group"),
             )
         }
@@ -204,6 +207,7 @@ private fun ChatRow(
     main: String,
     pinned: Boolean = false,
     muted: Boolean = false,
+    typing: List<String> = emptyList(),
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -261,7 +265,18 @@ private fun ChatRow(
                     Conv.isGroup(r.conv) || Conv.isBots(r.conv) -> Graph.directory.nameOf(last.author, main) + ": " + body
                     else -> body
                 }
-                Text(
+                if (typing.isNotEmpty()) {
+                    // Hivepal: an agent writing here replaces the last message's preview.
+                    Text(
+                        typingLabel(typing, named = Conv.isGroup(r.conv) || Conv.isBots(r.conv), main),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).testTag("chat_typing_${r.conv}"),
+                    )
+                } else Text(
                     preview.replace('\n', ' '),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (r.unread > 0) scheme.onSurface else scheme.onSurfaceVariant,

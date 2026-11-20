@@ -25,6 +25,22 @@ tags:
   - name: hivepal
 
 paths:
+  /pair:
+    get:
+      tags: [system]
+      operationId: pairPage
+      summary: >-
+        Hivepal: the page a pairing link (`PairingToken.qr_url`) opens on a phone without the app or from
+        its camera. Static HTML: it reads the code from the URL fragment in the browser and offers to
+        install the app and to open it (`hivepal://pair?c=<code>`), plus the code to paste.
+      security: []
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema: { type: string }
+
   /healthz:
     get:
       tags: [system]
@@ -132,6 +148,49 @@ paths:
       responses:
         "204": { description: Updated. }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/device/unifiedpush:
+    post:
+      tags: [devices]
+      operationId: setUnifiedPushEndpoint
+      summary: >-
+        Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay
+        POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the
+        same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. With `p256dh` and `auth`
+        (the app's Web Push keys) the body is encrypted for the app (RFC 8291, `aes128gcm`), so the
+        distributor's server can't read it; without them it's sent as plain JSON. A 404 or 410 answer
+        forgets the endpoint. Only `https://` endpoints on a public host are accepted.
+      security: [{ deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [endpoint]
+              properties:
+                endpoint: { type: string, format: uri, maxLength: 2048 }
+                p256dh:
+                  description: The app's P-256 public key, uncompressed, base64url (Web Push `p256dh`).
+                  type: string
+                  pattern: "^[A-Za-z0-9_-]{86,88}={0,2}$"
+                auth:
+                  description: The app's 16-byte authentication secret, base64url (Web Push `auth`).
+                  type: string
+                  pattern: "^[A-Za-z0-9_-]{22,24}={0,2}$"
+      responses:
+        "204": { description: Set. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [devices]
+      operationId: clearUnifiedPushEndpoint
+      summary: "Hivepal: back to FCM for this device (if it has a token)."
+      security: [{ deviceJwt: [] }]
+      responses:
+        "204": { description: Cleared. }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/devices:
@@ -248,6 +307,47 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Call" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/calls/test:
+    post:
+      tags: [calls]
+      operationId: testCall
+      summary: >-
+        Hivepal, device only: ring this phone after `delay_s` seconds, as a call from the main agent
+        (the switchboard), so the user can lock it first and see it ring like a real call. Nobody else
+        joins: hang up when done. The usual rules apply when it starts (one call at a time, limits).
+      security: [{ deviceJwt: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                delay_s: { type: integer, minimum: 0, maximum: 60, default: 10 }
+      responses:
+        "202":
+          description: It will ring at `at`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [at]
+                properties:
+                  at: { $ref: "#/components/schemas/Timestamp" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Another call is ringing or active.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Calls are not configured on this relay.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/calls/{call_id}:
     parameters:
@@ -513,6 +613,32 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/typing:
+    post:
+      tags: [messages]
+      operationId: setTyping
+      summary: >-
+        Hivepal: the agent is writing (`typing: true`, the default) or stopped, in a conversation it takes part
+        in (default: its own). The phones show "typing…" and a "…" bubble. It lasts 20 s unless repeated, and
+        ends when the agent sends a message there. The relay also sets it by itself for 60 s when an agent marks
+        a recent message from the user as read. Live only: an ephemeral `agent.typing` event, never stored or pushed.
+      security: [{ agentKey: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                conv: { $ref: "#/components/schemas/ConvId" }
+                typing: { type: boolean, default: true }
+      responses:
+        "204": { description: Done. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /v1/agents:
     get:
       tags: [agents]
@@ -608,8 +734,8 @@ paths:
       summary: >-
         Hivepal: the address the relay emails when the user writes to this agent (directly or in a group), so an
         agent that only runs on a trigger wakes up. One email a minute at most; it never carries the message.
-        `email: null` turns it off. Relay API key only; needs HIVEPAL_SMTP_URL on the relay.
-      security: [{ agentKey: [] }]
+        `email: null` turns it off. The relay API key or a phone; needs the relay's email account (`PUT /v1/settings/email`).
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
       requestBody:
         required: true
         content:
@@ -630,6 +756,327 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/wake/test:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    post:
+      tags: [agents]
+      operationId: testAgentWake
+      summary: >-
+        Hivepal: send the agent's wake-up email now, as if the user had written to it (the same subject, so
+        the agent's routine runs too), and wait for the mail server's answer. The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "204": { description: The mail server accepted it. }
+        "400":
+          description: "`invalid_request`: this relay has no email account or the agent has no address."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502":
+          description: "`email_failed`: the mail server refused it or couldn't be reached; the message says why."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/agents/{agent_id}/mailbox:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    put:
+      tags: [agents]
+      operationId: setAgentMailbox
+      summary: >-
+        Hivepal: whether the relay writes this agent's messages as Markdown files (issue #41): `inbox/`, one
+        file per message it receives, and, with Markdown memory on (`PUT /v1/settings/memory`),
+        `history/<conversation>/<YYYY-MM-DD>.md`, each day's conversation with both sides. Into its own
+        repository in the relay (`…/mailbox.git`) and, when set, the external one (`mailbox/<agent>/…`).
+        Turning it on writes the last 90 days of history. When the agent also has a wake-up email, it goes
+        out after the files are written. `enabled: null` follows the relay-wide default
+        (`PUT /v1/settings/mailboxes`). The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled]
+              properties:
+                enabled: { type: [boolean, "null"] }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/mailbox.git/{path}:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+      - name: path
+        in: path
+        required: true
+        description: What git's dumb HTTP protocol reads (`info/refs`, `HEAD`, `objects/…`).
+        schema: { type: string }
+    get:
+      tags: [agents]
+      operationId: getAgentMailboxGit
+      summary: >-
+        Hivepal: the agent's mailbox repository, read-only, for `git clone https://x:<key>@relay/v1/agents/<id>/mailbox.git`.
+        Without credentials it answers 401 with `WWW-Authenticate: Basic`; the password (or a Bearer token)
+        is the agent's own key, the relay API key or a phone's token.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: The file.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/memory:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    get:
+      tags: [agents]
+      operationId: searchAgentMemory
+      summary: >-
+        Hivepal: the agent's memory as SQLite (on with `PUT /v1/settings/memory {sqlite: true}`, else 404):
+        its messages, newest first, full-text matching `q` (words, all of them), in `conv`, before `before`.
+        Only the conversations it takes part in. The agent's own key, the relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 500 } }
+        - { name: conv, in: query, schema: { type: string } }
+        - { name: before, in: query, schema: { type: integer, format: int64 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 50 } }
+      responses:
+        "200":
+          description: Matching messages.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages]
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      required: [msg_id, conv, from, from_name, text, created_at]
+                      properties:
+                        msg_id: { type: string }
+                        conv: { type: string }
+                        from: { type: string, description: "`user` or an agent id" }
+                        from_name: { type: string }
+                        text: { type: string }
+                        reply_to: { type: string }
+                        created_at: { type: integer, format: int64 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/memory.sqlite:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/AgentId" }
+    get:
+      tags: [agents]
+      operationId: getAgentMemoryFile
+      summary: >-
+        Hivepal: the agent's conversations as a SQLite file of its own (`messages` with a `messages_fts`
+        full-text index, and `about`), for an agent that queries its memory itself. Same rules as
+        `GET /v1/agents/{agent_id}/memory`.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: The database.
+          content:
+            application/vnd.sqlite3:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/settings/mailboxes:
+    put:
+      tags: [system]
+      operationId: setMailboxesForAll
+      summary: >-
+        Hivepal: every agent gets a mailbox unless it's turned off for it (`PUT /v1/agents/{agent_id}/mailbox`).
+        The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [all_agents]
+              properties:
+                all_agents: { type: boolean }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliverySettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/settings/memory:
+    put:
+      tags: [system]
+      operationId: setMemory
+      summary: >-
+        Hivepal: how bots remember their Hivepal conversations. `markdown`: each day's conversation in their
+        mailbox (`history/`). `sqlite`: they search it or download it as SQLite
+        (`GET /v1/agents/{agent_id}/memory`). Neither: each run starts from the bot's own instructions only.
+        The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Memory" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliverySettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/settings/delivery:
+    get:
+      tags: [system]
+      operationId: getDeliverySettings
+      summary: >-
+        Hivepal: how the relay reaches agents: its email account for wake-up emails (never the password) and
+        the external mailbox repository with the relay's SSH deploy key (add it to the repository with write
+        access) and the last push. The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliverySettings" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/settings/email:
+    put:
+      tags: [system]
+      operationId: setDeliveryEmail
+      summary: >-
+        Hivepal: the email account wake-up emails are sent from. The relay logs in before saving it, so a
+        wrong password fails here (`502 email_failed`). `server` (`host:port`; 465 = TLS, 587 = STARTTLS) is
+        guessed for Gmail, iCloud, Yahoo, Fastmail, GMX and Zoho. `address: null` turns email off. Saved in the
+        relay, it replaces `HIVEPAL_SMTP_URL`. The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [address]
+              properties:
+                address: { type: [string, "null"], maxLength: 254 }
+                password: { type: string, maxLength: 512 }
+                server: { type: string, maxLength: 255 }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliverySettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502":
+          description: "`email_failed`: the mail server refused the login or couldn't be reached; the message says why."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/settings/mailbox-repo:
+    put:
+      tags: [system]
+      operationId: setMailboxRepo
+      summary: >-
+        Hivepal: an external git repository the relay writes agents' mailboxes to (`mailbox/<agent>/…`) and
+        pushes, with its SSH deploy key (`DeliverySettings.mailbox_repo.public_key`), or https:// with a token
+        in the URL. `url: null` stops it (the mailboxes in the relay stay). The relay API key or a phone.
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: [string, "null"], maxLength: 512, examples: ["git@github.com:me/notes.git"] }
+                branch: { type: string, maxLength: 100 }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliverySettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/settings/mailbox-repo/test:
+    post:
+      tags: [system]
+      operationId: testMailboxRepo
+      summary: "Hivepal: clone the external repository again and check the relay may push to it. The relay API key or a phone."
+      security: [{ agentKey: [] }, { deviceJwt: [] }]
+      responses:
+        "204": { description: It works. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502":
+          description: "`repo_failed`: git couldn't clone or push; the message says why (often: the deploy key isn't added, or has no write access)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/agents/{agent_id}/key:
     parameters:
@@ -1212,6 +1659,9 @@ components:
         wakes:
           type: boolean
           description: "Hivepal: the relay emails the agent a wake-up call when the user writes to it (the address stays private)."
+        mailbox:
+          type: boolean
+          description: "Hivepal: the relay writes the agent's messages as Markdown files (`PUT /v1/agents/{agent_id}/mailbox`)."
     CreateAgentRequest:
       type: object
       additionalProperties: false
@@ -1281,6 +1731,43 @@ components:
       type: string
       enum: [hangup, canceled, room_closed, error, quota]
 
+    Memory:
+      type: object
+      additionalProperties: false
+      description: "Hivepal: how bots remember their Hivepal conversations."
+      required: [markdown, sqlite]
+      properties:
+        markdown: { type: boolean, description: "Each day's conversation in the agent's mailbox (history/)." }
+        sqlite: { type: boolean, description: "Searchable, and downloadable as a SQLite file." }
+
+    DeliverySettings:
+      type: object
+      description: "Hivepal: how the relay reaches agents (issue #41). Secrets are never returned."
+      required: [email, mailboxes, memory, mailbox_repo]
+      properties:
+        mailboxes:
+          type: object
+          required: [all_agents]
+          properties:
+            all_agents: { type: boolean, description: "Every agent has a mailbox unless turned off for it." }
+        memory: { $ref: "#/components/schemas/Memory" }
+        email:
+          type: object
+          required: [configured]
+          properties:
+            configured: { type: boolean }
+            address: { type: string }
+            server: { type: string, description: "host:port" }
+            from_env: { type: boolean, description: "From HIVEPAL_SMTP_URL rather than saved in the relay." }
+        mailbox_repo:
+          type: object
+          properties:
+            url: { type: string }
+            branch: { type: string }
+            public_key: { type: string, description: "The relay's SSH deploy key: add it to the repository with write access." }
+            last_push_at: { type: integer, format: int64 }
+            last_error: { type: string }
+
     Error:
       type: object
       required: [error]
@@ -1291,7 +1778,7 @@ components:
           properties:
             code:
               type: string
-              examples: [invalid_request, exists, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, internal]
+              examples: [invalid_request, exists, unauthorized, invalid_pairing_token, forbidden, not_found, busy, no_devices, agent_offline, calls_unavailable, invalid_state, call_ended, rate_limited, quota_exceeded, tenant_disabled, email_failed, repo_failed, internal]
             message: { type: string }
 
     # ---------- system ----------
@@ -1307,6 +1794,18 @@ components:
         device_count:
           description: Only returned to the agent.
           type: integer
+        features:
+          description: >-
+            Hivepal, only returned to an agent: what this relay is configured for. `calls`: LiveKit is
+            set up. `voice`: Gemini is set up (voice notes, transcripts). `wake_email`: the relay has an email
+            account (wake-up emails). `mailbox_repo`: an external mailbox repository is set. Push is `push_provider`.
+          type: object
+          required: [calls, voice, wake_email]
+          properties:
+            calls: { type: boolean }
+            voice: { type: boolean }
+            wake_email: { type: boolean }
+            mailbox_repo: { type: boolean, description: "Hivepal: an external mailbox repository is set." }
         self:
           description: Only returned to an agent; the agent the key belongs to.
           type: object
@@ -1332,10 +1831,19 @@ components:
         qr_payload:
           description: Exact string to encode in the QR (compact JSON of `QrPayload`).
           type: string
+        qr_url:
+          description: >-
+            Hivepal: the same pairing as a link, `<relay>/pair#<base64url of qr_payload>`. Its QR also works
+            from the phone's camera: the relay's /pair page offers to open the app (or to install it first),
+            which then asks before pairing. The code is in the fragment, which browsers never send.
+            Hivepal apps accept either form when scanning or pasting.
+          type: string
+          format: uri
       example:
         pairing_token: pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW
         expires_at: 1761200600000
         qr_payload: '{"v":1,"relay_url":"https://relay.example.com","pairing_token":"pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW"}'
+        qr_url: https://relay.example.com/pair#eyJ2IjoxLCJyZWxheV91cmwiOiJodHRwczovL3JlbGF5LmV4YW1wbGUuY29tIiwicGFpcmluZ190b2tlbiI6InB0X3E4VngwbTNjSjVhMW4xd1lnN0tjOWIyZEU0Zkg2aUw4b1AwclMydFU0dlcifQ
     QrPayload:
       type: object
       required: [v, relay_url, pairing_token]
@@ -1400,6 +1908,10 @@ components:
         last_seen_at: { $ref: "#/components/schemas/Timestamp" }
         revoked_at: { $ref: "#/components/schemas/Timestamp" }
         has_push_token: { type: boolean }
+        push_via:
+          description: "Hivepal: how the relay wakes this device: `unifiedpush`, `fcm`, or `none`."
+          type: string
+          enum: [unifiedpush, fcm, none]
 
     # ---------- calls ----------
     CreateCallRequest:
@@ -1567,6 +2079,7 @@ components:
         - $ref: "#/components/schemas/AgentUpdatedEvent"
         - $ref: "#/components/schemas/GroupUpdatedEvent"
         - $ref: "#/components/schemas/MsgDeletedEvent"
+        - $ref: "#/components/schemas/AgentTypingEvent"
       discriminator:
         propertyName: type
         mapping:
@@ -1583,6 +2096,7 @@ components:
           agent.updated: "#/components/schemas/AgentUpdatedEvent"
           group.updated: "#/components/schemas/GroupUpdatedEvent"
           msg.deleted: "#/components/schemas/MsgDeletedEvent"
+          agent.typing: "#/components/schemas/AgentTypingEvent"
 
     CallInviteEvent:
       allOf:
@@ -1731,6 +2245,21 @@ components:
             agent_id:
               description: Which agent connected or disconnected (absent = `main`, older relays).
               $ref: "#/components/schemas/AgentId"
+
+    AgentTypingEvent:
+      description: >-
+        Ephemeral (no seq). Hivepal: an agent started or stopped writing in a conversation. Sent to devices;
+        a phone connecting gets the agents typing right now. `until` is when it ends by itself.
+      allOf:
+        - $ref: "#/components/schemas/EventBase"
+        - type: object
+          required: [type, agent_id, conv, typing]
+          properties:
+            type: { const: agent.typing }
+            agent_id: { $ref: "#/components/schemas/AgentId" }
+            conv: { $ref: "#/components/schemas/ConvId" }
+            typing: { type: boolean }
+            until: { $ref: "#/components/schemas/Timestamp" }
 
     WsHelloEvent:
       description: Ephemeral (no seq). First frame of every WebSocket.

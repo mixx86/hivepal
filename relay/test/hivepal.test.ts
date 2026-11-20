@@ -273,6 +273,32 @@ describe("wake-up emails", () => {
     }
   });
 
+  it("a test email goes out now and reports the mail server's answer", async () => {
+    const { Wake } = await import("../src/wake.js");
+    b = await setup();
+    const nubi = await addAgent("nubi", "Nubi");
+    const test = (headers: Record<string, string>, id = "nubi") =>
+      b!.app.inject({ method: "POST", url: `/v1/agents/${id}/wake/test`, headers });
+    expect((await test(AGENT)).json().error.message).toMatch(/no email account/); // no mail server
+    const sent: Array<[string, string]> = [];
+    let fail = false;
+    const mailer = { send: async (to: string, subject: string) => { if (fail) throw new Error("535 Username and Password not accepted"); sent.push([to, subject]); } };
+    b.ctx.wake = new Wake(b.ctx.agents, () => mailer, b.app.log);
+    b.ctx.settings!.setSmtpUrl("smtps://u:p@smtp.example.com:465");
+    expect((await test(AGENT)).statusCode).toBe(400); // no address yet
+    b.ctx.agents.setWake("nubi", "bots@mail.example.com");
+    expect((await test(bearer(nubi))).statusCode).toBe(403);
+    expect((await test(AGENT, "nadie")).statusCode).toBe(404);
+    expect((await test(AGENT)).statusCode).toBe(204);
+    expect(sent).toEqual([["bots@mail.example.com", "Hivepal: nubi"]]);
+    fail = true;
+    const r = await test(AGENT);
+    expect(r.statusCode).toBe(502);
+    expect(r.json().error).toMatchObject({ code: "email_failed" });
+    expect(r.json().error.message).toMatch(/535/);
+    b.ctx.wake.stop();
+  });
+
   it("one email per address per gap, its subject naming the agents it's for", async () => {
     const { Wake } = await import("../src/wake.js");
     b = await setup();
@@ -289,7 +315,7 @@ describe("wake-up emails", () => {
     const mailer = { send: async (to: string, subject: string) => void sent.push([to, subject]) };
     const ev = (conv: string, from: "user" | "agent" = "user") =>
       ({ type: "msg.new", from, conv, msg_id: "m", text: "t", id: "e", ts: now }) as never;
-    const wake = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
+    const wake = new Wake(b.ctx.agents, () => mailer, b.app.log, 60_000, () => now);
     wake.handle(ev("agent:nubi"));
     wake.handle(ev("agent:casa")); // no address: nothing
     wake.handle(ev("agent:nubi", "agent")); // agents don't ring
@@ -300,7 +326,7 @@ describe("wake-up emails", () => {
     // A group message: one email per address, listing its members.
     b.ctx.agents.createGroup("g", "G", ["nubi", "rutina", "casa", "otro"]);
     now += 61_000;
-    const w2 = new Wake(b.ctx.agents, mailer, b.app.log, 60_000, () => now);
+    const w2 = new Wake(b.ctx.agents, () => mailer, b.app.log, 60_000, () => now);
     w2.handle(ev("group:g"));
     expect(sent.slice(1).sort()).toEqual([
       ["bots@mail.example.com", "Hivepal: nubi rutina"],
@@ -315,7 +341,7 @@ describe("wake-up emails", () => {
     await addAgent("nubi", "Nubi");
     b.ctx.agents.setWake("nubi", "nubi@mail.example.com");
     const sent: string[] = [];
-    const wake = new Wake(b.ctx.agents, { send: async (_to, subject) => void sent.push(subject) }, b.app.log, 50);
+    const wake = new Wake(b.ctx.agents, () => ({ send: async (_to: string, subject: string) => void sent.push(subject) }), b.app.log, 50);
     const ev = { type: "msg.new", from: "user", conv: "agent:nubi", msg_id: "m", text: "t", id: "e", ts: 0 } as never;
     wake.handle(ev);
     wake.handle(ev);
@@ -363,5 +389,60 @@ describe("subscriptions", () => {
     // The phone reads the billing pages itself, so it writes too.
     expect((await put(dev.headers, "webdock", { name: "Webdock", status: "active", until })).statusCode).toBe(200);
     expect((await b.app.inject({ method: "DELETE", url: "/v1/subscriptions/webdock", headers: dev.headers })).statusCode).toBe(204);
+  });
+});
+
+describe("pairing link", () => {
+  it("a pairing token also comes as a link to /pair with the payload in the fragment", async () => {
+    b = await setup();
+    const t = (await b.app.inject({ method: "POST", url: "/v1/pairing-tokens", headers: AGENT })).json();
+    const url = new URL(t.qr_url);
+    expect(`${url.origin}${url.pathname}`).toBe(`${JSON.parse(t.qr_payload).relay_url}/pair`);
+    expect(Buffer.from(url.hash.slice(1), "base64url").toString()).toBe(t.qr_payload);
+  });
+
+  it("/pair is a static page without auth, with a strict CSP and no code in it", async () => {
+    b = await setup();
+    const r = await b.app.inject({ method: "GET", url: "/pair" });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/^text\/html/);
+    const csp = String(r.headers["content-security-policy"]);
+    expect(csp).toMatch(/default-src 'none'/);
+    // The inline script runs only because its hash is in the CSP.
+    const script = /<script>([\s\S]*)<\/script>/.exec(r.body)![1];
+    const { createHash } = await import("node:crypto");
+    expect(csp).toContain(`'sha256-${createHash("sha256").update(script).digest("base64")}'`);
+    expect(r.body).not.toMatch(/pt_[A-Za-z0-9_-]{20}/);
+    expect(r.headers["cache-control"]).toBe("no-store");
+  });
+});
+
+describe("web panel", () => {
+  it("/admin is a static page without data, its script allowed by hash and nothing else", async () => {
+    b = await setup();
+    const r = await b.app.inject({ method: "GET", url: "/admin" });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers["content-type"]).toMatch(/^text\/html/);
+    const csp = String(r.headers["content-security-policy"]);
+    expect(csp).toMatch(/default-src 'none'/);
+    expect(csp).toMatch(/connect-src 'self'/);
+    const scripts = [...r.body.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts).toHaveLength(1);
+    expect(() => new Function(scripts[0])).not.toThrow(); // it parses (compiled, not run)
+    const { createHash } = await import("node:crypto");
+    expect(csp).toContain(`'sha256-${createHash("sha256").update(scripts[0]).digest("base64")}'`);
+    expect(r.body).not.toMatch(/ak_[A-Za-z0-9_-]{20}/);
+    expect(r.body).not.toMatch(/innerHTML/);
+    expect(r.headers["x-robots-tag"]).toBe("noindex");
+  });
+});
+
+describe("status features", () => {
+  it("an agent learns what the relay is configured for; a phone doesn't", async () => {
+    b = await setup();
+    const st = (await b.app.inject({ method: "GET", url: "/v1/status", headers: AGENT })).json();
+    expect(st.features).toEqual({ calls: expect.any(Boolean), voice: expect.any(Boolean), wake_email: expect.any(Boolean), mailbox_repo: false });
+    const dev = await pairDevice(b);
+    expect((await b.app.inject({ method: "GET", url: "/v1/status", headers: dev.headers })).json().features).toBeUndefined();
   });
 });

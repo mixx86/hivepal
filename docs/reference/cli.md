@@ -10,6 +10,7 @@ take `--json` for machine-readable output.
 | `hivepal init --relay URL --api-key ak_…` | Connect to a relay; saved in `HIVEPAL_HOME` (default `~/.agentring`). |
 | `hivepal pair` | QR code (or a code to paste) to pair a phone; single use, 10 minutes. |
 | `hivepal status` | Relay connection and paired phones. |
+| `hivepal doctor` | Checks everything (relay, HTTPS, key, versions, push, calls, voice, phones, clock) and says how to fix what isn't right. Exit code 1 if something won't work. |
 | `hivepal devices` / `devices revoke <id>` | List or unpair phones. |
 | `hivepal version` | The version. |
 
@@ -25,7 +26,9 @@ take `--json` for machine-readable output.
 | `  --to coach` | Write to another agent (an agent-to-agent conversation). |
 | `  --reply-to msg_…` | Answer a specific message. |
 | `hivepal replies` | New answers from the user (and from groups/agents), with voice-note transcripts. `--peek` doesn't mark them seen. |
+| `hivepal typing` | Show "typing…" on the phone for about 20 s while you work on an answer (repeat it for longer; `--stop` ends it; `--group`/`--to` like `msg`). Reading a new message with `hivepal replies` already shows it for a minute, and your next message ends it. |
 | `hivepal file <file_id>` | Download a photo or audio the user sent. |
+| `hivepal mailbox DIR` | Write new messages as Markdown files in `DIR/<agent id>/`, one per message ([mailbox files](../guide/agents.md#mailbox-files)). `--git` commits and pushes them; `--since` sets where a new mailbox starts (default `1d`). `--install` runs it every minute from cron, `--uninstall` stops it. |
 
 ## Reminders
 
@@ -53,7 +56,14 @@ take `--json` for machine-readable output.
 | `hivepal bots` | Every agent and when it was last seen (✉ = wakes by email). |
 | `hivepal bots add <id> <Name>` | A new agent; prints its key once. |
 | `hivepal bots rename <id> <Name>` · `bots key <id>` · `bots remove <id>` | Rename, new key, revoke. |
-| `hivepal bots wake <id> <email\|off>` | Email this address when the user writes to the agent. |
+| `hivepal bots wake <id> <email\|off>` | Email this address when the user writes to the agent; `--test` sends one now and reports the mail server's answer. |
+| `hivepal bots mailbox <id> on\|off\|default` | Whether the relay writes this agent's mailbox (Markdown in git); prints its `git clone` line. |
+| `hivepal delivery` | How agents hear from you and remember: email account, mailboxes, repository (with the relay's deploy key), memory. |
+| `hivepal delivery email <address\|off>` | The relay's email account for wake-up emails (asks the password, or `--password-stdin`; `--server host:port`). |
+| `hivepal delivery repo <url\|off>` | An external repository for the mailboxes (`--branch`); `--test` checks the relay can clone and push. |
+| `hivepal delivery mailboxes on\|off` | A mailbox for every agent (or only those turned on). |
+| `hivepal delivery memory off\|markdown\|sqlite\|both` | Whether and how bots remember their conversations. |
+| `hivepal memory [words]` | Search your own memory (newest first; `--conv`, `--limit`, `--agent`); `--download file.sqlite` saves it. |
 | `hivepal groups` · `groups add <id> <Name> --members a,b` · `groups set` · `groups remove` | Groups. |
 | `hivepal subs` · `subs set …` · `subs rm <id>` | Subscriptions (the app writes them; these are for scripts). |
 
@@ -63,5 +73,5 @@ take `--json` for machine-readable output.
 |---|---|
 | `hivepal mcp` | MCP server over stdio: `claude mcp add hivepal -- hivepal mcp`. |
 | `hivepal mcp-http` | Remote MCP server (Streamable HTTP) for many users. |
-| `hivepal connect openclaw\|hermes` | Set up those harnesses in one go. |
+| `hivepal connect claude-code\|codex\|cursor\|openclaw\|hermes` | Set up that harness in one go: MCP server, skill, consult from a call. |
 | `hivepal agents` | Agents the voice AI can consult during a call (`agents.yaml`). |

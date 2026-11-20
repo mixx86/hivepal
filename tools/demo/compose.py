@@ -9,7 +9,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 S = Path(__file__).parent
 OUT = S / "frames"
-K = 1.5                          # 1920x1080 (the layout is drawn for 1280x720 and scaled)
+import os
+# The layout is drawn for 1280x720 and scaled: 2.0 = 2560x1440 (the site), 1.5 = 1920x1080 (a lighter copy).
+K = float(os.environ.get("DEMO_SCALE", "2.0"))
 FPS = 30
 W, H = int(1280 * K), int(720 * K)
 TERM = tuple(int(v * K) for v in (36, 56, 860, 672))        # x0, y0, x1, y1
@@ -23,7 +25,7 @@ EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
 CW = FONT.getlength("M")
 LH = int(26 * K)
 COLS = int((TERM[2] - TERM[0] - 40 * K) // CW)
-AGENT = {"nubi": "#00A6FB", "coach": "#3DFFA8", "ink": "#B8C0FF", "main": "#FFD60A"}
+AGENT = {"atlas": "#00A6FB", "hearth": "#FFB86B", "penny": "#3DFFA8", "main": "#FFD60A"}
 INK, NAVY, BLUE, CYAN, TEXT, MUTED = "#000814", "#001D3D", "#00A6FB", "#7DF9FF", "#E6F4FF", "#8FB3D9"
 
 data = json.loads((S / "events.json").read_text())
@@ -138,7 +140,7 @@ def main() -> None:
           f"[0:v][phm]overlay={sx0}:{sy0}:shortest=1,format=yuv420p[v]")
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", str(FPS), "-i", str(OUT / "%05d.png"),
                     "-i", str(S / "phone.mp4"), "-loop", "1", "-i", str(S / "phone_mask.png"),
-                    "-filter_complex", vf, "-map", "[v]", "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-tune", "animation",
+                    "-filter_complex", vf, "-map", "[v]", "-c:v", "libx264", "-crf", os.environ.get("DEMO_CRF", "16"), "-preset", "slow", "-tune", "animation",
                     "-movflags", "+faststart", "-t", f"{end:.2f}", str(S / "hivepal-demo.mp4")], check=True)
     print("ok", n, "frames")
 

@@ -218,3 +218,28 @@ CI fails if generated code is stale or a fixture doesn't round-trip.
   per-tenant limits (`402 quota_exceeded`, `end_reason: quota`). This lifts F1's "one
   user, no accounts" for the hosted version only; self-hosted is unchanged. The control
   plane (accounts, billing) lives in a private repo. Details in [cloud.md](cloud.md).
+
+- **The relay delivers to agents and keeps their memory** (Hivepal fork, at the user's request,
+  2026-11-20, issue #41): besides REST, an agent can hear from the user through a wake-up email and/or a
+  Markdown mailbox the relay writes in git, in a repository per agent kept in the relay (served
+  read-only over git's dumb HTTP protocol at `/v1/agents/{id}/mailbox.git`) and/or an external
+  repository it pushes to with its own SSH deploy key. Bots can also keep a memory of their Hivepal
+  conversations: Markdown (each day's conversation in the mailbox's `history/`) and/or SQLite (search
+  at `/v1/agents/{id}/memory`, or download it as a file). The mail account, the repository and these
+  choices are runtime settings stored in the relay (`/v1/settings/*`), changed by the relay key or the
+  user's phones; the relay runs `git` as a child process with argv lists and only https/ssh transports.
+  Details in [multiagent.md](multiagent.md).
+
+- **UnifiedPush next to FCM** (Hivepal fork, at the user's request, 2026-11-19, issue #12): a
+  phone may wake through a UnifiedPush distributor (ntfy, NextPush…) instead of FCM, so
+  neither the phone nor the relay needs Google. The phone gives the relay its endpoint
+  (`POST /v1/device/unifiedpush`); the relay POSTs the same signed `PushData` map there, as JSON,
+  with RFC 8030 `TTL` and `Urgency` headers, encrypted for the app (RFC 8291 `aes128gcm`, with the
+  connector's Web Push keys) so the distributor's server only sees ciphertext; it falls back to FCM
+  when the phone clears it.
+  Endpoints must be `https://` on a public host (checked again after DNS) and redirects are not
+  followed, so a paired phone can't make the relay reach its internal network. FCM remains the
+  default when the relay configures it; without FCM, onboarding selects UnifiedPush automatically
+  when a distributor exists and otherwise guides the user through installing ntfy. Settings →
+  Notifications still lets a user choose either channel.
+

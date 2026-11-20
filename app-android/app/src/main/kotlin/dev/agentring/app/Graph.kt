@@ -27,6 +27,9 @@ object Graph {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** A pairing link the app was opened with (hivepal://pair?c=…), until the pairing page takes it. */
+    val pendingPairLink = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     val pairing: PairingStore by lazy { PairingStore(app) }
     val messages: MessageRepository by lazy { MessageRepository(app) }
     val push: PushRegistrar by lazy { PushRegistrar(app) }

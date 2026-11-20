@@ -6,28 +6,18 @@ your own. Swap the roles for whatever you need.
 
 ```mermaid
 flowchart TB
-    subgraph you["You"]
-        PH["📱 Hivepal app<br/>one chat per agent + a group"]
-    end
-    subgraph hive["The agents (scheduled bots: Grok, Claude routines, cron…)"]
-        N["Planner<br/>daily plan, deadlines"]
-        C["Coach<br/>training, sleep"]
-        W["Check-in<br/>mood, energy"]
-        I["Writing buddy"]
-        H["Project agent"]
-    end
-    subgraph shared["Shared, private"]
-        REPO["Notes repo (git)<br/>instructions · routines · personas<br/>mailbox per agent · data"]
-    end
-    R["Hivepal relay"]
     S["Sensors (optional)<br/>PC idle log · calendar"]
+    A["🐝 <b>Your agents</b><br/>scheduled bots: Grok,<br/>Claude routines, cron…<br/><br/>Planner · Coach<br/>Check-in · Writing buddy<br/>Project agent"]
+    REPO["Notes repo (git, private)<br/>instructions · routines<br/>personas · data<br/>a mailbox per agent"]
+    R["Hivepal relay"]
+    PH["📱 Hivepal app<br/>one chat per agent<br/>+ a group"]
 
-    N & C & W & I & H -- "msg · remind · call" --> R
-    R <--> PH
-    N & C & W & I & H <-- "read / write" --> REPO
     S --> REPO
+    A <-- "read / write" --> REPO
+    A -- "msg · remind · call" --> R
+    R -. "wake-up email" .-> A
     S -- "late-night nudge" --> R
-    R -. "wake-up email when you write" .-> hive
+    R <--> PH
 ```
 
 ## The roles
@@ -47,8 +37,9 @@ chats (`hivepal msg --to planner …`) instead of asking you twice.
 
 ## 1. Hivepal
 
-Install it on a server ([guide](server.md)) so the agents can reach it from the cloud, set up
-Firebase (a locked phone must ring) and a Gemini key (calls and voice notes).
+Install it on a server ([guide](server.md)) so the agents can reach it from the cloud, add an API key
+for a voice AI (calls and voice notes; Gemini has a free tier), and pair your phone (it's woken
+through Firebase or, without Google, UnifiedPush).
 
 ## 2. A private notes repo
 
@@ -67,6 +58,11 @@ notes/
 ```
 
 Each agent gets a token that can read and write this repo, and nothing else.
+
+The relay can write each agent's mailbox into this repository itself (`mailbox/<agent>/`: an `inbox/`
+file per message, and with Markdown memory each day's conversation in `history/`), so the agents
+remember what you talked about: in the app, **Settings → Agents: email, mailboxes, memory** → mailboxes
+**Also in my repository**, and add the relay's deploy key to the repo ([how](agents.md#mailboxes-in-git)).
 
 ## 3. Create the agents
 
@@ -89,6 +85,8 @@ You are Planner, one of my support agents. Your job: <one or two sentences>.
 ## 4. Routines that work
 
 - **Hourly**: `hivepal replies`, read your mailbox, answer. Nothing to do → do nothing.
+  `hivepal mailbox` can also drop what you write to an agent into its mailbox as files
+  ([mailbox files](agents.md#mailbox-files)).
 - **Plans with buttons**: `hivepal msg "Gym at 18:00?" -o "Yes" -o "Move it"` — one tap beats typing.
 - **Insist only where it matters**: `hivepal remind --at 17:45 "Gym in 15" --insist 10m --call`.
 - **Wake-up emails** so an agent answers in seconds instead of within the hour:

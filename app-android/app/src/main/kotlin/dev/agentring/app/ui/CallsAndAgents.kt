@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -132,7 +133,9 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
     val agents by Graph.directory.agents.collectAsStateWithLifecycle()
     val groups by Graph.directory.groups.collectAsStateWithLifecycle()
     val online by Graph.directory.online.collectAsStateWithLifecycle()
+    val typingAgents = rememberTyping().values.flatten().toSet()
     var renaming by remember { mutableStateOf<Agent?>(null) }
+    var delivering by remember { mutableStateOf<Agent?>(null) }
     var editing by remember { mutableStateOf<Group?>(null) }
     var creating by remember { mutableStateOf(false) }
 
@@ -166,18 +169,30 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
                     val seen = a.lastSeenAt
                     Text(
                         stringResource(R.string.agent_id_label, a.agentId) + when {
+                            // Hivepal: writing to you somewhere.
+                            typingAgents.contains(a.agentId) -> " · " + stringResource(R.string.typing)
                             a.agentId in online -> " · " + stringResource(R.string.agent_online)
+                            // Under a minute reads "0 minutes ago" otherwise.
+                            seen != null && System.currentTimeMillis() - seen < 60_000 -> " · " + stringResource(R.string.seen_just_now)
                             seen != null -> " · " + stringResource(R.string.last_seen, android.text.format.DateUtils.getRelativeTimeSpanString(
                                 seen, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
                             else -> ""
                         },
                         style = MaterialTheme.typography.bodySmall,
                         // A bot not seen for over a day: its routines may have stopped.
-                        color = if (seen != null && a.agentId !in online && System.currentTimeMillis() - seen > 24 * 3600_000L)
+                        color = if (a.agentId in typingAgents) MaterialTheme.colorScheme.primary
+                        else if (seen != null && a.agentId !in online && System.currentTimeMillis() - seen > 24 * 3600_000L)
                             MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (agents.isNotEmpty()) {
+                    IconButton(onClick = { delivering = a }, modifier = Modifier.testTag("delivery_${a.agentId}")) {
+                        Icon(
+                            Icons.Filled.Email,
+                            stringResource(R.string.agent_delivery),
+                            tint = if (a.wakes == true || a.mailbox == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     IconButton(onClick = { renaming = a }, modifier = Modifier.testTag("rename_${a.agentId}")) {
                         Icon(Icons.Filled.Edit, stringResource(R.string.rename), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -225,6 +240,7 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
     }
 
     renaming?.let { a -> RenameAgentDialog(a.agentId, a.name, onDismiss = { renaming = null }) }
+    delivering?.let { a -> AgentDeliveryDialog(a, onDismiss = { delivering = null }) }
     editing?.let { g -> GroupDialog(existing = g, onDismiss = { editing = null }, onDone = { editing = null }) }
     if (creating) GroupDialog(existing = null, onDismiss = { creating = false }, onDone = { creating = false; onOpenChat(it) })
 }

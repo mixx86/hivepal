@@ -235,3 +235,77 @@ def test_cli(homes: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert r.exit_code == 0, r.output
     out = json.loads(r.output)
     assert [s["status"] for s in out["steps"]] == ["added", "added", "added", "skipped"]
+
+
+@pytest.fixture()
+def more_homes(homes: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Claude Code, Codex and Cursor keep their settings under HOME (Codex: CODEX_HOME)."""
+    monkeypatch.setenv("HOME", str(homes / "home"))
+    monkeypatch.setenv("CODEX_HOME", str(homes / "home" / ".codex"))
+    (homes / "home").mkdir()
+    for name in ("claude", "codex"):
+        p = homes / "bin" / name
+        p.write_text("#!/bin/sh\nexit 0\n")
+        p.chmod(0o755)
+    return homes / "home"
+
+
+class FakeClaude:
+    """`claude mcp add-json/remove --scope user`, saved in ~/.claude.json like the real CLI."""
+
+    def __init__(self, home: Path) -> None:
+        self.file = home / ".claude.json"
+        self.calls: list[list[str]] = []
+
+    def __call__(self, argv: list[str]) -> subprocess.CompletedProcess:
+        self.calls.append(argv)
+        cfg = json.loads(self.file.read_text()) if self.file.exists() else {"projects": {}}
+        servers = cfg.setdefault("mcpServers", {})
+        if argv[1:3] == ["mcp", "add-json"]:
+            servers[argv[3]] = json.loads(argv[4])
+        elif argv[1:3] == ["mcp", "remove"]:
+            servers.pop(argv[3], None)
+        self.file.write_text(json.dumps(cfg))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+
+def test_claude_code(more_homes: Path) -> None:
+    fake = FakeClaude(more_homes)
+    steps = c.connect("claude-code", run=fake)
+    assert [s.status for s in steps] == ["added", "added", "added"]
+    server = json.loads(fake.file.read_text())["mcpServers"]["hivepal"]
+    assert server["type"] == "stdio" and server["args"] == ["mcp", "--agent-name", "Claude Code"]
+    assert (more_homes / ".claude" / "skills" / "hivepal" / "SKILL.md").exists()
+    spec = yaml.safe_load((more_homes.parent / "hivepal" / "agents.yaml").read_text())["agents"]["claude-code"]
+    assert spec["command"][1:] == ["-p", "Task: {task}"]
+    fake.calls.clear()
+    assert [s.status for s in c.connect("claude-code", run=fake)] == ["unchanged", "unchanged", "unchanged"]
+    assert fake.calls == []
+
+
+def test_codex_keeps_the_rest_of_its_config(more_homes: Path) -> None:
+    import tomllib
+
+    cfg = more_homes / ".codex" / "config.toml"
+    cfg.parent.mkdir()
+    cfg.write_text('model = "gpt-5"\n\n[mcp_servers.hivepal]\ncommand = "old"\n\n[mcp_servers.hivepal.env]\nX = "1"\n\n'
+                   '[mcp_servers.other]\ncommand = "other"\n')
+    steps = c.connect("codex")
+    assert [s.status for s in steps] == ["updated", "skipped", "added"]
+    data = tomllib.loads(cfg.read_text())
+    assert data["model"] == "gpt-5" and data["mcp_servers"]["other"] == {"command": "other"}
+    assert data["mcp_servers"]["hivepal"]["tool_timeout_sec"] == 1800
+    assert data["mcp_servers"]["hivepal"]["args"] == ["mcp", "--agent-name", "Codex"]
+    assert [s.status for s in c.connect("codex")][0] == "unchanged"
+
+
+def test_cursor_mcp_json(more_homes: Path) -> None:
+    path = more_homes / ".cursor" / "mcp.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"mcpServers": {"other": {"command": "x"}}}))
+    steps = c.connect("cursor")
+    assert [s.status for s in steps] == ["added", "skipped", "skipped"]  # no skill folder, no one-shot command
+    servers = json.loads(path.read_text())["mcpServers"]
+    assert servers["other"] == {"command": "x"} and servers["hivepal"]["args"] == ["mcp", "--agent-name", "Cursor"]
+    with pytest.raises(c.ConnectError, match="local one"):
+        c.connect("cursor", url="https://x/mcp", api_key="ak_x")

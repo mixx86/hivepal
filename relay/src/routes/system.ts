@@ -3,7 +3,7 @@ import { type Ctx, principal, requireAuth } from "../context.js";
 import type { Schemas } from "../protocol.js";
 import { callFromRow, canSee } from "./calls.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.8.0";
 
 export function systemRoutes(app: FastifyInstance, ctx: Ctx): void {
   const auth = requireAuth(ctx, "agent", "device");
@@ -28,6 +28,7 @@ export function systemRoutes(app: FastifyInstance, ctx: Ctx): void {
       const row = ctx.db.prepare("SELECT COUNT(*) AS n FROM devices WHERE revoked_at IS NULL").get() as { n: number };
       body.device_count = row.n;
       body.self = { agent_id: agentId, name: ctx.agents.nameOf(agentId) };
+      body.features = { calls: !!ctx.livekit, voice: !!ctx.speech, wake_email: !!ctx.settings?.smtpUrl(), mailbox_repo: !!ctx.settings?.repo() };
     }
     return body;
   });

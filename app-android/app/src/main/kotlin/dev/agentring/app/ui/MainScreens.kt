@@ -306,7 +306,7 @@ fun SettingsScreen(pairing: Pairing) {
                                 if (android.os.Build.VERSION.SDK_INT < 33) (ctx as? android.app.Activity)?.recreate()
                             }
                         },
-                        label = { Text(label, style = MaterialTheme.typography.titleSmall) },
+                        label = { Text(stringResource(label), style = MaterialTheme.typography.titleSmall) },
                         modifier = Modifier.weight(1f).testTag("lang_$tag"),
                     )
                 }
@@ -370,11 +370,24 @@ fun SettingsScreen(pairing: Pairing) {
             }
         }
 
+        SectionLabel(stringResource(R.string.push_channel))
+        PushChannelCard()
+
+        SectionLabel(stringResource(R.string.updates))
+        UpdatesCard()
+
+        SectionLabel(stringResource(R.string.delivery_section))
+        DeliverySetup(Modifier.fillMaxWidth())
+
+        SectionLabel(stringResource(R.string.backup))
+        BackupCard()
+
         SectionLabel(stringResource(R.string.settings_more))
         OutlinedButton(
             onClick = { Notifications.showTest(ctx) },
             modifier = Modifier.fillMaxWidth().height(48.dp).testTag("test_notification"),
         ) { Text(stringResource(R.string.test_notification)) }
+        TestCallButton()
         if (pairing.isCloud()) {
             OutlinedButton(
                 onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.CLOUD_URL + "/app"))) },
@@ -425,3 +438,209 @@ private fun InfoRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
+
+
+/**
+ * Hivepal: the installed version, a check for a newer release (only when tapped: no background calls
+ * to GitHub) and Obtainium, which checks on its own. Preview and self-built apps are another channel.
+ */
+@Composable
+private fun UpdatesCard() {
+    val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var result by remember { mutableStateOf<dev.agentring.core.Updates.Result?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            when (val r = result) {
+                null -> stringResource(if (failed) R.string.updates_failed else R.string.updates_installed, BuildConfig.VERSION_NAME)
+                is dev.agentring.core.Updates.Result.UpToDate -> stringResource(R.string.updates_up_to_date, r.version)
+                is dev.agentring.core.Updates.Result.Newer -> stringResource(R.string.updates_newer, r.version)
+                is dev.agentring.core.Updates.Result.NewerPreview -> stringResource(R.string.updates_newer_preview, r.commit)
+                dev.agentring.core.Updates.Result.NotARelease -> stringResource(R.string.updates_not_release, BuildConfig.VERSION_NAME)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val newer = result as? dev.agentring.core.Updates.Result.Newer
+        val newerPreview = result as? dev.agentring.core.Updates.Result.NewerPreview
+        if (newer != null) {
+            Button(onClick = { open(newer.url) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                Text(stringResource(R.string.updates_download, newer.version))
+            }
+        } else if (newerPreview != null) {
+            // The APK itself: same key as this app, so it installs over it and keeps everything.
+            Button(onClick = { open(newerPreview.url) }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                Text(stringResource(R.string.updates_download_preview))
+            }
+        } else {
+            OutlinedButton(
+                enabled = !checking,
+                onClick = {
+                    checking = true
+                    failed = false
+                    scope.launch {
+                        result = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            runCatching { dev.agentring.core.Updates.check(BuildConfig.VERSION_NAME) }.getOrNull()
+                        }
+                        failed = result == null
+                        checking = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("check_updates"),
+            ) { Text(stringResource(if (checking) R.string.updates_checking else R.string.updates_check)) }
+        }
+        // Obtainium follows the releases (release key): only for a release build, which it can update.
+        if (dev.agentring.core.Updates.key(BuildConfig.VERSION_NAME) != null) {
+            TextButton(onClick = {
+                // Obtainium adds the app from its releases and checks for new ones; its site when it isn't installed.
+                if (open("obtainium://add/https://github.com/${dev.agentring.core.Updates.REPO}").isFailure) open("https://obtainium.imranr.dev")
+            }) { Text(stringResource(R.string.updates_obtainium)) }
+        }
+    }
+}
+
+
+/**
+ * Hivepal: how the relay wakes this phone. Firebase (Google) by default; UnifiedPush through a
+ * distributor app (ntfy, NextPush…) for a phone or a relay without Google.
+ */
+@Composable
+private fun PushChannelCard() {
+    val ctx = LocalContext.current
+    val setup = dev.agentring.app.push.UnifiedPushSetup
+    // Firebase only works when the relay announced it at pairing (its own project, set up on the relay).
+    val fcmAvailable = Graph.pairing.current?.pushConfig != null
+    var usingUp by remember { mutableStateOf(setup.endpoint(ctx) != null) }
+    var note by remember { mutableStateOf<String?>(null) }
+    val noDistributor = stringResource(R.string.push_up_none)
+    val waiting = stringResource(R.string.push_up_waiting)
+    fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(
+                when {
+                    usingUp -> R.string.push_via_up
+                    fcmAvailable -> R.string.push_via_fcm
+                    else -> R.string.push_via_none
+                },
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        PushOption(
+            title = stringResource(R.string.push_option_up),
+            badge = stringResource(R.string.push_recommended),
+            body = stringResource(R.string.push_option_up_body),
+            action = if (usingUp) null else stringResource(R.string.push_use_up),
+            tag = "push_use_up",
+        ) {
+            val activity = ctx as? android.app.Activity ?: return@PushOption
+            setup.enable(activity) { ok ->
+                usingUp = ok
+                note = if (ok) waiting else noDistributor
+            }
+        }
+        PushOption(
+            title = stringResource(R.string.push_option_fcm),
+            badge = null,
+            body = stringResource(if (fcmAvailable) R.string.push_option_fcm_body else R.string.push_option_fcm_missing),
+            action = when {
+                !fcmAvailable -> stringResource(R.string.push_fcm_howto)
+                usingUp -> stringResource(R.string.push_use_fcm)
+                else -> null
+            },
+            tag = "push_use_fcm",
+        ) {
+            if (!fcmAvailable) {
+                open(FIREBASE_GUIDE)
+            } else {
+                kotlin.concurrent.thread { setup.disable(ctx) }
+                usingUp = false
+                note = null
+            }
+        }
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+/** Where the website explains setting up Firebase on the relay. */
+internal const val FIREBASE_GUIDE = "https://mixx86.github.io/hivepal-web/firebase/"
+
+/** One way to wake the phone: what it is, why, and its button (none when it's the one in use). */
+@Composable
+internal fun PushOption(title: String, badge: String?, body: String, action: String?, tag: String, onAction: () -> Unit) {
+    BrandCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                badge?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (action != null) {
+                OutlinedButton(onClick = onAction, modifier = Modifier.fillMaxWidth().height(44.dp).testTag(tag)) { Text(action) }
+            } else {
+                Text(stringResource(R.string.push_in_use), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+/**
+ * Hivepal: save the app's settings to a file and restore them (moving to another build or phone).
+ * Restoring applies the language and restarts the app so every screen reads the restored values.
+ */
+@Composable
+private fun BackupCard() {
+    val ctx = LocalContext.current
+    var note by remember { mutableStateOf<String?>(null) }
+    val saved = stringResource(R.string.backup_saved)
+    val failed = stringResource(R.string.backup_failed)
+    val save = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        note = runCatching {
+            ctx.contentResolver.openOutputStream(uri, "wt")!!.use {
+                it.write(dev.agentring.app.data.SettingsBackup.export(ctx, BuildConfig.VERSION_NAME).toByteArray())
+            }
+        }.fold({ saved }, { failed.format(it.message ?: "") })
+    }
+    val restore = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            val text = ctx.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }
+            dev.agentring.app.data.SettingsBackup.import(ctx, text)
+            ctx.getSharedPreferences("hivepal_ui", android.content.Context.MODE_PRIVATE).getString("lang", null)
+                ?.let { dev.agentring.app.AppLanguage.set(ctx, it) }
+            // Start again so every screen and store reads the restored settings.
+            ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.let {
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                ctx.startActivity(it)
+            }
+            Runtime.getRuntime().exit(0)
+        }.onFailure { note = failed.format(it.message ?: "") }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.backup_body), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = { save.launch("hivepal-settings.json") }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_save")) {
+            Text(stringResource(R.string.backup_save))
+        }
+        OutlinedButton(onClick = { restore.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.fillMaxWidth().height(48.dp).testTag("backup_restore")) {
+            Text(stringResource(R.string.backup_restore))
+        }
+        note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+

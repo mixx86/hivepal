@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hivepal: the page a pairing link (`PairingToken.qr_url`) opens on a phone without the app or from its camera. Static HTML: it reads the code from the URL fragment in the browser and offers to install the app and to open it (`hivepal://pair?c=<code>`), plus the code to paste. */
+        get: operations["pairPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -99,6 +116,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/device/unifiedpush": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: wake this device through UnifiedPush instead of FCM. While an endpoint is set, the relay POSTs each push to it: the body is the same `PushData` map as FCM's `data`, as JSON (signed the same way), with the `TTL` and `Urgency` (`high` / `normal`) headers. With `p256dh` and `auth` (the app's Web Push keys) the body is encrypted for the app (RFC 8291, `aes128gcm`), so the distributor's server can't read it; without them it's sent as plain JSON. A 404 or 410 answer forgets the endpoint. Only `https://` endpoints on a public host are accepted. */
+        post: operations["setUnifiedPushEndpoint"];
+        /** Hivepal: back to FCM for this device (if it has a token). */
+        delete: operations["clearUnifiedPushEndpoint"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -166,6 +201,23 @@ export interface paths {
          *     unanswered calls in an hour. A self-hosted relay has no such limit.
          */
         post: operations["createCall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal, device only: ring this phone after `delay_s` seconds, as a call from the main agent (the switchboard), so the user can lock it first and see it ring like a real call. Nobody else joins: hang up when done. The usual rules apply when it starts (one call at a time, limits). */
+        post: operations["testCall"];
         delete?: never;
         options?: never;
         head?: never;
@@ -414,6 +466,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: the agent is writing (`typing: true`, the default) or stopped, in a conversation it takes part in (default: its own). The phones show "typing…" and a "…" bubble. It lasts 20 s unless repeated, and ends when the agent sends a message there. The relay also sets it by itself for 60 s when an agent marks a recent message from the user as read. Live only: an ephemeral `agent.typing` event, never stored or pushed. */
+        post: operations["setTyping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents": {
         parameters: {
             query?: never;
@@ -466,9 +535,208 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Hivepal: the address the relay emails when the user writes to this agent (directly or in a group), so an agent that only runs on a trigger wakes up. One email a minute at most; it never carries the message. `email: null` turns it off. Relay API key only; needs HIVEPAL_SMTP_URL on the relay. */
+        /** Hivepal: the address the relay emails when the user writes to this agent (directly or in a group), so an agent that only runs on a trigger wakes up. One email a minute at most; it never carries the message. `email: null` turns it off. The relay API key or a phone; needs the relay's email account (`PUT /v1/settings/email`). */
         put: operations["setAgentWake"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/wake/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: send the agent's wake-up email now, as if the user had written to it (the same subject, so the agent's routine runs too), and wait for the mail server's answer. The relay API key or a phone. */
+        post: operations["testAgentWake"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/mailbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: whether the relay writes this agent's messages as Markdown files (issue #41): `inbox/`, one file per message it receives, and, with Markdown memory on (`PUT /v1/settings/memory`), `history/<conversation>/<YYYY-MM-DD>.md`, each day's conversation with both sides. Into its own repository in the relay (`…/mailbox.git`) and, when set, the external one (`mailbox/<agent>/…`). Turning it on writes the last 90 days of history. When the agent also has a wake-up email, it goes out after the files are written. `enabled: null` follows the relay-wide default (`PUT /v1/settings/mailboxes`). The relay API key or a phone. */
+        put: operations["setAgentMailbox"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/mailbox.git/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+                /** @description What git's dumb HTTP protocol reads (`info/refs`, `HEAD`, `objects/…`). */
+                path: string;
+            };
+            cookie?: never;
+        };
+        /** Hivepal: the agent's mailbox repository, read-only, for `git clone https://x:<key>@relay/v1/agents/<id>/mailbox.git`. Without credentials it answers 401 with `WWW-Authenticate: Basic`; the password (or a Bearer token) is the agent's own key, the relay API key or a phone's token. */
+        get: operations["getAgentMailboxGit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** Hivepal: the agent's memory as SQLite (on with `PUT /v1/settings/memory {sqlite: true}`, else 404): its messages, newest first, full-text matching `q` (words, all of them), in `conv`, before `before`. Only the conversations it takes part in. The agent's own key, the relay API key or a phone. */
+        get: operations["searchAgentMemory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agent_id}/memory.sqlite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** Hivepal: the agent's conversations as a SQLite file of its own (`messages` with a `messages_fts` full-text index, and `about`), for an agent that queries its memory itself. Same rules as `GET /v1/agents/{agent_id}/memory`. */
+        get: operations["getAgentMemoryFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/mailboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: every agent gets a mailbox unless it's turned off for it (`PUT /v1/agents/{agent_id}/mailbox`). The relay API key or a phone. */
+        put: operations["setMailboxesForAll"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: how bots remember their Hivepal conversations. `markdown`: each day's conversation in their mailbox (`history/`). `sqlite`: they search it or download it as SQLite (`GET /v1/agents/{agent_id}/memory`). Neither: each run starts from the bot's own instructions only. The relay API key or a phone. */
+        put: operations["setMemory"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hivepal: how the relay reaches agents: its email account for wake-up emails (never the password) and the external mailbox repository with the relay's SSH deploy key (add it to the repository with write access) and the last push. The relay API key or a phone. */
+        get: operations["getDeliverySettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: the email account wake-up emails are sent from. The relay logs in before saving it, so a wrong password fails here (`502 email_failed`). `server` (`host:port`; 465 = TLS, 587 = STARTTLS) is guessed for Gmail, iCloud, Yahoo, Fastmail, GMX and Zoho. `address: null` turns email off. Saved in the relay, it replaces `HIVEPAL_SMTP_URL`. The relay API key or a phone. */
+        put: operations["setDeliveryEmail"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/mailbox-repo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Hivepal: an external git repository the relay writes agents' mailboxes to (`mailbox/<agent>/…`) and pushes, with its SSH deploy key (`DeliverySettings.mailbox_repo.public_key`), or https:// with a token in the URL. `url: null` stops it (the mailboxes in the relay stay). The relay API key or a phone. */
+        put: operations["setMailboxRepo"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/mailbox-repo/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hivepal: clone the external repository again and check the relay may push to it. The relay API key or a phone. */
+        post: operations["testMailboxRepo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -829,6 +1097,8 @@ export interface components {
             last_seen_at?: components["schemas"]["Timestamp"];
             /** @description Hivepal: the relay emails the agent a wake-up call when the user writes to it (the address stays private). */
             wakes?: boolean;
+            /** @description Hivepal: the relay writes the agent's messages as Markdown files (`PUT /v1/agents/{agent_id}/mailbox`). */
+            mailbox?: boolean;
         };
         CreateAgentRequest: {
             agent_id: components["schemas"]["AgentId"];
@@ -872,6 +1142,38 @@ export interface components {
         CallState: "ringing" | "active" | "ended" | "missed" | "declined" | "canceled";
         /** @enum {string} */
         EndReason: "hangup" | "canceled" | "room_closed" | "error" | "quota";
+        /** @description Hivepal: how bots remember their Hivepal conversations. */
+        Memory: {
+            /** @description Each day's conversation in the agent's mailbox (history/). */
+            markdown: boolean;
+            /** @description Searchable, and downloadable as a SQLite file. */
+            sqlite: boolean;
+        };
+        /** @description Hivepal: how the relay reaches agents (issue #41). Secrets are never returned. */
+        DeliverySettings: {
+            mailboxes: {
+                /** @description Every agent has a mailbox unless turned off for it. */
+                all_agents: boolean;
+            };
+            memory: components["schemas"]["Memory"];
+            email: {
+                configured: boolean;
+                address?: string;
+                /** @description host:port */
+                server?: string;
+                /** @description From HIVEPAL_SMTP_URL rather than saved in the relay. */
+                from_env?: boolean;
+            };
+            mailbox_repo: {
+                url?: string;
+                branch?: string;
+                /** @description The relay's SSH deploy key: add it to the repository with write access. */
+                public_key?: string;
+                /** Format: int64 */
+                last_push_at?: number;
+                last_error?: string;
+            };
+        };
         Error: {
             error: {
                 /**
@@ -890,6 +1192,8 @@ export interface components {
                  * @example rate_limited
                  * @example quota_exceeded
                  * @example tenant_disabled
+                 * @example email_failed
+                 * @example repo_failed
                  * @example internal
                  */
                 code: string;
@@ -905,6 +1209,14 @@ export interface components {
             push_provider: string;
             /** @description Only returned to the agent. */
             device_count?: number;
+            /** @description Hivepal, only returned to an agent: what this relay is configured for. `calls`: LiveKit is set up. `voice`: Gemini is set up (voice notes, transcripts). `wake_email`: the relay has an email account (wake-up emails). `mailbox_repo`: an external mailbox repository is set. Push is `push_provider`. */
+            features?: {
+                calls: boolean;
+                voice: boolean;
+                wake_email: boolean;
+                /** @description Hivepal: an external mailbox repository is set. */
+                mailbox_repo?: boolean;
+            };
             /** @description Only returned to an agent; the agent the key belongs to. */
             self?: {
                 agent_id: components["schemas"]["AgentId"];
@@ -917,7 +1229,8 @@ export interface components {
          * @example {
          *       "pairing_token": "pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW",
          *       "expires_at": 1761200600000,
-         *       "qr_payload": "{\"v\":1,\"relay_url\":\"https://relay.example.com\",\"pairing_token\":\"pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW\"}"
+         *       "qr_payload": "{\"v\":1,\"relay_url\":\"https://relay.example.com\",\"pairing_token\":\"pt_q8Vx0m3cJ5a1n1wYg7Kc9b2dE4fH6iL8oP0rS2tU4vW\"}",
+         *       "qr_url": "https://relay.example.com/pair#eyJ2IjoxLCJyZWxheV91cmwiOiJodHRwczovL3JlbGF5LmV4YW1wbGUuY29tIiwicGFpcmluZ190b2tlbiI6InB0X3E4VngwbTNjSjVhMW4xd1lnN0tjOWIyZEU0Zkg2aUw4b1AwclMydFU0dlcifQ"
          *     }
          */
         PairingToken: {
@@ -925,6 +1238,11 @@ export interface components {
             expires_at: components["schemas"]["Timestamp"];
             /** @description Exact string to encode in the QR (compact JSON of `QrPayload`). */
             qr_payload: string;
+            /**
+             * Format: uri
+             * @description Hivepal: the same pairing as a link, `<relay>/pair#<base64url of qr_payload>`. Its QR also works from the phone's camera: the relay's /pair page offers to open the app (or to install it first), which then asks before pairing. The code is in the fragment, which browsers never send. Hivepal apps accept either form when scanning or pasting.
+             */
+            qr_url?: string;
         };
         QrPayload: {
             /** @constant */
@@ -979,6 +1297,11 @@ export interface components {
             last_seen_at?: components["schemas"]["Timestamp"];
             revoked_at?: components["schemas"]["Timestamp"];
             has_push_token: boolean;
+            /**
+             * @description Hivepal: how the relay wakes this device: `unifiedpush`, `fcm`, or `none`.
+             * @enum {string}
+             */
+            push_via?: "unifiedpush" | "fcm" | "none";
         };
         CreateCallRequest: {
             /** @description Required when the agent calls; optional when the user calls. */
@@ -1084,7 +1407,7 @@ export interface components {
             /** @description Position in the relay event log. Absent on ephemeral events. */
             seq?: number;
         };
-        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"] | components["schemas"]["MsgDeletedEvent"];
+        Event: components["schemas"]["CallInviteEvent"] | components["schemas"]["CallRingingEvent"] | components["schemas"]["CallAcceptEvent"] | components["schemas"]["CallDeclineEvent"] | components["schemas"]["CallEndEvent"] | components["schemas"]["CallMissedEvent"] | components["schemas"]["MsgNewEvent"] | components["schemas"]["MsgReadEvent"] | components["schemas"]["AgentPresenceEvent"] | components["schemas"]["WsHelloEvent"] | components["schemas"]["AgentUpdatedEvent"] | components["schemas"]["GroupUpdatedEvent"] | components["schemas"]["MsgDeletedEvent"] | components["schemas"]["AgentTypingEvent"];
         /**
          * @example {
          *       "type": "call.invite",
@@ -1250,6 +1573,21 @@ export interface components {
              */
             type: "agent.presence";
         };
+        /** @description Ephemeral (no seq). Hivepal: an agent started or stopped writing in a conversation. Sent to devices; a phone connecting gets the agents typing right now. `until` is when it ends by itself. */
+        AgentTypingEvent: components["schemas"]["EventBase"] & {
+            /** @constant */
+            type: "agent.typing";
+            agent_id: components["schemas"]["AgentId"];
+            conv: components["schemas"]["ConvId"];
+            typing: boolean;
+            until?: components["schemas"]["Timestamp"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "agent.typing";
+        };
         /** @description Ephemeral (no seq). First frame of every WebSocket. */
         WsHelloEvent: components["schemas"]["EventBase"] & {
             /** @constant */
@@ -1396,6 +1734,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    pairPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -1522,6 +1880,56 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    setUnifiedPushEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    endpoint: string;
+                    /** @description The app's P-256 public key, uncompressed, base64url (Web Push `p256dh`). */
+                    p256dh?: string;
+                    /** @description The app's 16-byte authentication secret, base64url (Web Push `auth`). */
+                    auth?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    clearUnifiedPushEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     listDevices: {
         parameters: {
             query?: {
@@ -1641,6 +2049,55 @@ export interface operations {
             };
             429: components["responses"]["RateLimited"];
             /** @description `agent_offline` (device caller, no daemon connected) or `calls_unavailable` (LiveKit is not configured on this relay). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    testCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default 10 */
+                    delay_s?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description It will ring at `at`. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        at: components["schemas"]["Timestamp"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Another call is ringing or active. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Calls are not configured on this relay. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1976,6 +2433,35 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    setTyping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    conv?: components["schemas"]["ConvId"];
+                    /** @default true */
+                    typing?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Done. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listAgents: {
         parameters: {
             query?: never;
@@ -2117,6 +2603,352 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    testAgentWake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The mail server accepted it. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `invalid_request`: this relay has no email account or the agent has no address. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `email_failed`: the mail server refused it or couldn't be reached; the message says why. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    setAgentMailbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAgentMailboxGit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+                /** @description What git's dumb HTTP protocol reads (`info/refs`, `HEAD`, `objects/…`). */
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    searchAgentMemory: {
+        parameters: {
+            query?: {
+                q?: string;
+                conv?: string;
+                before?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching messages. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        messages: {
+                            msg_id: string;
+                            conv: string;
+                            /** @description `user` or an agent id */
+                            from: string;
+                            from_name: string;
+                            text: string;
+                            reply_to?: string;
+                            /** Format: int64 */
+                            created_at: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAgentMemoryFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: components["schemas"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The database. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.sqlite3": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setMailboxesForAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    all_agents: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverySettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Memory"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverySettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getDeliverySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverySettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    setDeliveryEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    address: string | null;
+                    password?: string;
+                    server?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverySettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description `email_failed`: the mail server refused the login or couldn't be reached; the message says why. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    setMailboxRepo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example git@github.com:me/notes.git */
+                    url: string | null;
+                    branch?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverySettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    testMailboxRepo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description It works. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description `repo_failed`: git couldn't clone or push; the message says why (often: the deploy key isn't added, or has no write access). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     rotateAgentKey: {

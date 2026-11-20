@@ -46,6 +46,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Hivepal: pairing links (hivepal://pair?c=…) from the relay's /pair page. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="hivepal" android:host="pair" />
+            </intent-filter>
         </activity>
 
         <activity
@@ -76,6 +83,15 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Hivepal: push without Google, through a UnifiedPush distributor (ntfy, NextPush…). -->
+        <service
+            android:name=".push.HivepalUnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
             </intent-filter>
         </service>
 

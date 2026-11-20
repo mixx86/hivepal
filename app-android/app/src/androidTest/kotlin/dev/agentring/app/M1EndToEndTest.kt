@@ -133,10 +133,19 @@ class M1EndToEndTest {
         screenshot("01-pair")
         compose.onNodeWithTag("pairing_code").performScrollTo().performTextInput(qr)
         compose.onNodeWithTag("pair_button").performScrollTo().performClick()
+        // The CI relay has no Firebase and the emulator no UnifiedPush distributor: the setup offers
+        // ntfy, and the user can go on without push (messages still arrive while the app is open).
+        waitForTag("install_ntfy", timeoutMs = 20_000)
+        screenshot("02-push-setup")
+        compose.onNodeWithTag("push_later").performClick()
         // Call readiness page, then "try it".
         waitForTag("calls_next", timeoutMs = 20_000)
         screenshot("02-calls")
         compose.onNodeWithTag("calls_next").performClick()
+        // How agents hear from you (read from the relay), skipped here.
+        waitForTag("delivery_always", timeoutMs = 20_000)
+        screenshot("02-delivery")
+        compose.onNodeWithTag("delivery_skip").performClick()
         waitForTag("continue")
         screenshot("02-paired")
         val pairing = assertNotNull_(Graph.pairing.current)
@@ -148,11 +157,15 @@ class M1EndToEndTest {
         waitForTag("relay_status", context.getString(R.string.connected), timeoutMs = 20_000)
         screenshot("03-home")
 
-        // 3. Agent message arrives live in the thread (WebSocket path).
+        // 3. Agent message arrives live in the thread (WebSocket path). The relay API key is the
+        // Centralita (`main`), which has no chat of its own in the list, so the test talks in a group
+        // whose only member is `main` (the daemon step in CI reads the replies with that same key).
+        agent("POST", "/v1/groups", """{"group_id":"ci","name":"CI","members":["main"]}""")
         compose.onNodeWithTag("open_menu").performClick()
         compose.onNodeWithTag("nav_chats").performClick()
-        compose.onNodeWithTag("chat_agent:main").performClick()
-        val agentMsg = agent("POST", "/v1/messages", """{"text":"hola desde CI 👋"}""")
+        waitForTag("chat_group:ci", timeoutMs = 20_000)
+        compose.onNodeWithTag("chat_group:ci").performClick()
+        val agentMsg = agent("POST", "/v1/messages", """{"text":"hola desde CI 👋","conv":"group:ci"}""")
         val agentMsgId = agentMsg["msg_id"]!!.jsonPrimitive.content
         waitForText("hola desde CI")
         // Opening the thread sends a read receipt.
@@ -171,7 +184,7 @@ class M1EndToEndTest {
         compose.onNodeWithTag("open_menu").performClick()
         compose.onNodeWithTag("nav_status").performClick()
         compose.waitForIdle()
-        val pushed = agent("POST", "/v1/messages", """{"text":"¿Despliego a producción?"}""")
+        val pushed = agent("POST", "/v1/messages", """{"text":"¿Despliego a producción?","conv":"group:ci"}""")
         val event = agent("GET", "/v1/events?after_seq=0&limit=500")["events"]!!.jsonArray
             .map { it.jsonObject }
             .first { it["msg_id"]?.jsonPrimitive?.content == pushed["msg_id"]!!.jsonPrimitive.content }
@@ -193,9 +206,9 @@ class M1EndToEndTest {
         // NotificationManagerService enqueues asynchronously: the notification shows up in
         // activeNotifications a moment after notify() returns (slow on CI emulators).
         waitFor(timeoutMs = 5_000, what = "message notification posted") {
-            nm.activeNotifications.any { it.id == Notifications.ID_MESSAGES }
+            nm.activeNotifications.any { it.id == Notifications.notificationId("group:ci") }
         }
-        val notification = nm.activeNotifications.firstOrNull { it.id == Notifications.ID_MESSAGES }
+        val notification = nm.activeNotifications.firstOrNull { it.id == Notifications.notificationId("group:ci") }
         shell("cmd statusbar expand-notifications")
         Thread.sleep(1500)
         shell("screencap -p /data/local/tmp/hivepal-05-notification.png")

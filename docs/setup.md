@@ -114,10 +114,11 @@ the daemon on the VPS instead, next to the relay, see the `daemon` profile at th
 
 ## 4. The app
 
-1. Build the app and install it on the phone over USB: `./scripts/build-app.sh --install` (JDK 17+
-   and the Android SDK), or install `hivepal-X.Y.Z.apk` from the
-   [latest release](https://github.com/mixx86/hivepal/releases) (Android asks you to allow installs
-   from your browser once). The app keeps upstream's package name, so if you have agentring from
+1. Install `hivepal-X.Y.Z.apk` from the
+   [latest release](https://github.com/mixx86/hivepal/releases/latest) (Android asks you to allow
+   installs from your browser once); scanning the QR code from `hivepal pair` with the phone's camera
+   offers it too. Or build it and install it over USB: `./scripts/build-app.sh --install` (JDK 17+ and
+   the Android SDK). The app keeps upstream's package name, so if you have agentring from
    Google Play, uninstall it first (or build with `-PhivepalApplicationId=your.own.id`).
 2. Open it and tap **Get started**. It asks, one by one, for notifications, the microphone,
    full-screen calls on the lock screen and unrestricted battery use: allow them all.

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
@@ -21,18 +22,32 @@ import { Calls, callRoutes, targetsOf } from "./routes/calls.js";
 import { agentRoutes } from "./routes/agents.js";
 import { fileRoutes } from "./routes/files.js";
 import { GeminiSpeech } from "./gemini.js";
-import { Wake, smtpMailer } from "./wake.js";
+import { Wake, mailerFor } from "./wake.js";
+import { Mailbox } from "./mailbox.js";
+import { SecretBox, Settings } from "./settings.js";
+import { deliveryRoutes } from "./routes/delivery.js";
 import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
 import { messageRoutes } from "./routes/messages.js";
 import { pairingRoutes } from "./routes/pairing.js";
+import { panelRoutes } from "./routes/panel.js";
+import { pairPageRoutes } from "./routes/pairpage.js";
 import { systemRoutes } from "./routes/system.js";
 import { WsHub, wsRoutes } from "./routes/ws.js";
+import { Typing } from "./typing.js";
 
 export interface BuildOptions {
   logger?: FastifyServerOptions["logger"];
   /** Inject a push provider (tests). Defaults to FCM when configured. */
   pushProvider?: PushProvider;
+  /** Hivepal: the UnifiedPush sender (tests pass a fake). */
+  unifiedPush?: PushProvider;
+  /** Hivepal: the wake-up email sender (tests pass a fake). Defaults to the relay's mail account. */
+  mailer?: import("./wake.js").Mailer;
+  /** Hivepal, tests: builds the mailer for an SMTP URL (instead of nodemailer). */
+  mailerFactory?: (url: string) => import("./wake.js").Mailer;
+  /** Hivepal, tests: mailbox options (file:// repositories, a short batch delay). */
+  mailbox?: { allowFileRepos?: boolean; flushDelayMs?: number };
   /** Inject LiveKit (tests). Defaults to the configured server, if any. */
   livekit?: LiveKitService;
   /** A pino-compatible logger to use instead of creating one (hub mode: a child per tenant). */
@@ -141,14 +156,43 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
     return true;
   });
 
-  const dispatcher = new PushDispatcher(db, provider, relayId, app.log, (id) => {
-    const c = calls.get(id);
-    return c && { direction: c.direction, device_ids: targetsOf(c) };
-  });
+  const dispatcher = new PushDispatcher(
+    db,
+    provider,
+    relayId,
+    app.log,
+    (id) => {
+      const c = calls.get(id);
+      return c && { direction: c.direction, device_ids: targetsOf(c) };
+    },
+    opts.unifiedPush,
+  );
   events.onEvent((e) => dispatcher.handle(e));
-  const smtp = process.env.HIVEPAL_SMTP_URL;
-  const wake = smtp ? new Wake(agents, smtpMailer(smtp, process.env.HIVEPAL_WAKE_FROM), app.log) : undefined;
-  if (wake) events.onEvent((e) => wake.handle(e));
+  // Hivepal: delivery to agents (issue #41). The mail account and the mailbox repository are runtime
+  // settings; an agent with a mailbox gets its wake-up email after its files are written.
+  const settings = new Settings(db, new SecretBox(cfg.dataDir === ":memory:" ? undefined : join(cfg.dataDir, "secret_key")));
+  ctx.settings = settings;
+  agents.mailboxDefault = () => settings.mailboxesForAll();
+  const currentMailer = mailerFor(() => settings.smtpUrl(), opts.mailerFactory);
+  const wake = new Wake(agents, opts.mailer ? () => opts.mailer : currentMailer, app.log);
+  ctx.wake = wake;
+  ctx.mailerFor = opts.mailerFactory;
+  // An in-memory database (tests) keeps its files in a temporary folder, not in one named ":memory:".
+  const tempDir = cfg.dataDir === ":memory:" ? join(tmpdir(), `hivepal-mailbox-${randomBytes(6).toString("hex")}`) : undefined;
+  const mailbox = new Mailbox({
+    dataDir: tempDir ?? cfg.dataDir,
+    db, agents, settings, log: app.log,
+    onFlushed: (ids) => wake.ringAgents(ids),
+    ...opts.mailbox,
+  });
+  ctx.mailbox = mailbox;
+  events.onEvent((e) => wake.handle(e, mailbox.handle(e)));
+  // Hivepal: "typing…" ends when the agent writes in that conversation.
+  const typing = new Typing(events);
+  ctx.typing = typing;
+  events.onEvent((e) => {
+    if (e.type === "msg.new" && e.from === "agent") typing.stop(e.agent_id ?? "main", e.conv ?? "agent:main");
+  });
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ApiError) {
@@ -170,8 +214,11 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
 
   systemRoutes(app, ctx);
   pairingRoutes(app, ctx);
+  panelRoutes(app);
+  pairPageRoutes(app);
   messageRoutes(app, ctx);
   agentRoutes(app, ctx);
+  deliveryRoutes(app, ctx);
   fileRoutes(app, ctx);
   subscriptionRoutes(app, ctx);
   if (process.env.GEMINI_API_KEY) ctx.speech = new GeminiSpeech(process.env.GEMINI_API_KEY);
@@ -188,7 +235,11 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   app.addHook("onClose", async () => {
     calls.stop();
     reminders.stop();
-    wake?.stop();
+    wake.stop();
+    typing.close();
+    await mailbox.flush().catch(() => undefined);
+    mailbox.stop();
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
     ctx.hub.closeAll();
     db.close();
   });
