@@ -12,6 +12,13 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- CLI: `hivepal delivery` (show), `delivery email|repo|mailboxes|memory`, `hivepal bots mailbox <id>
+  on|off|default`, and `hivepal memory [words]` / `--download file.sqlite` for a bot's own memory.
+- Installer: asks how agents hear from you (email, Markdown mailboxes in git, both, none), where the
+  mailboxes go (kept in the relay, or an external repository, showing the deploy key and checking it),
+  and whether bots remember (off, Markdown, SQLite, both); `./install.sh --delivery` changes it later.
+  The relay gets the host's time zone (`TZ`) for dates in mailboxes and memory.
+
 - Agents hear from you, and remember, through the relay (issue #41): Markdown mailboxes (an `inbox/`
   file per message) in a git repository per agent kept in the relay (`git clone
   https://x:<key>@relay/v1/agents/<id>/mailbox.git`) and/or pushed to an external repository with the

@@ -205,3 +205,35 @@ def test_subs_set_and_list(monkeypatch):
     assert r.exit_code == 0 and "Claude" in r.output and "renews 2026-12-05" in r.output
     r = CliRunner().invoke(cli.app, ["subs", "set", "x", "--name", "X", "--until", "mañana"])
     assert r.exit_code != 0
+
+
+def test_delivery_and_memory(hive, tmp_path: Path):
+    """The relay's delivery settings and bots' memory from the CLI (issue #41)."""
+    admin, nubi, rutina = hive["admin"], hive["nubi"], hive["rutina"]
+    out = cli(admin, "delivery")
+    assert "Email:     off" in out and "Memory:    off" in out and "ssh-ed25519 " in out
+    assert "Markdown in the mailboxes" in cli(admin, "delivery", "memory", "both")
+    assert "Memory:    markdown + sqlite" in cli(admin, "delivery")
+    assert "mailbox on" in cli(admin, "bots", "mailbox", "nubi", "on")
+    assert "/v1/agents/nubi/mailbox.git" in cli(admin, "bots", "mailbox", "nubi", "on")
+    assert "every agent" in cli(admin, "delivery", "mailboxes", "on")
+
+    cli(nubi, "msg", "Gym at 18:00 on Friday?")
+    cli(rutina, "msg", "Stretch before the gym", "--to", "nubi")
+    out = cli(nubi, "memory", "gym")
+    assert "Nubi: Gym at 18:00 on Friday?" in out and "Rutina: Stretch before the gym" in out
+    assert "Nothing found." in cli(nubi, "memory", "pizza")
+    db = tmp_path / "mem.sqlite"
+    cli(nubi, "memory", "--download", str(db))
+    import sqlite3
+
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT count(*) FROM messages").fetchone()[0] == 2
+
+    r = runner.invoke(app, ["delivery", "repo", "/etc/passwd"], env={"HIVEPAL_HOME": str(admin)})
+    assert r.exit_code != 0 and "Repository" in r.output
+    r = runner.invoke(app, ["delivery", "memory", "nubi"], env={"HIVEPAL_HOME": str(admin)})
+    assert r.exit_code != 0
+    assert "Memory:    off" in (cli(admin, "delivery", "memory", "off") and cli(admin, "delivery"))
+    r = runner.invoke(app, ["memory", "gym"], env={"HIVEPAL_HOME": str(nubi)})
+    assert r.exit_code != 0 and "off" in r.output
