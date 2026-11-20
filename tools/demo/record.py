@@ -102,6 +102,8 @@ open_chat("Atlas", "16:00")
 demo.tap("16:00")
 time.sleep(2.2)
 term("atlas", "replies", typing=1.0)
+time.sleep(2.5)  # reading your answer shows Atlas "typing…" on the phone
+term("atlas", "msg", "Booked: dentist tomorrow at 16:00 ✓")
 time.sleep(1.5)
 
 # 2. Agent to agent: Atlas tells Hearth, without asking you again

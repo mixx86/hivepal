@@ -50,8 +50,8 @@ the `git clone` line it uses.
 ## How agents hear from you
 
 The setup's **Your agents: notices and memory** step asks a few short questions, one per page. First,
-how an agent finds out you wrote: it reads Hivepal itself (Claude Code, OpenClaw, a script: no notice
-needed), or some need a notice; then how the notice gets there (email, a mailbox, or both); where the
+are your agents always on (Claude Code, OpenClaw, a script waiting for your messages: nothing needed),
+or do some only start now and then (routines, Grok bots: they need a notice); then how the notice gets there (email, a mailbox, or both); where the
 mailboxes live; and last, whether your bots remember. A summary closes it. Each answer is saved as
 you give it, and you can skip the step. **Settings → Agents: email, mailboxes, memory** shows all of it
 at once and changes it later (stored in the relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay

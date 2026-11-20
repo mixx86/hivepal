@@ -334,7 +334,7 @@
     <string name="delivery_title">Tus agentes: avisos y memoria</string>
     <string name="delivery_skip">Ahora no</string>
     <string name="delivery_email">Correo</string>
-    <string name="delivery_email_body">Cuando escribes a un agente, el relay le manda un correo de aviso (nunca tu mensaje), así un agente que se ejecuta con un correo arranca al momento. La dirección de cada agente se pone en Agentes.</string>
+    <string name="delivery_email_body">Un timbre: en cuanto escribes, el relay manda al agente un correo corto (nunca tu mensaje). Para agentes que arrancan al recibir un correo, como las tareas de Grok: se ejecutan al momento en vez de en su próxima hora. La dirección de cada agente se pone en Agentes.</string>
     <string name="delivery_email_now">Enviando desde %1$s por %2$s.</string>
     <string name="delivery_email_address">Cuenta desde la que enviar (vale un Gmail aparte)</string>
     <string name="delivery_email_password">Su contraseña</string>
@@ -342,7 +342,7 @@
     <string name="delivery_email_save">Comprobar y guardar</string>
     <string name="delivery_email_saved">Guardado: el relay inició sesión. Pon la dirección de cada agente en Agentes.</string>
     <string name="delivery_mailboxes">Buzones (archivos Markdown)</string>
-    <string name="delivery_mailboxes_body">El relay escribe cada mensaje que mandas a un agente como un archivo Markdown en su buzón, un repositorio git que el agente lee. Después, el correo si lo tiene.</string>
+    <string name="delivery_mailboxes_body">Tus mensajes guardados como archivos Markdown en un repositorio git que el agente lee al arrancar. Con correo también, los archivos ya están antes de que suene el timbre.</string>
     <string name="delivery_repo_relay">Guardados en el relay</string>
     <string name="delivery_repo_relay_body">Nada que configurar: cada agente clona su buzón desde el relay con su clave.</string>
     <string name="delivery_repo_external">También en mi repositorio</string>
@@ -371,10 +371,10 @@
     <string name="agent_mailbox_clone">El agente lo clona con su propia clave:</string>
     <string name="agent_mailbox_repo">También se sube a %1$s, en mailbox/%2$s/.</string>
     <string name="delivery_intro_body">Dos cosas opcionales, guardadas en tu relay: cómo se enteran tus agentes de que les escribiste, y si recuerdan vuestras conversaciones.</string>
-    <string name="delivery_always">Lee Hivepal por sí mismo</string>
-    <string name="delivery_always_body">Claude Code, OpenClaw, un script con la CLI o la API: le llegan tus mensajes al momento. No necesita aviso.</string>
-    <string name="delivery_sometimes">Algunos necesitan un aviso</string>
-    <string name="delivery_sometimes_body">Rutinas, tareas programadas, bots de Grok: solo se ejecutan a ratos. Hivepal puede despertarlos con un correo, o dejarte los mensajes en un buzón que ellos leen.</string>
+    <string name="delivery_always">Están siempre encendidos</string>
+    <string name="delivery_always_body">Claude Code, OpenClaw, un script que espera tus mensajes: se enteran al momento. No hace falta nada.</string>
+    <string name="delivery_sometimes">Algunos solo se encienden a ratos</string>
+    <string name="delivery_sometimes_body">Rutinas, tareas programadas, bots de Grok: Hivepal puede despertarlos con un correo o dejarles tus mensajes en un buzón.</string>
     <string name="delivery_change_later">Puedes cambiarlo todo luego en Ajustes → Agentes: correo, buzones, memoria.</string>
     <string name="delivery_channels_title">¿Cómo les llega el aviso?</string>
     <string name="delivery_channels_body">Elige uno o los dos.</string>
@@ -421,7 +421,7 @@
     <string name="summary_memory_sqlite">Los bots recuerdan (con búsqueda)</string>
     <string name="summary_memory_both">Los bots recuerdan (notas y búsqueda)</string>
     <string name="seen_just_now">visto hace un momento</string>
-    <string name="delivery_intro_question">Primero: cuando escribes a un agente, ¿cómo se entera?</string>
+    <string name="delivery_intro_question">Primero: ¿tus agentes están siempre encendidos?</string>
     <string name="language_english">Inglés</string>
     <string name="language_spanish">Español</string>
     <string name="typing">escribiendo…</string>
