@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -110,6 +111,8 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
     }
     // Once paired there is no going back to the pairing pages.
     val canGoBack = step == Step.HOW || step == Step.PAIR
+    // The agents step goes back through its own questions.
+    var deliveryBack by remember { mutableStateOf<(() -> Unit)?>(null) }
     // Builds without a hosted service skip the "cloud or own server" question.
     val offerCloud = BuildConfig.CLOUD_URL.isNotEmpty()
     // Before pairing, reserve the optional step; once the relay answers, hide it for Firebase.
@@ -132,7 +135,7 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
                 TutorialTopBar(
                     index = displayedIndex(step),
                     total = displayedTotal,
-                    onBack = if (canGoBack) ::back else null,
+                    onBack = if (canGoBack) ::back else if (step == Step.AGENTS) deliveryBack else null,
                 )
             }
         },
@@ -157,7 +160,7 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
                 })
                 Step.PUSH -> PushSetupPage(onReady = { step = Step.CALLS })
                 Step.CALLS -> CallsPage(onNext = { step = Step.AGENTS })
-                Step.AGENTS -> AgentsDeliveryPage(onNext = { step = Step.DONE })
+                Step.AGENTS -> AgentsDeliveryPage(onNext = { deliveryBack = null; step = Step.DONE }, setBack = { deliveryBack = it })
                 Step.DONE -> DonePage(Graph.pairing.current ?: paired, onFinished)
             }
         }
@@ -625,17 +628,163 @@ private fun CallsPage(onNext: () -> Unit) {
 }
 
 /** Hivepal: how agents hear from you (email, mailboxes) and whether bots remember; may be skipped. */
+/** The questions of the "how your agents hear from you" step, one per page. */
+private enum class Ask { INTRO, CHANNELS, EMAIL, MAILBOX, MEMORY, SUMMARY }
+
+/**
+ * How agents hear from you, and whether they remember: a few short questions, each on its own page,
+ * that lead to every option (email, mailboxes in the relay or your repository, memory as notes or a
+ * database). Each answer is saved in the relay as it's given; Settings shows all of it at once.
+ */
 @Composable
-private fun AgentsDeliveryPage(onNext: () -> Unit) {
-    Page(bottom = {
-        PrimaryButton(stringResource(R.string.continue_), "delivery_next", onClick = onNext)
+private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> Unit) {
+    val m = rememberDeliveryModel()
+    var ask by rememberSaveable { mutableStateOf(Ask.INTRO) }
+    // The questions answered so far, to go back through them (names, so it survives a rotation).
+    var trail by rememberSaveable { mutableStateOf("") }
+    var wantEmail by rememberSaveable { mutableStateOf(false) }
+    var wantMailbox by rememberSaveable { mutableStateOf(false) }
+    var external by rememberSaveable { mutableStateOf(false) }
+    var seeded by rememberSaveable { mutableStateOf(false) }
+    val s = m.settings
+    LaunchedEffect(s != null) {
+        if (s != null && !seeded) {
+            seeded = true
+            wantEmail = s.email.configured
+            wantMailbox = s.mailboxes.allAgents
+            external = s.mailboxRepo.url != null
+        }
+    }
+    fun go(to: Ask) {
+        trail = if (trail.isEmpty()) ask.name else "$trail,${ask.name}"
+        ask = to
+    }
+    fun back() {
+        val steps = trail.split(',')
+        ask = Ask.valueOf(steps.last())
+        trail = steps.dropLast(1).joinToString(",")
+    }
+    val canGoBack = trail.isNotEmpty()
+    BackHandler(enabled = canGoBack) { back() }
+    SideEffect { setBack(if (canGoBack) ::back else null) }
+
+    val skip: @Composable () -> Unit = {
         androidx.compose.material3.TextButton(onClick = onNext, modifier = Modifier.testTag("delivery_skip")) {
             Text(stringResource(R.string.delivery_skip))
         }
-    }) {
-        PageHeader(R.string.delivery_title, R.string.delivery_page_body, rememberVectorPainter(Icons.Filled.Email))
-        DeliverySetup(Modifier.fillMaxWidth())
     }
+    if (s == null) {
+        // An older relay doesn't have it: nothing to ask.
+        Page(bottom = { PrimaryButton(stringResource(R.string.continue_), "delivery_next", onClick = onNext); skip() }) {
+            PageHeader(R.string.delivery_title, R.string.delivery_intro_body, rememberVectorPainter(Icons.Filled.Email))
+            Text(
+                m.loadError?.let { stringResource(R.string.delivery_unavailable, it) } ?: stringResource(R.string.loading),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+
+    AnimatedContent(
+        targetState = ask,
+        transitionSpec = {
+            val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+            (slideInHorizontally { it * dir / 4 } + fadeIn()) togetherWith (slideOutHorizontally { -it * dir / 4 } + fadeOut())
+        },
+        label = "delivery",
+    ) { a ->
+        when (a) {
+            Ask.INTRO -> Page(bottom = { skip() }) {
+                PageHeader(R.string.delivery_title, R.string.delivery_intro_body, rememberVectorPainter(Icons.Filled.Email))
+                ChoiceCard(
+                    stringResource(R.string.delivery_always), stringResource(R.string.delivery_always_body),
+                    selected = false, tag = "delivery_always",
+                ) { go(Ask.MEMORY) }
+                ChoiceCard(
+                    stringResource(R.string.delivery_sometimes), stringResource(R.string.delivery_sometimes_body),
+                    selected = false, tag = "delivery_sometimes",
+                ) { go(Ask.CHANNELS) }
+                Hint(R.string.delivery_change_later)
+            }
+
+            Ask.CHANNELS -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = (wantEmail || wantMailbox) && !m.busy) {
+                    if (wantMailbox != s.mailboxes.allAgents) m.change({ it.setMailboxesForAll(wantMailbox) })
+                    go(if (wantEmail) Ask.EMAIL else Ask.MAILBOX)
+                }
+            }) {
+                PageHeader(R.string.delivery_channels_title, R.string.delivery_channels_body)
+                ChoiceCard(
+                    stringResource(R.string.delivery_email), stringResource(R.string.delivery_email_body),
+                    selected = wantEmail, tag = "delivery_email", multi = true,
+                ) { wantEmail = !wantEmail }
+                ChoiceCard(
+                    stringResource(R.string.delivery_mailboxes), stringResource(R.string.delivery_mailboxes_body),
+                    selected = wantMailbox, tag = "delivery_mailboxes", multi = true,
+                ) { wantMailbox = !wantMailbox }
+            }
+
+            Ask.EMAIL -> Page(bottom = {
+                val next = if (wantMailbox) Ask.MAILBOX else Ask.MEMORY
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = s.email.configured && !m.busy) { go(next) }
+                if (!s.email.configured) {
+                    androidx.compose.material3.TextButton(onClick = { go(next) }, modifier = Modifier.testTag("delivery_not_now")) {
+                        Text(stringResource(R.string.delivery_not_now))
+                    }
+                }
+            }) {
+                PageHeader(R.string.delivery_email_title, R.string.delivery_email_page_body)
+                EmailForm(m)
+            }
+
+            Ask.MAILBOX -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = !m.busy && (!external || s.mailboxRepo.url != null)) {
+                    if (!external && s.mailboxRepo.url != null) m.change({ it.setMailboxRepo(null) })
+                    go(Ask.MEMORY)
+                }
+            }) {
+                PageHeader(R.string.delivery_where_title, R.string.delivery_where_body)
+                ChoiceCard(
+                    stringResource(R.string.delivery_repo_relay), stringResource(R.string.delivery_repo_relay_body),
+                    selected = !external, tag = "delivery_repo_relay", badge = stringResource(R.string.recommended),
+                ) { external = false }
+                ChoiceCard(
+                    stringResource(R.string.delivery_repo_external), stringResource(R.string.delivery_repo_external_body),
+                    selected = external, tag = "delivery_repo_external",
+                ) { external = true }
+                if (external) RepoForm(m)
+            }
+
+            Ask.MEMORY -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_next", enabled = !m.busy) { go(Ask.SUMMARY) }
+            }) {
+                PageHeader(R.string.delivery_memory_title, R.string.delivery_memory_page_body)
+                MemoryChoices(m, cards = true)
+            }
+
+            Ask.SUMMARY -> Page(bottom = {
+                PrimaryButton(stringResource(R.string.continue_), "delivery_done", onClick = onNext)
+            }) {
+                PageHeader(R.string.delivery_summary_title, R.string.delivery_summary_body, rememberVectorPainter(Icons.Filled.Check))
+                DeliverySummary(s)
+                if (s.email.configured) Hint(R.string.delivery_summary_next_email)
+                if (s.mailboxes.allAgents) Hint(R.string.delivery_summary_next_mailbox)
+                Hint(R.string.delivery_change_later)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: Int) {
+    Text(
+        stringResource(text),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

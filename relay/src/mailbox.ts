@@ -81,10 +81,11 @@ export const runGit: GitRunner = (args, cwd, env) =>
   new Promise((resolve, reject) => {
     execFile(
       "git",
-      // Only these transports, whatever the URL or the repository's config say.
+      // Only these transports, whatever the URL or the repository's config say. LC_ALL=C: git's
+      // messages in English whatever the host's language (the relay matches some of them).
       ["-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "protocol.ssh.allow=always",
         "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", ...args],
-      { cwd, timeout: GIT_TIMEOUT_MS, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env }, maxBuffer: 4 << 20 },
+      { cwd, timeout: GIT_TIMEOUT_MS, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", LC_ALL: "C", LANGUAGE: "C", ...env }, maxBuffer: 4 << 20 },
       (err, stdout, stderr) => (err ? reject(new Error(gitError(stderr || err.message))) : resolve(stdout)),
     );
   });
@@ -147,6 +148,11 @@ export class Mailbox {
 
   repoStatus(): RepoStatus {
     return { ...this.status };
+  }
+
+  /** Another repository (or none): what happened with the old one no longer applies. */
+  repoChanged(): void {
+    this.status = {};
   }
 
   /** The SSH public key the external repository must accept (with write access); created on first use. */
@@ -233,6 +239,7 @@ export class Mailbox {
         // An empty repository has no HEAD to push yet: that's fine, the first message creates it.
         if (!/does not match any|src refspec/i.test(err.message)) throw err;
       });
+      this.status = { ...this.status, last_error: undefined };
     });
   }
 
@@ -304,6 +311,7 @@ export class Mailbox {
     await this.git(["config", "user.name", "Hivepal relay"], dir);
     await this.git(["config", "user.email", "relay@hivepal.invalid"], dir);
     writeFileSync(mark, want);
+    this.status = { ...this.status, last_error: undefined };
     return dir;
   }
 

@@ -123,7 +123,7 @@ export class Wake {
     const mailer = this.mailer();
     if (!mailer) return;
     mailer
-      .send(to, `Hivepal: ${ids.join(" ")}`, `Mensajes nuevos en Hivepal para: ${ids.join(", ")}. Léelos con: hivepal replies`)
+      .send(to, `Hivepal: ${ids.join(" ")}`, `New messages in Hivepal for: ${ids.join(", ")}. Read them with: hivepal replies`)
       .catch((err: unknown) => this.log.warn({ err, to }, "wake email failed"));
   }
 

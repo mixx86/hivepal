@@ -10,6 +10,24 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Changed
+
+- App: the setup's "how your agents hear from you" step is now a few short questions, one per page (do
+  they stay running or run now and then; email and/or mailboxes; where the mailboxes live; memory), with
+  a summary at the end; every option is still there. The server field only appears for providers it
+  doesn't know, each check shows its result right under its button, and memory is one choice (no, notes,
+  searchable, both) in the setup and in Settings.
+- App: the main buttons (new group, send) glow still instead of pulsing; only what needs attention moves.
+
+### Fixed
+
+- Relay: a mail server that can't be reached says so ("Couldn't connect to host:port") instead of an empty
+  or `ESOCKET` message; a repository check that works clears the previous error, and so does choosing
+  another repository; git runs in English whatever the host's language (the relay reads its messages).
+- Relay: the wake-up email's text is in English, like the test one.
+- App: an agent's `git clone` line uses the relay's own scheme (`http://` for a relay on your network);
+  an agent seen under a minute ago reads "seen just now".
+
 ## [0.7.0] - 2026-11-20
 
 ### Added

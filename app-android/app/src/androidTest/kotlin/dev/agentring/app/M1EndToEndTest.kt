@@ -143,7 +143,7 @@ class M1EndToEndTest {
         screenshot("02-calls")
         compose.onNodeWithTag("calls_next").performClick()
         // How agents hear from you (read from the relay), skipped here.
-        waitForTag("delivery_mailboxes", timeoutMs = 20_000)
+        waitForTag("delivery_always", timeoutMs = 20_000)
         screenshot("02-delivery")
         compose.onNodeWithTag("delivery_skip").performClick()
         waitForTag("continue")

@@ -47,8 +47,11 @@ the `git clone` line it uses.
 
 ## How agents hear from you
 
-The setup asks, and **Settings → Agents: email, mailboxes, memory** changes it later (stored in the
-relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay
+The setup asks a few short questions, one per page: do your agents stay running (then nothing to set
+up) or only run now and then; if so, wake them by email, leave your messages in a mailbox, or both;
+where the mailboxes live; whether your bots remember; and a summary at the end. Each answer is saved as
+you give it, and you can skip the step. **Settings → Agents: email, mailboxes, memory** shows all of it
+at once and changes it later (stored in the relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay
 logs in before saving it), **mailboxes** for every agent, kept in the relay or also pushed to your
 repository (with the relay's deploy key to copy and **Check access**), and **memory for your bots**: off,
 Markdown or SQLite ([what each does](agents.md#how-agents-hear-from-you-and-remember)).

@@ -169,6 +169,8 @@ fun AgentsScreen(pairing: Pairing, onOpenChat: (String) -> Unit) {
                     Text(
                         stringResource(R.string.agent_id_label, a.agentId) + when {
                             a.agentId in online -> " · " + stringResource(R.string.agent_online)
+                            // Under a minute reads "0 minutes ago" otherwise.
+                            seen != null && System.currentTimeMillis() - seen < 60_000 -> " · " + stringResource(R.string.seen_just_now)
                             seen != null -> " · " + stringResource(R.string.last_seen, android.text.format.DateUtils.getRelativeTimeSpanString(
                                 seen, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString())
                             else -> ""

@@ -218,7 +218,7 @@ private fun DrawerHeader(pairing: Pairing) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(
-            Modifier.size(52.dp).breathingGlow(radius = 1.5f)
+            Modifier.size(52.dp).softGlow(radius = 1.5f)
                 .background(Retro.Ink, androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
         ) {
             Icon(painterResource(R.drawable.ic_launcher_foreground), null, tint = Color.Unspecified, modifier = Modifier.fillMaxSize())

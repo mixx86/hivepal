@@ -17,6 +17,20 @@ import { Memory } from "../memory.js";
 import { EMAIL_RE, smtpServerFor, smtpUrl } from "../settings.js";
 import { smtpMailer } from "../wake.js";
 
+/** What went wrong logging in to the mail server, in words (a refused connection has no message of its own). */
+export function mailError(e: unknown, server: string): string {
+  const err = e as { message?: string; code?: string; originalCode?: string; responseCode?: number; errors?: Array<{ code?: string }> };
+  const where = server.replace(/^smtps?:\/\//, "");
+  // nodemailer wraps the socket's error (ESOCKET, EDNS): the cause is in errors[] or originalCode.
+  const codes = new Set([...(err?.errors ?? []).map((x) => x?.code), err?.originalCode, err?.code].filter(Boolean));
+  if (codes.has("ECONNREFUSED")) return `Couldn't connect to ${where}: nothing answers there (check the server and port)`;
+  if (codes.has("ENOTFOUND") || codes.has("EAI_AGAIN") || codes.has("EDNS")) return `Couldn't find the server ${where.split(":")[0]} (check its name)`;
+  if (codes.has("ETIMEDOUT") || codes.has("ETIMEOUT")) return `${where} didn't answer in time (check the server and port, or a firewall)`;
+  if (codes.has("EAUTH") || err?.responseCode === 535) return `The mail server refused the address or password${err?.message ? ` (${err.message})` : ""}. Gmail needs an app password.`;
+  const msg = err?.message?.trim() || [...codes].join(" ") || String(e);
+  return `The mail server said: ${msg}`;
+}
+
 const AGENT_PARAMS = { type: "object", properties: { agent_id: { type: "string", pattern: AGENT_ID_RE.source } } } as const;
 
 /** What git's dumb HTTP protocol reads from a repository. */
@@ -81,7 +95,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Ctx): void {
       try {
         await m.verify?.();
       } catch (e) {
-        throw new ApiError(502, "email_failed", `The mail server said: ${e instanceof Error ? e.message : String(e)}`);
+        throw new ApiError(502, "email_failed", mailError(e, host));
       }
       settings.setSmtpUrl(url);
       return view();
@@ -109,7 +123,9 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Ctx): void {
         if (problem) throw new ApiError(400, "invalid_request", `Repository: ${problem}`);
         if (req.body.branch?.startsWith("-")) throw new ApiError(400, "invalid_request", "Not a branch name");
       }
+      const before = settings.repo();
       settings.setRepo(url, req.body.branch);
+      if (before?.url !== url || (before?.branch ?? "") !== (req.body.branch ?? "")) mailbox.repoChanged();
       return view();
     },
   );

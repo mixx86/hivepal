@@ -75,7 +75,18 @@ fun Modifier.pressBounce(source: MutableInteractionSource): Modifier = composed 
     this.scale(scale)
 }
 
-/** A soft glow that breathes behind the element (send button, call button). */
+/** A still, soft glow behind the element (the main buttons): the brand's light, without moving. */
+fun Modifier.softGlow(color: Color = Retro.Blue, radius: Float = 1.25f, alpha: Float = 0.28f): Modifier = drawBehind {
+    drawCircle(
+        Brush.radialGradient(listOf(color.copy(alpha = alpha), Color.Transparent), center, size.minDimension * radius / 2),
+        radius = size.minDimension * radius / 2,
+    )
+}
+
+/**
+ * A soft glow that breathes behind the element. Movement draws the eye, so only for what needs
+ * attention now (a subscription about to renew); steady buttons use [softGlow].
+ */
 fun Modifier.breathingGlow(color: Color = Retro.Blue, radius: Float = 1.25f): Modifier = composed {
     val t = rememberInfiniteTransition(label = "glow")
     val a by t.animateFloat(0.15f, 0.45f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "a")
