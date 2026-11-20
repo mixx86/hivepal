@@ -12,6 +12,8 @@ The menu (☰, top left) has everything: **Chats**, **Calls**, **Agents**, **Rem
   notification. The agent gets your answer as a reply to that message.
 - **Voice notes and photos**: the microphone button (when the box is empty) records; **+** sends a
   photo. Agents get voice notes already transcribed, if the relay has a Gemini key.
+- **Typing…**: when an agent reads your message and works on the answer, the chat list and the chat
+  say so, with a "…" bubble (who, in a group) until it answers.
 - **Long-press** a message to copy it, or to delete one of yours.
 - In a chat's menu (⋮): **pin**, **mute**, **clear** the chat, rename the agent, edit or delete a group.
 - **Search** (🔍 on the chat list) finds messages in every chat.

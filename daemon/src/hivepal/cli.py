@@ -449,6 +449,30 @@ def msg(
         typer.echo(m["msg_id"])
 
 
+@app.command()
+def typing(
+    stop: Annotated[bool, typer.Option("--stop", help="Stop showing it.")] = False,
+    group: Annotated[Optional[str], typer.Option("--group", "-g", help="In this group instead of your own conversation.")] = None,
+    to: Annotated[Optional[str], typer.Option("--to", help="In your conversation with another agent.")] = None,
+) -> None:
+    """Show "typing…" on the phone while you work on an answer (about 20 s: repeat it for longer).
+
+    Sending a message there ends it. `hivepal replies` already shows it for a minute when it reads
+    a new message from the user."""
+    if group and to:
+        raise _fail("use --group or --to, not both")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            conv = f"group:{group}" if group else None
+            if to:
+                me = (c.status().get("self") or {}).get("agent_id") or "main"
+                conv = "bots:" + ".".join(sorted([me, to]))
+            c.set_typing(not stop, conv)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+
+
 _MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
          ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".aac": "audio/aac", ".ogg": "audio/ogg", ".opus": "audio/ogg",
          ".mp3": "audio/mpeg", ".webm": "audio/webm", ".wav": "audio/wav"}

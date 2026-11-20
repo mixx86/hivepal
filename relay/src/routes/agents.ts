@@ -89,6 +89,7 @@ export function agentRoutes(app: FastifyInstance, ctx: Ctx): void {
       const changed = agents.remove(agent_id);
       if (!a || !changed) throw notFound("Agent");
       hub.disconnectAgent(agent_id);
+      ctx.typing?.stop(agent_id);
       announceAgent(a, true);
       changed.forEach((g) => announceGroup(g));
       return reply.code(204).send();

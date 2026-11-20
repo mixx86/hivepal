@@ -391,6 +391,16 @@ sealed interface Event {
         @SerialName("agent_id") val agentId: String? = null,
     ) : Event
 
+    /** Hivepal: an agent started or stopped writing (ephemeral; `until` is when it ends by itself). */
+    @Serializable
+    data class AgentTyping(
+        override val type: String, override val id: String, override val ts: Long, override val seq: Long? = null,
+        @SerialName("agent_id") val agentId: String,
+        val conv: String,
+        val typing: Boolean,
+        val until: Long? = null,
+    ) : Event
+
     /** Hivepal: its author deleted a message. */
     @Serializable
     data class MsgDeleted(
@@ -450,6 +460,7 @@ sealed interface Event {
                 "agent.updated" -> j.decodeFromJsonElement(AgentUpdated.serializer(), obj)
                 "group.updated" -> j.decodeFromJsonElement(GroupUpdated.serializer(), obj)
                 "msg.deleted" -> j.decodeFromJsonElement(MsgDeleted.serializer(), obj)
+                "agent.typing" -> j.decodeFromJsonElement(AgentTyping.serializer(), obj)
                 else -> Unknown(
                     type = type,
                     id = obj["id"]?.jsonPrimitive?.content ?: "",

@@ -62,6 +62,7 @@ Every event is a flat JSON object:
 | `msg.read` | `msg_id, by` | ✓ | the other side read it |
 | `agent.presence` | `online` | ✗ | daemon WS connected / disconnected (devices only) |
 | `ws.hello` | `relay_id, last_seq, server_ts` | ✗ | first frame on every WebSocket |
+| `agent.typing` | `agent_id, conv, typing, until?` | ✗ | Hivepal: an agent started or stopped writing (devices only; a phone that connects gets who is writing now) |
 
 - `direction`: `agent_to_user` (agent calls phone) or `user_to_agent`.
 - `priority`: `normal` | `urgent`. Urgent = alarm stream + bypass DnD if the
