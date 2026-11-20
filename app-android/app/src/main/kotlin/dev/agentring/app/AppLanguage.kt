@@ -13,7 +13,8 @@ import java.util.Locale
  * store it here and every context is wrapped with it.
  */
 object AppLanguage {
-    val SUPPORTED = listOf("en" to "English", "es" to "Español")
+    /** Each language and its name in the app's current language (English · Spanish, Inglés · Español). */
+    val SUPPORTED = listOf("en" to R.string.language_english, "es" to R.string.language_spanish)
     private const val PREFS = "hivepal_ui"
     private const val KEY = "lang"
     private const val DEFAULT = "en"

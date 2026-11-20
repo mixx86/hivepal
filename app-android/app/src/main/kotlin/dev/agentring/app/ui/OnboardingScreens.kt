@@ -697,6 +697,11 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
         when (a) {
             Ask.INTRO -> Page(bottom = { skip() }) {
                 PageHeader(R.string.delivery_title, R.string.delivery_intro_body, rememberVectorPainter(Icons.Filled.Email))
+                Text(
+                    stringResource(R.string.delivery_intro_question),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
                 ChoiceCard(
                     stringResource(R.string.delivery_always), stringResource(R.string.delivery_always_body),
                     selected = false, tag = "delivery_always",
@@ -839,7 +844,7 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
 }
 
 
-/** English · Español, for someone who hasn't paired yet (Settings has the same choice later). */
+/** English · Spanish (in the current language), for someone who hasn't paired yet (Settings has the same choice later). */
 @Composable
 private fun LanguageToggle() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -860,7 +865,7 @@ private fun LanguageToggle() {
                 modifier = Modifier.testTag("welcome_lang_$tag"),
             ) {
                 Text(
-                    label,
+                    stringResource(label),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (tag == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = if (tag == current) androidx.compose.ui.text.font.FontWeight.Bold else null,

@@ -331,7 +331,7 @@
     <string name="sending">Enviando…</string>
     <string name="delivery_unavailable">No se pudo leer del relay (%1$s). Puede que un relay antiguo aún no lo tenga.</string>
     <string name="delivery_section">Agentes: correo, buzones, memoria</string>
-    <string name="delivery_title">Cómo se enteran tus agentes</string>
+    <string name="delivery_title">Tus agentes: avisos y memoria</string>
     <string name="delivery_skip">Ahora no</string>
     <string name="delivery_email">Correo</string>
     <string name="delivery_email_body">Cuando escribes a un agente, el relay le manda un correo de aviso (nunca tu mensaje), así un agente que se ejecuta con un correo arranca al momento. La dirección de cada agente se pone en Agentes.</string>
@@ -370,20 +370,20 @@
     <string name="agent_mailbox_off">Sin buzón</string>
     <string name="agent_mailbox_clone">El agente lo clona con su propia clave:</string>
     <string name="agent_mailbox_repo">También se sube a %1$s, en mailbox/%2$s/.</string>
-    <string name="delivery_intro_body">Los agentes que están siempre en marcha ven tus mensajes al momento. Los que solo se ejecutan de vez en cuando necesitan un aviso. Unas pocas preguntas; todo se puede cambiar luego.</string>
-    <string name="delivery_always">Están siempre en marcha</string>
-    <string name="delivery_always_body">Claude Code, OpenClaw, un script que escucha… No hay nada que configurar para ellos.</string>
-    <string name="delivery_sometimes">Algunos solo se ejecutan a ratos</string>
-    <string name="delivery_sometimes_body">Rutinas, tareas programadas, bots de Grok… Hivepal puede despertarlos por correo o dejarte los mensajes donde ellos miran.</string>
+    <string name="delivery_intro_body">Dos cosas opcionales, guardadas en tu relay: cómo se enteran tus agentes de que les escribiste, y si recuerdan vuestras conversaciones.</string>
+    <string name="delivery_always">Lee Hivepal por sí mismo</string>
+    <string name="delivery_always_body">Claude Code, OpenClaw, un script con la CLI o la API: le llegan tus mensajes al momento. No necesita aviso.</string>
+    <string name="delivery_sometimes">Algunos necesitan un aviso</string>
+    <string name="delivery_sometimes_body">Rutinas, tareas programadas, bots de Grok: solo se ejecutan a ratos. Hivepal puede despertarlos con un correo, o dejarte los mensajes en un buzón que ellos leen.</string>
     <string name="delivery_change_later">Puedes cambiarlo todo luego en Ajustes → Agentes: correo, buzones, memoria.</string>
-    <string name="delivery_channels_title">¿Cómo se enteran?</string>
+    <string name="delivery_channels_title">¿Cómo les llega el aviso?</string>
     <string name="delivery_channels_body">Elige uno o los dos.</string>
     <string name="delivery_email_title">La cuenta que envía los correos</string>
     <string name="delivery_email_page_body">Mejor una cuenta aparte que la tuya. Luego, en Agentes, le das a cada agente la dirección que lo despierta.</string>
     <string name="delivery_not_now">Ahora no</string>
     <string name="delivery_where_title">Dónde viven los buzones</string>
     <string name="delivery_where_body">Cada agente tiene el suyo: un repositorio git con un archivo Markdown por mensaje.</string>
-    <string name="delivery_memory_title">¿Quieres que tus bots recuerden?</string>
+    <string name="delivery_memory_title">Por último: ¿quieres que tus bots recuerden?</string>
     <string name="delivery_memory_page_body">Así cada ejecución sigue donde lo dejó la anterior: lo que le pediste y lo que contestó.</string>
     <string name="delivery_summary_title">Listo</string>
     <string name="delivery_summary_body">Así se enteran ahora tus agentes.</string>
@@ -421,4 +421,7 @@
     <string name="summary_memory_sqlite">Los bots recuerdan (con búsqueda)</string>
     <string name="summary_memory_both">Los bots recuerdan (notas y búsqueda)</string>
     <string name="seen_just_now">visto hace un momento</string>
+    <string name="delivery_intro_question">Primero: cuando escribes a un agente, ¿cómo se entera?</string>
+    <string name="language_english">Inglés</string>
+    <string name="language_spanish">Español</string>
 </resources>

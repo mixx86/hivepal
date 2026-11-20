@@ -339,7 +339,7 @@
     <string name="sending">Sending…</string>
     <string name="delivery_unavailable">Couldn\'t read it from the relay (%1$s). An older relay may not have it yet.</string>
     <string name="delivery_section">Agents: email, mailboxes, memory</string>
-    <string name="delivery_title">How your agents hear from you</string>
+    <string name="delivery_title">Your agents: notices and memory</string>
     <string name="delivery_skip">Skip for now</string>
     <string name="delivery_email">Email</string>
     <string name="delivery_email_body">When you write to an agent, the relay emails it a doorbell (never your message), so an agent that runs on an email starts at once. Each agent\'s address goes in Agents.</string>
@@ -378,20 +378,20 @@
     <string name="agent_mailbox_off">No mailbox</string>
     <string name="agent_mailbox_clone">The agent clones it with its own key:</string>
     <string name="agent_mailbox_repo">Also pushed to %1$s, in mailbox/%2$s/.</string>
-    <string name="delivery_intro_body">Agents that stay running see your messages at once. Agents that only run now and then need a nudge. A few short questions; everything can be changed later.</string>
-    <string name="delivery_always">They stay running</string>
-    <string name="delivery_always_body">Claude Code, OpenClaw, a script that listens… Nothing to set up for them.</string>
-    <string name="delivery_sometimes">Some only run now and then</string>
-    <string name="delivery_sometimes_body">Routines, scheduled tasks, Grok bots… Hivepal can wake them by email or leave your messages where they look.</string>
+    <string name="delivery_intro_body">Two optional things, both kept in your relay: how your agents find out you wrote to them, and whether they remember your conversations.</string>
+    <string name="delivery_always">It reads Hivepal itself</string>
+    <string name="delivery_always_body">Claude Code, OpenClaw, a script using the CLI or the API: it gets your messages as they arrive. No notice needed.</string>
+    <string name="delivery_sometimes">Some need a notice</string>
+    <string name="delivery_sometimes_body">Routines, scheduled tasks, Grok bots: they only run now and then. Hivepal can wake them with an email, or leave your messages in a mailbox they read.</string>
     <string name="delivery_change_later">You can change all of it later in Settings → Agents: email, mailboxes, memory.</string>
-    <string name="delivery_channels_title">How should they find out?</string>
+    <string name="delivery_channels_title">How should they get the notice?</string>
     <string name="delivery_channels_body">Pick one or both.</string>
     <string name="delivery_email_title">The account that sends the emails</string>
     <string name="delivery_email_page_body">Better a spare account than your own. Then, in Agents, you give each agent the address that starts it.</string>
     <string name="delivery_not_now">Not now</string>
     <string name="delivery_where_title">Where the mailboxes live</string>
     <string name="delivery_where_body">Each agent has its own: a git repository with a Markdown file per message.</string>
-    <string name="delivery_memory_title">Should your bots remember?</string>
+    <string name="delivery_memory_title">Last: should your bots remember?</string>
     <string name="delivery_memory_page_body">So each run picks up where the last one left off: what you asked and what it answered.</string>
     <string name="delivery_summary_title">All set</string>
     <string name="delivery_summary_body">This is how your agents hear from you now.</string>
@@ -429,4 +429,7 @@
     <string name="summary_memory_sqlite">Bots remember (searchable)</string>
     <string name="summary_memory_both">Bots remember (notes and searchable)</string>
     <string name="seen_just_now">seen just now</string>
+    <string name="delivery_intro_question">First: when you write to an agent, how does it find out?</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Spanish</string>
 </resources>

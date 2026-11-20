@@ -12,12 +12,13 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Changed
 
-- App: the setup's "how your agents hear from you" step is now a few short questions, one per page (do
-  they stay running or run now and then; email and/or mailboxes; where the mailboxes live; memory), with
+- App: the setup's agents step, now **Your agents: notices and memory**, is a few short questions, one
+  per page (does an agent read Hivepal itself or need a notice; email and/or mailboxes; where the mailboxes live; memory), with
   a summary at the end; every option is still there. The server field only appears for providers it
   doesn't know, each check shows its result right under its button, and memory is one choice (no, notes,
   searchable, both) in the setup and in Settings.
 - App: the main buttons (new group, send) glow still instead of pulsing; only what needs attention moves.
+- App: language names are in the app's language (English · Spanish, Inglés · Español).
 
 ### Fixed
 
