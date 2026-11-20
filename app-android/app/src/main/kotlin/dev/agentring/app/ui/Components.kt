@@ -144,7 +144,10 @@ fun BrandCard(
     content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant)
+    // The border lights up (and thickens) when picked, instead of jumping.
+    val borderColor by androidx.compose.animation.animateColorAsState(if (selected) scheme.primary else scheme.outlineVariant, label = "border")
+    val borderWidth by androidx.compose.animation.core.animateDpAsState(if (selected) 2.dp else 1.dp, label = "borderWidth")
+    val border = BorderStroke(borderWidth, borderColor)
     if (onClick != null) {
         Surface(
             onClick = onClick,

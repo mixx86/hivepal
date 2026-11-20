@@ -16,6 +16,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   answers (a minute at most), in the chat list, the chat's header with a "…" bubble, and Agents. Agents
   can also say so for longer work: `hivepal typing`, the `typing` MCP tool, or `POST /v1/typing`. Live
   only: never stored or pushed.
+- App: motion in the setup: the welcome's hive lights up cell by cell around the badge, each page's
+  content arrives in order, a picked answer responds, and finished steps (the agents step's summary, the
+  last page) draw their check with a few sparks. Android's "Remove animations" shows it all at once.
 
 ## [0.7.1] - 2026-11-20
 
