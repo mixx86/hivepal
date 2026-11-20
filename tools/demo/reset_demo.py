@@ -38,10 +38,18 @@ demo.adb("shell", "input", "tap", str(f["x"]), str(f["y"])); time.sleep(0.5)
 demo.adb("shell", "input text '" + code + "'"); time.sleep(1)
 demo.adb("shell", "input", "keyevent", "4"); time.sleep(1)
 demo.tap("Pair"); time.sleep(6)
-demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300"); time.sleep(1)
-lab = [(n["text"] or n["desc"]) for n in demo.nodes()]
-demo.tap(next(l for l in ("Continue", "Skip for now", "Next") if l in lab)); time.sleep(2.5)
-demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300"); time.sleep(1)
+# The rest of the setup (push, permissions, how agents hear from you) is skipped, page by page.
+SKIP = ("Skip for now (Settings → Notifications later)", "Skip for now", "Continue", "Next")
+for _ in range(10):
+    lab = [(n["text"] or n["desc"]) for n in demo.nodes()]
+    if "Open Hivepal" in lab:
+        break
+    step = next((l for l in SKIP if l in lab), None)
+    if step:
+        demo.tap(step)
+    else:
+        demo.adb("shell", "input", "swipe", "540", "1900", "540", "500", "300")
+    time.sleep(2.5)
 demo.tap("Open Hivepal"); time.sleep(2)
 p.terminate()
 demo.hp("penny", "msg", "May so far: €1,240 of €1,600. Groceries are under budget 👍")

@@ -16,6 +16,14 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
   answers (a minute at most), in the chat list, the chat's header with a "…" bubble, and Agents. Agents
   can also say so for longer work: `hivepal typing`, the `typing` MCP tool, or `POST /v1/typing`. Live
   only: never stored or pushed.
+- App: motion in the setup: the welcome shows the Hivepal logo assembling itself cell by cell, each page's
+  content arrives in order, a picked answer responds, and finished steps (the agents step's summary, the
+  last page) draw their check with a few sparks. Android's "Remove animations" shows it all at once.
+
+### Changed
+
+- App: the agents step asks "are your agents always on?" (or do some only start now and then), and says
+  what the email is for: a doorbell that starts an agent at once instead of at its next scheduled run.
 
 ## [0.7.1] - 2026-11-20
 

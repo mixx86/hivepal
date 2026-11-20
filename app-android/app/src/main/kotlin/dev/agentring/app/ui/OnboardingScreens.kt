@@ -358,29 +358,30 @@ private fun WelcomePage(onNext: () -> Unit) {
     }) {
         LanguageToggle()
         Spacer(Modifier.height(8.dp))
-        HeroBadge(painterResource(R.drawable.ic_call), pulse = true)
+        HiveLogo(size = 190.dp)
         Text(
             stringResource(R.string.welcome_title),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("title"),
+            modifier = Modifier.appear(2).testTag("title"),
         )
         Text(
             stringResource(R.string.welcome_body),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            modifier = Modifier.appear(3),
         )
         Spacer(Modifier.height(4.dp))
-        Feature(painterResource(R.drawable.ic_chat), R.string.feature_messages_title, R.string.feature_messages_body)
-        Feature(painterResource(R.drawable.ic_call), R.string.feature_calls_title, R.string.feature_calls_body)
-        Feature(painterResource(R.drawable.ic_mic), R.string.feature_callback_title, R.string.feature_callback_body)
+        Feature(painterResource(R.drawable.ic_chat), R.string.feature_messages_title, R.string.feature_messages_body, order = 5)
+        Feature(painterResource(R.drawable.ic_call), R.string.feature_calls_title, R.string.feature_calls_body, order = 6)
+        Feature(painterResource(R.drawable.ic_mic), R.string.feature_callback_title, R.string.feature_callback_body, order = 7)
     }
 }
 
 @Composable
-private fun Feature(icon: Painter, title: Int, body: Int) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Feature(icon: Painter, title: Int, body: Int, order: Int = 0) {
+    Row(Modifier.fillMaxWidth().appear(order), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium),
@@ -425,7 +426,7 @@ private fun HowPage(current: Setup, onPick: (Setup) -> Unit) {
 
 @Composable
 private fun SetupOption(icon: Painter, title: String, badge: String, body: String, selected: Boolean, tag: String, onClick: () -> Unit) {
-    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.testTag(tag)) {
+    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.appear(3).selectBounce(selected).testTag(tag)) {
         Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 contentAlignment = Alignment.Center,
@@ -453,20 +454,21 @@ private fun SetupOption(icon: Painter, title: String, badge: String, body: Strin
 }
 
 @Composable
-private fun PageHeader(title: Int, body: Int, icon: Painter? = null) {
-    if (icon != null) HeroBadge(icon, size = 80.dp)
+private fun PageHeader(title: Int, body: Int, icon: Painter? = null, success: Boolean = false) {
+    if (success) SuccessBadge(size = 80.dp)
+    else if (icon != null) Box(Modifier.appear(0)) { HeroBadge(icon, size = 80.dp) }
     Text(
         stringResource(title),
         style = MaterialTheme.typography.headlineMedium,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().testTag("title"),
+        modifier = Modifier.fillMaxWidth().appear(1).testTag("title"),
     )
     Text(
         stringResource(body),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().appear(2),
     )
 }
 
@@ -700,15 +702,15 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
                 Text(
                     stringResource(R.string.delivery_intro_question),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).appear(3),
                 )
                 ChoiceCard(
                     stringResource(R.string.delivery_always), stringResource(R.string.delivery_always_body),
-                    selected = false, tag = "delivery_always",
+                    selected = false, tag = "delivery_always", order = 4,
                 ) { go(Ask.MEMORY) }
                 ChoiceCard(
                     stringResource(R.string.delivery_sometimes), stringResource(R.string.delivery_sometimes_body),
-                    selected = false, tag = "delivery_sometimes",
+                    selected = false, tag = "delivery_sometimes", order = 5,
                 ) { go(Ask.CHANNELS) }
                 Hint(R.string.delivery_change_later)
             }
@@ -722,11 +724,11 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
                 PageHeader(R.string.delivery_channels_title, R.string.delivery_channels_body)
                 ChoiceCard(
                     stringResource(R.string.delivery_email), stringResource(R.string.delivery_email_body),
-                    selected = wantEmail, tag = "delivery_email", multi = true,
+                    selected = wantEmail, tag = "delivery_email", multi = true, order = 3,
                 ) { wantEmail = !wantEmail }
                 ChoiceCard(
                     stringResource(R.string.delivery_mailboxes), stringResource(R.string.delivery_mailboxes_body),
-                    selected = wantMailbox, tag = "delivery_mailboxes", multi = true,
+                    selected = wantMailbox, tag = "delivery_mailboxes", multi = true, order = 4,
                 ) { wantMailbox = !wantMailbox }
             }
 
@@ -740,7 +742,7 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
                 }
             }) {
                 PageHeader(R.string.delivery_email_title, R.string.delivery_email_page_body)
-                EmailForm(m)
+                EmailForm(m, Modifier.appear(3))
             }
 
             Ask.MAILBOX -> Page(bottom = {
@@ -752,11 +754,11 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
                 PageHeader(R.string.delivery_where_title, R.string.delivery_where_body)
                 ChoiceCard(
                     stringResource(R.string.delivery_repo_relay), stringResource(R.string.delivery_repo_relay_body),
-                    selected = !external, tag = "delivery_repo_relay", badge = stringResource(R.string.recommended),
+                    selected = !external, tag = "delivery_repo_relay", badge = stringResource(R.string.recommended), order = 3,
                 ) { external = false }
                 ChoiceCard(
                     stringResource(R.string.delivery_repo_external), stringResource(R.string.delivery_repo_external_body),
-                    selected = external, tag = "delivery_repo_external",
+                    selected = external, tag = "delivery_repo_external", order = 4,
                 ) { external = true }
                 if (external) RepoForm(m)
             }
@@ -771,7 +773,7 @@ private fun AgentsDeliveryPage(onNext: () -> Unit, setBack: ((() -> Unit)?) -> U
             Ask.SUMMARY -> Page(bottom = {
                 PrimaryButton(stringResource(R.string.continue_), "delivery_done", onClick = onNext)
             }) {
-                PageHeader(R.string.delivery_summary_title, R.string.delivery_summary_body, rememberVectorPainter(Icons.Filled.Check))
+                PageHeader(R.string.delivery_summary_title, R.string.delivery_summary_body, success = true)
                 DeliverySummary(s)
                 if (s.email.configured) Hint(R.string.delivery_summary_next_email)
                 if (s.mailboxes.allAgents) Hint(R.string.delivery_summary_next_mailbox)
@@ -799,18 +801,19 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
     Page(bottom = {
         PrimaryButton(stringResource(R.string.open_app), "continue", onClick = onFinished)
     }) {
-        HeroBadge(rememberVectorPainter(Icons.Filled.Check), size = 88.dp, pulse = true)
+        SuccessBadge(size = 88.dp)
         Text(
             stringResource(R.string.done_title, pairing?.agentName ?: "hivepal"),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
-            modifier = Modifier.testTag("title"),
+            modifier = Modifier.appear(2).testTag("title"),
         )
         Text(
             stringResource(R.string.done_subtitle),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            modifier = Modifier.appear(3),
         )
         // No Firebase is fine when UnifiedPush is set up: warn only without any push channel.
         if (pairing != null && pairing.pushConfig == null && dev.agentring.app.push.UnifiedPushSetup.endpoint(ctx) == null) {

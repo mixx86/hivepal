@@ -342,7 +342,7 @@
     <string name="delivery_title">Your agents: notices and memory</string>
     <string name="delivery_skip">Skip for now</string>
     <string name="delivery_email">Email</string>
-    <string name="delivery_email_body">When you write to an agent, the relay emails it a doorbell (never your message), so an agent that runs on an email starts at once. Each agent\'s address goes in Agents.</string>
+    <string name="delivery_email_body">A doorbell: the moment you write, the relay sends the agent a short email (never your message). For agents that start when an email arrives, like Grok tasks: they run at once instead of at their next scheduled time. Each agent\'s address goes in Agents.</string>
     <string name="delivery_email_now">Sending from %1$s via %2$s.</string>
     <string name="delivery_email_address">Account to send from (a spare Gmail works)</string>
     <string name="delivery_email_password">Its password</string>
@@ -350,7 +350,7 @@
     <string name="delivery_email_save">Check and save</string>
     <string name="delivery_email_saved">Saved: the relay logged in. Give each agent its address in Agents.</string>
     <string name="delivery_mailboxes">Mailboxes (Markdown files)</string>
-    <string name="delivery_mailboxes_body">The relay writes each message you send an agent as a Markdown file in its mailbox, a git repository the agent reads. Then the email, if it has one.</string>
+    <string name="delivery_mailboxes_body">Your messages saved as Markdown files in a git repository the agent reads when it starts. With email too, the files are there before the doorbell rings.</string>
     <string name="delivery_repo_relay">Kept in the relay</string>
     <string name="delivery_repo_relay_body">Nothing to set up: each agent clones its own mailbox from the relay with its key.</string>
     <string name="delivery_repo_external">Also in my repository</string>
@@ -379,10 +379,10 @@
     <string name="agent_mailbox_clone">The agent clones it with its own key:</string>
     <string name="agent_mailbox_repo">Also pushed to %1$s, in mailbox/%2$s/.</string>
     <string name="delivery_intro_body">Two optional things, both kept in your relay: how your agents find out you wrote to them, and whether they remember your conversations.</string>
-    <string name="delivery_always">It reads Hivepal itself</string>
-    <string name="delivery_always_body">Claude Code, OpenClaw, a script using the CLI or the API: it gets your messages as they arrive. No notice needed.</string>
-    <string name="delivery_sometimes">Some need a notice</string>
-    <string name="delivery_sometimes_body">Routines, scheduled tasks, Grok bots: they only run now and then. Hivepal can wake them with an email, or leave your messages in a mailbox they read.</string>
+    <string name="delivery_always">They\'re always on</string>
+    <string name="delivery_always_body">Claude Code, OpenClaw, a script that waits for your messages: they find out at once. Nothing needed.</string>
+    <string name="delivery_sometimes">Some only start now and then</string>
+    <string name="delivery_sometimes_body">Routines, scheduled tasks, Grok bots: Hivepal can wake them with an email, or leave your messages in a mailbox for them.</string>
     <string name="delivery_change_later">You can change all of it later in Settings → Agents: email, mailboxes, memory.</string>
     <string name="delivery_channels_title">How should they get the notice?</string>
     <string name="delivery_channels_body">Pick one or both.</string>
@@ -429,7 +429,7 @@
     <string name="summary_memory_sqlite">Bots remember (searchable)</string>
     <string name="summary_memory_both">Bots remember (notes and searchable)</string>
     <string name="seen_just_now">seen just now</string>
-    <string name="delivery_intro_question">First: when you write to an agent, how does it find out?</string>
+    <string name="delivery_intro_question">First: are your agents always on?</string>
     <string name="language_english">English</string>
     <string name="language_spanish">Spanish</string>
     <string name="typing">typing…</string>

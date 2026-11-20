@@ -169,9 +169,10 @@ fun ChoiceCard(
     tag: String,
     badge: String? = null,
     multi: Boolean = false,
+    order: Int = 0,
     onClick: () -> Unit,
 ) {
-    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.testTag(tag)) {
+    BrandCard(selected = selected, onClick = onClick, modifier = Modifier.appear(order).selectBounce(selected).testTag(tag)) {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
             if (multi) Checkbox(checked = selected, onCheckedChange = null, modifier = Modifier.padding(12.dp))
             else RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(12.dp))
@@ -397,7 +398,7 @@ fun MemoryChoices(m: DeliveryModel, cards: Boolean, modifier: Modifier = Modifie
             }
             val tag = "memory_" + c.name.lowercase()
             if (cards) {
-                ChoiceCard(title, body, c == now, tag, badge = if (c == recommended) stringResource(R.string.recommended) else null) { pick(c) }
+                ChoiceCard(title, body, c == now, tag, badge = if (c == recommended) stringResource(R.string.recommended) else null, order = 3 + c.ordinal) { pick(c) }
             } else {
                 RadioRow(c == now, title, body, tag) { pick(c) }
             }
@@ -412,8 +413,8 @@ fun MemoryChoices(m: DeliveryModel, cards: Boolean, modifier: Modifier = Modifie
 @Composable
 fun DeliverySummary(s: DeliverySettings) {
     @Composable
-    fun line(on: Boolean, text: String) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+    fun line(on: Boolean, text: String, order: Int) {
+        Row(Modifier.fillMaxWidth().appear(order), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             Icon(
                 if (on) Icons.Filled.CheckCircle else Icons.Filled.Warning, null,
                 tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
@@ -424,7 +425,7 @@ fun DeliverySummary(s: DeliverySettings) {
     }
     BrandCard {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            line(s.email.configured, if (s.email.configured) stringResource(R.string.summary_email_on, s.email.address.orEmpty()) else stringResource(R.string.summary_email_off))
+            line(s.email.configured, if (s.email.configured) stringResource(R.string.summary_email_on, s.email.address.orEmpty()) else stringResource(R.string.summary_email_off), 4)
             line(
                 s.mailboxes.allAgents,
                 when {
@@ -432,6 +433,7 @@ fun DeliverySummary(s: DeliverySettings) {
                     s.mailboxRepo.url != null -> stringResource(R.string.summary_mailboxes_repo, s.mailboxRepo.url!!)
                     else -> stringResource(R.string.summary_mailboxes_relay)
                 },
+                5,
             )
             line(
                 s.memory.on,
@@ -443,6 +445,7 @@ fun DeliverySummary(s: DeliverySettings) {
                         else -> R.string.summary_memory_off
                     },
                 ),
+                6,
             )
         }
     }
