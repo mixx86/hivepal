@@ -358,7 +358,7 @@ private fun WelcomePage(onNext: () -> Unit) {
     }) {
         LanguageToggle()
         Spacer(Modifier.height(8.dp))
-        HiveHero(painterResource(R.drawable.ic_call), size = 96.dp)
+        HiveLogo(size = 190.dp)
         Text(
             stringResource(R.string.welcome_title),
             style = MaterialTheme.typography.headlineLarge,

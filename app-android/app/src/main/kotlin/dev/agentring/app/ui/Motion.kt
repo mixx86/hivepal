@@ -12,7 +12,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -31,10 +30,9 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -87,60 +85,72 @@ fun Modifier.selectBounce(selected: Boolean): Modifier = composed {
     }
 }
 
-/** The six corners of a flat-topped hexagon. */
-private fun hexagon(c: Offset, r: Float): Path = Path().apply {
-    for (i in 0 until 6) {
-        val a = (PI / 3 * i).toFloat()
-        val p = Offset(c.x + r * cos(a), c.y + r * sin(a))
-        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+/** A pointy-topped hexagon with rounded corners, like the logo's cells (each corner cut at [round] of its sides). */
+private fun hexagon(c: Offset, r: Float, round: Float = 0.2f): Path {
+    val v = List(6) { i ->
+        val a = (PI / 3 * i - PI / 2).toFloat()
+        Offset(c.x + r * cos(a), c.y + r * sin(a))
     }
-    close()
+    fun lerp(a: Offset, b: Offset, f: Float) = Offset(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f)
+    return Path().apply {
+        val start = lerp(v[0], v[1], round)
+        moveTo(start.x, start.y)
+        for (i in 0 until 6) {
+            val a = v[(i + 1) % 6]
+            val b = v[(i + 2) % 6]
+            val before = lerp(v[i], a, 1f - round)
+            val after = lerp(a, b, round)
+            lineTo(before.x, before.y)
+            quadraticTo(a.x, a.y, after.x, after.y)
+        }
+        close()
+    }
 }
 
 /**
- * The welcome's hero: the badge pops in and a ring of hive cells lights up around it one by one, then
- * glows softly in turn while the ring turns very slowly.
+ * The welcome's hero: Hivepal's own logo assembling itself. The white centre cell appears, the six blue
+ * cells come out of it one by one into place, then a soft light travels round the ring. Same geometry
+ * as the launcher icon (tools/hivepal_icon.py): cells of radius R, their centres 1.85 R from the middle.
  */
 @Composable
-fun HiveHero(icon: Painter, size: Dp = 112.dp) {
+fun HiveLogo(size: Dp = 180.dp) {
     val primary = MaterialTheme.colorScheme.primary
     val reduced = reducedMotion()
+    val core = remember { Animatable(if (reduced) 1f else 0f) }
     val cells = remember { List(6) { Animatable(if (reduced) 1f else 0f) } }
-    val badge = remember { Animatable(if (reduced) 1f else 0.4f) }
     LaunchedEffect(Unit) {
         if (reduced) return@LaunchedEffect
-        launch { badge.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessLow)) }
-        delay(250)
+        launch { core.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessLow)) }
+        delay(280)
         cells.forEach { c ->
-            launch { c.animateTo(1f, tween(380, easing = FastOutSlowInEasing)) }
-            delay(110)
+            launch { c.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow)) }
+            delay(95)
         }
     }
     val t = rememberInfiniteTransition(label = "hive")
-    val turn by t.animateFloat(0f, if (reduced) 0f else 360f, infiniteRepeatable(tween(60_000, easing = LinearEasing)), label = "turn")
-    val wave by t.animateFloat(0f, if (reduced) 0f else 6f, infiniteRepeatable(tween(4_800, easing = LinearEasing)), label = "wave")
+    val wave by t.animateFloat(0f, if (reduced) 0f else 6f, infiniteRepeatable(tween(5_400, easing = LinearEasing)), label = "wave")
+    val light = Color(0xFF8AD8FF)
 
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size * 2.3f)) {
-        Canvas(Modifier.fillMaxSize()) {
-            val c = center
-            val r = size.toPx() * 0.52f
-            val d = r * sqrt(3f)
-            rotate(turn, c) {
-                for (i in 0 until 6) {
-                    val shown = cells[i].value
-                    if (shown <= 0f) continue
-                    val a = (PI / 6 + PI / 3 * i).toFloat()
-                    val cc = Offset(c.x + d * cos(a), c.y + d * sin(a))
-                    // The glow travels round the ring.
-                    val near = 1f - minOf(1f, kotlin.math.abs(((wave - i + 6) % 6f).let { if (it > 3f) 6f - it else it }) / 1.5f)
-                    val cell = hexagon(cc, r * (0.6f + 0.4f * shown) * 0.92f)
-                    drawPath(cell, Brush.radialGradient(listOf(primary.copy(alpha = (0.10f + 0.22f * near) * shown), Color.Transparent), cc, r))
-                    drawPath(cell, primary.copy(alpha = (0.35f + 0.45f * near) * shown), style = Stroke(width = 2.dp.toPx(), join = StrokeJoin.Round))
-                }
-            }
+    Canvas(Modifier.size(size).testTag("hive_logo")) {
+        val r = this.size.minDimension / 5.7f
+        val d = r * 1.85f
+        val c = center
+        drawCircle(Brush.radialGradient(listOf(primary.copy(alpha = 0.20f * core.value), Color.Transparent), c, d * 2.2f), d * 2.2f, c)
+        for (i in 0 until 6) {
+            val p = cells[i].value
+            if (p <= 0.01f) continue
+            val a = (PI / 3 * i - PI / 2).toFloat()
+            // Out of the centre into place.
+            val cc = Offset(c.x + d * p * cos(a), c.y + d * p * sin(a))
+            // The light: brightest on the cell it's passing.
+            val dist = ((wave - i) % 6f + 6f) % 6f
+            val near = (1f - minOf(dist, 6f - dist) / 1.4f).coerceIn(0f, 1f)
+            val color = androidx.compose.ui.graphics.lerp(primary, light, 0.45f * near)
+            drawPath(hexagon(cc, r * p.coerceAtMost(1f)), color.copy(alpha = p.coerceIn(0f, 1f)))
         }
-        Box(Modifier.graphicsLayer { scaleX = badge.value; scaleY = badge.value }) {
-            HeroBadge(icon, size = size)
+        val k = core.value
+        if (k > 0.01f) {
+            drawPath(hexagon(c, r * k), Color.White)
         }
     }
 }
