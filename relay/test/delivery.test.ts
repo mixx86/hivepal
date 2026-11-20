@@ -149,14 +149,19 @@ describe("mailboxes", () => {
     expect(readdirSync(join(out, "nubi", "history"))).toContain("with-coach");
 
     // Without credentials git is asked for them; another agent's key is refused; a phone may read it.
-    const anon = await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/info/refs`);
+    // Each body is read: an unread one keeps its keep-alive socket busy, and closing the relay then waits on it.
+    const get = async (path: string, headers?: Record<string, string>) => {
+      const r = await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/${path}`, { headers });
+      await r.arrayBuffer();
+      return r;
+    };
+    const anon = await get("info/refs");
     expect(anon.status).toBe(401);
     expect(anon.headers.get("www-authenticate")).toMatch(/Basic/);
-    const other = await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/info/refs`, { headers: coach });
-    expect(other.status).toBe(403);
-    expect((await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/info/refs`, { headers: dev.headers })).status).toBe(200);
-    expect((await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/config`, { headers: nubi })).status).toBe(404);
-    expect((await fetch(`http://127.0.0.1:${port}/v1/agents/nubi/mailbox.git/..%2F..%2Fdb`, { headers: nubi })).status).toBe(404);
+    expect((await get("info/refs", coach)).status).toBe(403);
+    expect((await get("info/refs", dev.headers)).status).toBe(200);
+    expect((await get("config", nubi)).status).toBe(404);
+    expect((await get("..%2F..%2Fdb", nubi)).status).toBe(404);
   });
 
   it("turning it on writes the history so far, without inbox files", async () => {
