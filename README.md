@@ -7,6 +7,11 @@ Each agent gets its own chat, key and voice. They message you, nudge you, call y
 and talk to each other, all through one small relay you host yourself.</p>
 
 📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-web](https://mixx86.github.io/hivepal-web/)**
+💬 **Questions or setup trouble? [Discussions](https://github.com/mixx86/hivepal/discussions)** · bugs and ideas in [issues](https://github.com/mixx86/hivepal/issues)
+
+> **Early days.** Android only, the app is installed from the releases (not Google Play), and you host the
+> relay yourself, on a server or your own computer. Calls with a voice AI need an API key for one; messages,
+> reminders and the rest don't.
 
 https://github.com/user-attachments/assets/0606fbe0-5103-4a92-b1ab-f26222ee8df0
 
