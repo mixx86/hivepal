@@ -8,10 +8,10 @@ and talk to each other, all through one small relay you host yourself.</p>
 
 📖 **[Guides, diagrams, CLI reference and FAQ → mixx86.github.io/hivepal-web](https://mixx86.github.io/hivepal-web/)**
 
-https://github.com/user-attachments/assets/1e045039-4de9-4aca-8bd7-8c3d802b246f
+https://github.com/user-attachments/assets/0606fbe0-5103-4a92-b1ab-f26222ee8df0
 
-*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a question with quick replies,
-two agents coordinating, a photo in a group, a reminder that insists, a voice note, a message landing
+*Sound on. Agents on the left (the `hivepal` CLI), the app on the right: a question with quick replies
+and the agent typing its answer, two agents coordinating, a photo in a group, a reminder that insists, a voice note, a message landing
 in an agent's mailbox folder, the subscriptions and, at the end, an agent calling. Demo agents and data.
 In 1440p on the [website](https://mixx86.github.io/hivepal-web/) and in the repo:
 [docs/media/hivepal-demo.mp4](docs/media/hivepal-demo.mp4).*
@@ -68,31 +68,26 @@ your phone. Hivepal turns that into a whole hive.
 
 ## Install
 
-You need a Linux server with Docker and a domain, **or** just your own computer with Docker (the phone
-on the same Wi-Fi or Tailscale).
+Two pieces: the **relay** (on a server, or on your own computer for the phone on the same Wi-Fi or
+Tailscale) and the **app** on your Android phone.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh              # on a server: relay, calls, HTTPS and the daemon
+curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh              # on a server
 curl -fsSL https://raw.githubusercontent.com/mixx86/hivepal/main/scripts/get.sh | sh -s -- --local  # or on this computer
 ```
 
-That downloads the latest release into `~/hivepal` and uses its published images (nothing is built).
-From a clone, `./install.sh` (or `--local`) does the same but builds the images from the source.
-No domain? On a server with a public IP it offers `<ip>.sslip.io`. Once it's running, the relay has a
-web panel at `/admin`: status, pairing, agents with ready-to-copy setup, and a test call.
+The installer asks a few questions (all optional but the first), starts everything and shows a QR code.
+Scan it with the phone's camera: it offers the app and pairs it. Step by step:
 
-It asks for the domain (or picks your LAN IP), a name for the voice switchboard, an optional API
-key for a voice AI (the voice on calls and voice-note transcripts; we recommend
-[Gemini](https://aistudio.google.com/apikey), which has a free tier; other providers in
-[voice](https://mixx86.github.io/hivepal-web/voice/)), and an optional [Firebase project](https://mixx86.github.io/hivepal-web/firebase/). Without Firebase the phone is
-woken through UnifiedPush with the free ntfy app, which the app sets up when you pair it. Then it
-starts everything, configures the daemon and shows the QR code to pair the phone. Running it again
-updates and restarts.
-
-**The app:** run `hivepal pair` and scan its QR code with the phone's camera. The page it opens offers
-the app (`hivepal-X.Y.Z.apk` from the [latest release](https://github.com/mixx86/hivepal/releases/latest))
-and then opens it with the pairing code. To build it yourself instead: `./scripts/build-app.sh --install`
-(JDK 17+ and the Android SDK; installs over USB).
+- [Quickstart on your computer](https://mixx86.github.io/hivepal-web/guide/quickstart/) (15 minutes)
+- [Install on a server](https://mixx86.github.io/hivepal-web/guide/server/): domain or `<ip>.sslip.io`,
+  HTTPS, the web panel at `/admin`, updates
+- [The app](https://mixx86.github.io/hivepal-web/guide/app/): setup, chats, calls, settings
+- Optional: [a voice AI](https://mixx86.github.io/hivepal-web/voice/) for calls and voice-note
+  transcripts (Gemini's free tier works), [Firebase](https://mixx86.github.io/hivepal-web/firebase/)
+  (otherwise the free ntfy app wakes the phone), and
+  [how agents hear from you, and remember](https://mixx86.github.io/hivepal-web/guide/agents/#how-agents-hear-from-you-and-remember)
+  (wake-up emails, Markdown mailboxes, memory)
 
 ## Use it from your agents
 
