@@ -10,6 +10,8 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-20
+
 ### Added
 
 - "Typing…": when an agent reads your new message (`hivepal replies`) the app shows it typing until it
@@ -196,7 +198,8 @@ First release of Hivepal, the multi-agent fork of [agentring](https://github.com
 - Signed release APK, daemon wheel and sdist, public GHCR images `hivepal-relay` and
   `hivepal-daemon`.
 
-[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/mixx86/hivepal/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/mixx86/hivepal/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/mixx86/hivepal/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/mixx86/hivepal/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/mixx86/hivepal/compare/v0.5.0...v0.6.0
