@@ -7,6 +7,8 @@
 #   --images                use this release's published images (ghcr.io/mixx86/hivepal-*) and CLI
 #                           instead of building them here (what scripts/get.sh, the one-line install, does)
 #   --email                 set up (or change) the mail account for agents' wake-up emails, then restart
+#   --delivery              set up (or change) how agents hear from you (email, Markdown mailboxes in git)
+#                           and whether bots remember their conversations (Markdown, SQLite)
 #
 # It asks only what it can't guess. Answers can come from the environment instead (then add --yes):
 #   HIVEPAL_DOMAIN, HIVEPAL_HOST_IP (--local), HIVEPAL_AGENT_NAME,
@@ -15,7 +17,9 @@
 #   (local), HIVEPAL_GEMINI_API_KEY (voice-note transcripts with any provider),
 #   HIVEPAL_FIREBASE_DIR (a folder with firebase-service-account.json and google-services.json),
 #   HIVEPAL_WAKE_EMAIL (the account wake-up emails are sent from) with HIVEPAL_WAKE_EMAIL_PASSWORD and,
-#   for an unknown provider, HIVEPAL_SMTP_SERVER (host:port), or HIVEPAL_SMTP_URL directly.
+#   for an unknown provider, HIVEPAL_SMTP_SERVER (host:port), or HIVEPAL_SMTP_URL directly;
+#   HIVEPAL_DELIVERY (email, mailbox, both or none), HIVEPAL_MAILBOX_REPO (empty = kept in the relay),
+#   HIVEPAL_MEMORY (off, markdown, sqlite or both).
 # Running it again keeps the existing configuration and just updates and restarts everything.
 set -euo pipefail
 
@@ -25,13 +29,15 @@ MODE=server
 YES=0
 IMAGES=0
 EMAIL=0
+DELIVERY=0
 for a in "$@"; do
   case "$a" in
     --local) MODE=local ;;
     --email) EMAIL=1 ;;
+    --delivery) DELIVERY=1 ;;
     --yes | -y) YES=1 ;;
     --images) IMAGES=1 ;;
-    -h | --help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $a (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -148,6 +154,37 @@ ask_email() {
   HIVEPAL_SMTP_URL="${server%%://*}://$(urlencode "$HIVEPAL_WAKE_EMAIL"):$(urlencode "$HIVEPAL_WAKE_EMAIL_PASSWORD")@${server#*://}"
 }
 
+# ask_choice VAR "question" default "a b c": asks until the answer is one of the words.
+ask_choice() {
+  local var=$1 q=$2 def=$3 words=" $4 "
+  while :; do
+    ask "$var" "$q" "$def"
+    [[ "$words" == *" ${!var} "* ]] && return 0
+    [[ $YES == 1 || ! -t 0 ]] && die "$var: '${!var}' isn't one of:$words"
+    echo "One of:$words"; unset "$var"
+  done
+}
+
+# How agents hear from you and whether bots remember (issue #41). Applied once the relay runs.
+ask_delivery() {
+  DELIVERY_ASKED=1
+  ask_choice HIVEPAL_DELIVERY "How should agents hear from you, besides the CLI and the API? email (a wake-up email starts them), mailbox (Markdown files in git they read), both, or none" "none" "email mailbox both none"
+  if [[ $HIVEPAL_DELIVERY == email || $HIVEPAL_DELIVERY == both ]]; then ask_email; fi
+  if [[ $HIVEPAL_DELIVERY == mailbox || $HIVEPAL_DELIVERY == both ]]; then
+    ask HIVEPAL_MAILBOX_REPO "Mailboxes: an external git repository the relay pushes to (git@github.com:you/notes.git), or empty to keep them in the relay (agents clone them from it)" ""
+  fi
+  ask_choice HIVEPAL_MEMORY "Should bots remember their Hivepal conversations? off (each run starts from their own instructions), markdown (each day's conversation in their mailbox), sqlite (they search it), or both" "off" "off markdown sqlite both"
+}
+
+# The host's time zone, for dates in mailboxes and memory.
+host_tz() {
+  local tz
+  tz=$(timedatectl show -p Timezone --value 2>/dev/null || true)
+  [[ -z "$tz" && -L /etc/localtime ]] && tz=$(readlink /etc/localtime | sed 's#.*/zoneinfo/##')
+  [[ -z "$tz" && -f /etc/timezone ]] && tz=$(cat /etc/timezone)
+  echo "${tz:-UTC}"
+}
+
 # set_env VAR VALUE: writes VAR=VALUE in the env file (replacing it); set_env VAR removes it.
 set_env() {
   local tmp="$ENV_FILE.tmp" um
@@ -182,6 +219,15 @@ if [[ -f "$ENV_FILE" ]]; then
     if [[ -n "${HIVEPAL_SMTP_URL:-}" ]]; then set_env HIVEPAL_SMTP_URL "$HIVEPAL_SMTP_URL"; echo "Saved; the relay restarts with it."
     else set_env HIVEPAL_SMTP_URL ""; echo "No account: wake-up emails are off."; fi
   fi
+  if [[ $DELIVERY == 1 ]]; then
+    step "How agents hear from you"
+    unset HIVEPAL_DELIVERY HIVEPAL_MAILBOX_REPO HIVEPAL_MEMORY
+    [[ $EMAIL == 1 ]] || unset HIVEPAL_SMTP_URL
+    ask_delivery
+    [[ -n "${HIVEPAL_SMTP_URL:-}" ]] && set_env HIVEPAL_SMTP_URL "$HIVEPAL_SMTP_URL"
+  fi
+  # Older configurations: the host's time zone for the relay's dates.
+  grep -q '^TZ=' "$ENV_FILE" || { TZ=$(host_tz); set_env TZ "$TZ"; export TZ; }
 else
   step "Configuration"
   if [[ $MODE == server ]]; then
@@ -217,7 +263,7 @@ else
   if [[ $HIVEPAL_VOICE_PROVIDER != gemini ]]; then
     ask HIVEPAL_GEMINI_API_KEY "Gemini API key for voice-note transcripts (optional; free at https://aistudio.google.com/apikey)" "" secret
   fi
-  ask_email
+  ask_delivery
   ask HIVEPAL_FIREBASE_DIR "Folder with firebase-service-account.json and google-services.json (optional; empty = phones use UnifiedPush through ntfy)" ""
   API_KEY=$(new_key)
 
@@ -246,6 +292,7 @@ FCM_GOOGLE_SERVICES_FILE=/secrets/google-services.json"
     [[ -n "${HIVEPAL_VOICE_API_KEY:-}" ]] && echo "HIVEPAL_VOICE_API_KEY=$HIVEPAL_VOICE_API_KEY"
     [[ -n "${HIVEPAL_VOICE_URL:-}" ]] && echo "HIVEPAL_VOICE_URL=$HIVEPAL_VOICE_URL"
     echo "HIVEPAL_SMTP_URL=${HIVEPAL_SMTP_URL:-}"
+    echo "TZ=$(host_tz)"
     [[ $MODE == server ]] && voice_ready && echo "HIVEPAL_SERVE_FLAGS=--ai"
   } > "$ENV_FILE"
   umask 022
@@ -288,6 +335,7 @@ if [[ $MODE == server ]]; then
   fi
   "${COMPOSE[@]}" restart daemon >/dev/null
   HIVEPAL=("${COMPOSE[@]}" exec daemon hivepal)
+  HIVEPAL_RUN=("${COMPOSE[@]}" exec -T daemon hivepal)
 else
   PUBLIC=http://${HIVEPAL_HOST_IP}:8080
   step "Installing the hivepal CLI (daemon)"
@@ -303,6 +351,7 @@ else
   "$BIN" init --relay "$PUBLIC" --api-key "$API_KEY"
   voice_env | merge_env "${HIVEPAL_HOME:-$HOME/.agentring}/.env"
   HIVEPAL=("$BIN")
+  HIVEPAL_RUN=("$BIN")
   # Shorter instructions when the CLI is already on the PATH.
   [[ "$(command -v hivepal 2>/dev/null)" == "$BIN" ]] && { BIN=hivepal; HIVEPAL=(hivepal); }
 fi
@@ -312,6 +361,28 @@ ok=0
 for _ in $(seq 1 60); do curl -fsS "$PUBLIC/healthz" >/dev/null 2>&1 && { ok=1; break; }; sleep 3; done
 [[ $ok == 1 ]] && echo "The relay answers." ||
   echo "The relay doesn't answer at $PUBLIC yet (DNS or the HTTPS certificate may take a few minutes)."
+
+# The delivery choices live in the relay (the app and the web panel change them too).
+# Nothing to set when it's email only (or nothing) and no memory: the defaults.
+if [[ ${HIVEPAL_DELIVERY:-none} == none || ${HIVEPAL_DELIVERY:-none} == email ]] && [[ ${HIVEPAL_MEMORY:-off} == off ]]; then DELIVERY_ASKED=0; fi
+if [[ ${DELIVERY_ASKED:-0} == 1 && $ok == 1 ]]; then
+  step "How agents hear from you"
+  for _ in $(seq 1 15); do "${HIVEPAL_RUN[@]}" delivery >/dev/null 2>&1 && break; sleep 2; done
+  mailboxes=off
+  [[ $HIVEPAL_DELIVERY == mailbox || $HIVEPAL_DELIVERY == both ]] && mailboxes=on
+  # Markdown memory lives in the mailboxes.
+  [[ $HIVEPAL_MEMORY == markdown || $HIVEPAL_MEMORY == both ]] && mailboxes=on
+  "${HIVEPAL_RUN[@]}" delivery mailboxes "$mailboxes"
+  "${HIVEPAL_RUN[@]}" delivery memory "$HIVEPAL_MEMORY"
+  if [[ $mailboxes == on && -n "${HIVEPAL_MAILBOX_REPO:-}" ]]; then
+    if "${HIVEPAL_RUN[@]}" delivery repo "$HIVEPAL_MAILBOX_REPO"; then
+      if [[ $YES == 0 && -t 0 ]]; then
+        read -r -p "Add that deploy key to the repository (with write access), then press Enter to check it (or type skip): " k
+        [[ "$k" == skip ]] || "${HIVEPAL_RUN[@]}" delivery repo --test || echo "Check it later: ${HIVEPAL[*]} delivery repo --test"
+      fi
+    fi
+  fi
+fi
 
 bold "
 Hivepal is running.
@@ -325,7 +396,8 @@ Next:
   2. Pair the phone: ${HIVEPAL[*]} pair   and scan the QR with the app
   3. Try it: ${HIVEPAL[*]} msg \"hello\"
   4. An agent with its own chat and key: ${HIVEPAL[*]} bots add nubi Nubi
-$([[ -n "${HIVEPAL_SMTP_URL:-}" ]] && echo "     Wake it by email: give it an address in the panel (Agents) and Send a test" || echo "     Wake-up emails for agents: ./install.sh$([[ $MODE == local ]] && echo " --local") --email")
+$([[ -n "${HIVEPAL_SMTP_URL:-}" ]] && echo "     Wake it by email: give it an address in the panel (Agents) and Send a test")
+     How agents hear from you and remember: ${HIVEPAL[*]} delivery   (change it: ./install.sh$([[ $MODE == local ]] && echo " --local") --delivery, the app or the panel)
 $([[ $MODE == local ]] && voice_ready && echo "  5. Answer calls with the voice AI ($HIVEPAL_VOICE_PROVIDER): $BIN serve --ai   (keep it running)")
 "
 if [[ $YES == 0 && -t 0 ]]; then

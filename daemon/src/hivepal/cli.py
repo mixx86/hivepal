@@ -39,6 +39,10 @@ bots_app = typer.Typer(help="Agents with their own key and conversation on the r
 app.add_typer(bots_app, name="bots")
 groups_app = typer.Typer(help="Group conversations: the user and several agents, who all read them.", no_args_is_help=False)
 app.add_typer(groups_app, name="groups")
+delivery_app = typer.Typer(
+    help="How agents hear from you and remember: the relay's email account, mailboxes in git, memory.",
+    no_args_is_help=False, invoke_without_command=True)
+app.add_typer(delivery_app, name="delivery")
 subs_app = typer.Typer(help="Your subscriptions and when each renews (the app reads each service's billing page).",
                        no_args_is_help=False, invoke_without_command=True)
 app.add_typer(subs_app, name="subs")
@@ -1041,6 +1045,29 @@ def bots_wake(
             raise _fail(str(e)) from None
 
 
+@bots_app.command("mailbox")
+def bots_mailbox(
+    agent_id: Annotated[str, typer.Argument()],
+    state: Annotated[str, typer.Argument(help="on, off, or default (follow `hivepal delivery mailboxes`).")],
+) -> None:
+    """Whether the relay writes this agent's messages as Markdown files in its mailbox (git)."""
+    st = state.lower()
+    if st not in ("on", "off", "default"):
+        raise _fail("on, off or default")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            a = c.set_agent_mailbox(agent_id, None if st == "default" else st == "on")
+            relay = c.relay_url
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if a.get("mailbox"):
+        typer.echo(f"{agent_id}: mailbox on. The agent clones it with its own key:")
+        typer.echo(f"  git clone https://x:<{agent_id}'s key>@{relay.split('://', 1)[-1]}/v1/agents/{agent_id}/mailbox.git")
+    else:
+        typer.echo(f"{agent_id}: no mailbox")
+
+
 @bots_app.command("key")
 def bots_key(agent_id: Annotated[str, typer.Argument()], json_out: JsonOpt = False) -> None:
     """Give an agent a new API key; the old one stops working at once."""
@@ -1224,6 +1251,162 @@ def mcp(
         run_stdio(None, not_configured=str(e))
         return
     run_stdio(settings, agent_name=agent_name, device_ids=device or None)
+
+
+def _delivery_summary(d: dict) -> list[str]:
+    e = d.get("email") or {}
+    r = d.get("mailbox_repo") or {}
+    m = d.get("memory") or {}
+    kinds = [k for k in ("markdown", "sqlite") if m.get(k)]
+    lines = [
+        "Email:     " + (f"{e.get('address')} via {e.get('server')}" + (" (from the environment)" if e.get("from_env") else "") if e.get("configured") else "off"),
+        "Mailboxes: " + ("every agent" if (d.get("mailboxes") or {}).get("all_agents") else "only agents turned on (hivepal bots mailbox <id> on)"),
+        "Repo:      " + (r["url"] + (f" ({r['branch']})" if r.get("branch") else "") if r.get("url") else "kept in the relay only"),
+    ]
+    if r.get("url"):
+        if r.get("last_error"):
+            lines.append(f"           last error: {r['last_error']}")
+        elif r.get("last_push_at"):
+            lines.append(f"           last push: {_fmt_ts(r['last_push_at'])}")
+    if r.get("public_key"):
+        lines.append(f"Deploy key (add it to the repo with write access):\n  {r['public_key']}")
+    lines.append("Memory:    " + (" + ".join(kinds) if kinds else "off (each run starts from the bot's own instructions)"))
+    return lines
+
+
+@delivery_app.callback()
+def delivery_show(ctx: typer.Context, json_out: JsonOpt = False) -> None:
+    """Show how agents hear from you and remember (needs the relay's key)."""
+    if ctx.invoked_subcommand:
+        return
+    s = _settings()
+    with _client(s) as c:
+        try:
+            d = c.delivery()
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json(d)
+        return
+    typer.echo("\n".join(_delivery_summary(d)))
+
+
+@delivery_app.command("email")
+def delivery_email(
+    address: Annotated[str, typer.Argument(help="The account wake-up emails are sent from, or 'off'.")],
+    server: Annotated[Optional[str], typer.Option("--server", help="host:port, for providers it doesn't know (465 = TLS, 587 = STARTTLS).")] = None,
+    password_stdin: Annotated[bool, typer.Option("--password-stdin", help="Read the password from stdin instead of asking.")] = False,
+) -> None:
+    """The relay's email account for wake-up emails. It logs in before saving it."""
+    import sys
+
+    s = _settings()
+    if address.lower() == "off":
+        password = None
+    elif password_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+    else:
+        hint = " (an app password: https://myaccount.google.com/apppasswords)" if address.lower().endswith(("@gmail.com", "@googlemail.com")) else ""
+        password = typer.prompt(f"Password for {address}{hint}", hide_input=True)
+    with _client(s) as c:
+        try:
+            d = c.set_delivery_email(None if address.lower() == "off" else address, password, server)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    e = d["email"]
+    typer.echo(f"Email: {e['address']} via {e['server']}. Give agents an address: hivepal bots wake <id> <address>" if e.get("configured") else "Email: off")
+
+
+@delivery_app.command("repo")
+def delivery_repo(
+    url: Annotated[Optional[str], typer.Argument(help="git@github.com:me/notes.git, an https:// URL (a token in it if needed), or 'off'.")] = None,
+    branch: Annotated[Optional[str], typer.Option("--branch")] = None,
+    test: Annotated[bool, typer.Option("--test", help="Clone it again and check the relay may push.")] = False,
+) -> None:
+    """An external git repository the relay writes agents' mailboxes to (mailbox/<agent>/) and pushes."""
+    if url is None and not test:
+        raise _fail("give a repository URL, 'off', or --test")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            if url is not None:
+                d = c.set_mailbox_repo(None if url.lower() == "off" else url, branch)
+                r = d["mailbox_repo"]
+                if not r.get("url"):
+                    typer.echo("Repo: off (the mailboxes in the relay stay)")
+                    return
+                typer.echo(f"Repo: {r['url']}. Add the relay's deploy key to it, with write access:\n  {r.get('public_key', '?')}")
+                if not test:
+                    typer.echo("Then check it: hivepal delivery repo --test")
+            if test:
+                c.test_mailbox_repo()
+                typer.echo("The relay can clone and push to it.")
+        except RelayError as e:
+            raise _fail(str(e)) from None
+
+
+@delivery_app.command("mailboxes")
+def delivery_mailboxes(state: Annotated[str, typer.Argument(help="on: every agent has a mailbox (unless turned off for it); off.")]) -> None:
+    """A Markdown mailbox for every agent, or only for those turned on with `hivepal bots mailbox`."""
+    if state.lower() not in ("on", "off"):
+        raise _fail("on or off")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.set_mailboxes_for_all(state.lower() == "on")
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo("Mailboxes: every agent" if state.lower() == "on" else "Mailboxes: only agents turned on")
+
+
+@delivery_app.command("memory")
+def delivery_memory(kind: Annotated[str, typer.Argument(help="off, markdown, sqlite or both.")]) -> None:
+    """How bots remember their Hivepal conversations: Markdown in their mailbox, SQLite (search), both, or off."""
+    k = kind.lower()
+    if k not in ("off", "markdown", "sqlite", "both"):
+        raise _fail("off, markdown, sqlite or both")
+    s = _settings()
+    with _client(s) as c:
+        try:
+            c.set_memory(k in ("markdown", "both"), k in ("sqlite", "both"))
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    typer.echo({"off": "Memory: off", "markdown": "Memory: each day's conversation in the agents' mailboxes (history/)",
+                "sqlite": "Memory: searchable with `hivepal memory`, or as a SQLite file",
+                "both": "Memory: Markdown in the mailboxes, and searchable as SQLite"}[k])
+
+
+@app.command("memory")
+def memory_cmd(
+    query: Annotated[Optional[str], typer.Argument(help="Words to look for (all of them); none: the latest messages.")] = None,
+    conv: Annotated[Optional[str], typer.Option("--conv", help="Only this conversation (agent:<id>, group:<id>, bots:<a>.<b>).")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=500)] = 20,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Another agent's memory (with the relay's key).")] = None,
+    download: Annotated[Optional[str], typer.Option("--download", help="Save your conversations as a SQLite file here.")] = None,
+    json_out: JsonOpt = False,
+) -> None:
+    """Search your memory of Hivepal: your conversations, newest first (needs memory as SQLite on the relay)."""
+    from pathlib import Path
+
+    s = _settings()
+    with _client(s) as c:
+        try:
+            me = agent or ((c.status().get("self") or {}).get("agent_id") or "main")
+            if download:
+                Path(download).expanduser().write_bytes(c.memory_file(me))
+                typer.echo(f"Saved {download} (tables: messages, messages_fts, about)")
+                return
+            rows = c.memory(me, query, conv, limit)
+        except RelayError as e:
+            raise _fail(str(e)) from None
+    if json_out:
+        _emit_json(rows)
+        return
+    for r in reversed(rows):
+        where = "" if r["conv"] == f"agent:{me}" else f" [{r['conv']}]"
+        typer.echo(f"[{_fmt_ts(r['created_at'])}]{where} {r['from_name']}: {r['text']}")
+    if not rows:
+        typer.echo("Nothing found.")
 
 
 @app.command("mcp-http")
