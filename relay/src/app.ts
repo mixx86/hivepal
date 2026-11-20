@@ -24,7 +24,7 @@ import { fileRoutes } from "./routes/files.js";
 import { GeminiSpeech } from "./gemini.js";
 import { Wake, mailerFor } from "./wake.js";
 import { Mailbox } from "./mailbox.js";
-import { Settings } from "./settings.js";
+import { SecretBox, Settings } from "./settings.js";
 import { deliveryRoutes } from "./routes/delivery.js";
 import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { Reminders, reminderRoutes } from "./routes/reminders.js";
@@ -170,7 +170,7 @@ export async function buildApp(cfg: Config, opts: BuildOptions = {}): Promise<Bu
   events.onEvent((e) => dispatcher.handle(e));
   // Hivepal: delivery to agents (issue #41). The mail account and the mailbox repository are runtime
   // settings; an agent with a mailbox gets its wake-up email after its files are written.
-  const settings = new Settings(db);
+  const settings = new Settings(db, new SecretBox(cfg.dataDir === ":memory:" ? undefined : join(cfg.dataDir, "secret_key")));
   ctx.settings = settings;
   agents.mailboxDefault = () => settings.mailboxesForAll();
   const currentMailer = mailerFor(() => settings.smtpUrl(), opts.mailerFactory);
