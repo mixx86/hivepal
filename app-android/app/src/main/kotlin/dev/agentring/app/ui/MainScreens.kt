@@ -376,6 +376,9 @@ fun SettingsScreen(pairing: Pairing) {
         SectionLabel(stringResource(R.string.updates))
         UpdatesCard()
 
+        SectionLabel(stringResource(R.string.delivery_section))
+        DeliverySetup(Modifier.fillMaxWidth())
+
         SectionLabel(stringResource(R.string.backup))
         BackupCard()
 

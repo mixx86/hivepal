@@ -40,6 +40,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
@@ -85,7 +86,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Step { WELCOME, HOW, PAIR, PUSH, CALLS, DONE }
+private enum class Step { WELCOME, HOW, PAIR, PUSH, CALLS, AGENTS, DONE }
 
 /** Where the user's relay lives; only changes which instructions the tutorial shows. */
 private enum class Setup { CLOUD, SELF_HOSTED }
@@ -155,7 +156,8 @@ fun OnboardingFlow(paired: Pairing?, onFinished: () -> Unit) {
                     step = if (Graph.pairing.current?.pushConfig == null) Step.PUSH else Step.CALLS
                 })
                 Step.PUSH -> PushSetupPage(onReady = { step = Step.CALLS })
-                Step.CALLS -> CallsPage(onNext = { step = Step.DONE })
+                Step.CALLS -> CallsPage(onNext = { step = Step.AGENTS })
+                Step.AGENTS -> AgentsDeliveryPage(onNext = { step = Step.DONE })
                 Step.DONE -> DonePage(Graph.pairing.current ?: paired, onFinished)
             }
         }
@@ -622,6 +624,20 @@ private fun CallsPage(onNext: () -> Unit) {
     }
 }
 
+/** Hivepal: how agents hear from you (email, mailboxes) and whether bots remember; may be skipped. */
+@Composable
+private fun AgentsDeliveryPage(onNext: () -> Unit) {
+    Page(bottom = {
+        PrimaryButton(stringResource(R.string.continue_), "delivery_next", onClick = onNext)
+        androidx.compose.material3.TextButton(onClick = onNext, modifier = Modifier.testTag("delivery_skip")) {
+            Text(stringResource(R.string.delivery_skip))
+        }
+    }) {
+        PageHeader(R.string.delivery_title, R.string.delivery_page_body, rememberVectorPainter(Icons.Filled.Email))
+        DeliverySetup(Modifier.fillMaxWidth())
+    }
+}
+
 @Composable
 private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
     val ctx = LocalContext.current
@@ -642,7 +658,8 @@ private fun DonePage(pairing: Pairing?, onFinished: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        if (pairing != null && pairing.pushConfig == null) {
+        // No Firebase is fine when UnifiedPush is set up: warn only without any push channel.
+        if (pairing != null && pairing.pushConfig == null && dev.agentring.app.push.UnifiedPushSetup.endpoint(ctx) == null) {
             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.medium) {
                 Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Filled.Warning, null, tint = MaterialTheme.colorScheme.onErrorContainer)

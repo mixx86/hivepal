@@ -3,6 +3,9 @@ package dev.agentring.core
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -172,6 +175,60 @@ class RelayApi(
 
     fun deleteGroup(groupId: String) {
         call<Unit>("DELETE", "/v1/groups/$groupId", null, null)
+    }
+
+    // ---------- Hivepal: delivery to agents and their memory (issue #41; 404 on older relays) ----------
+
+    private fun json(vararg pairs: Pair<String, Any?>): RequestBody =
+        JsonObject(pairs.associate { (k, v) ->
+            k to when (v) {
+                null -> JsonNull
+                is Boolean -> JsonPrimitive(v)
+                is Number -> JsonPrimitive(v)
+                else -> JsonPrimitive(v.toString())
+            }
+        }).toString().toRequestBody(JSON)
+
+    fun delivery(): DeliverySettings = call("GET", "/v1/settings/delivery", null, DeliverySettings.serializer())
+
+    /** The relay logs in before saving: a wrong password is a [RelayException] with code `email_failed`. */
+    fun setDeliveryEmail(address: String?, password: String? = null, server: String? = null): DeliverySettings {
+        val fields = buildList<Pair<String, Any?>> {
+            add("address" to address)
+            if (!password.isNullOrEmpty()) add("password" to password)
+            if (!server.isNullOrBlank()) add("server" to server.trim())
+        }
+        return call("PUT", "/v1/settings/email", json(*fields.toTypedArray()), DeliverySettings.serializer())
+    }
+
+    fun setMailboxRepo(url: String?, branch: String? = null): DeliverySettings {
+        val fields = buildList<Pair<String, Any?>> {
+            add("url" to url)
+            if (!branch.isNullOrBlank()) add("branch" to branch.trim())
+        }
+        return call("PUT", "/v1/settings/mailbox-repo", json(*fields.toTypedArray()), DeliverySettings.serializer())
+    }
+
+    fun testMailboxRepo() {
+        call<Unit>("POST", "/v1/settings/mailbox-repo/test", EMPTY, null)
+    }
+
+    fun setMailboxesForAll(on: Boolean): DeliverySettings =
+        call("PUT", "/v1/settings/mailboxes", json("all_agents" to on), DeliverySettings.serializer())
+
+    fun setMemory(markdown: Boolean, sqlite: Boolean): DeliverySettings =
+        call("PUT", "/v1/settings/memory", json("markdown" to markdown, "sqlite" to sqlite), DeliverySettings.serializer())
+
+    /** On, off, or null: the relay-wide default. */
+    fun setAgentMailbox(agentId: String, enabled: Boolean?): Agent =
+        call("PUT", "/v1/agents/$agentId/mailbox", json("enabled" to enabled), Agent.serializer())
+
+    /** The address the relay emails when you write to the agent; null turns it off. */
+    fun setAgentWake(agentId: String, email: String?): Agent =
+        call("PUT", "/v1/agents/$agentId/wake", json("email" to email), Agent.serializer())
+
+    fun testAgentWake(agentId: String) {
+        call<Unit>("POST", "/v1/agents/$agentId/wake/test", EMPTY, null)
     }
 
     fun listCalls(limit: Int = 100): List<Call> = call("GET", "/v1/calls?limit=$limit", null, CallList.serializer()).calls

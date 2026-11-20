@@ -21,7 +21,8 @@ Settings are environment variables. With Docker they go in `deploy/.env` (server
 | `HIVEPAL_ANDROID_PACKAGE` | `dev.agentring.app` | Only if you built the app with `-PhivepalApplicationId`. |
 | `HIVEPAL_GEMINI_API_KEY` → `GEMINI_API_KEY` | — | Voice-note transcripts and text-to-speech. |
 | `HIVEPAL_TRANSCRIBE_MODEL`, `HIVEPAL_TTS_MODEL`, `HIVEPAL_TTS_VOICE` | Gemini defaults | Other Gemini models or voice. |
-| `HIVEPAL_SMTP_URL` | — | Mail server for wake-up emails: `smtps://user:password@host:465` (URL-encode `@` as `%40`). `./install.sh --email` writes it for you. |
+| `HIVEPAL_SMTP_URL` | — | Mail server for wake-up emails: `smtps://user:password@host:465` (URL-encode `@` as `%40`). `./install.sh --email` writes it for you; an account set in the app or the panel replaces it. |
+| `TZ` | `UTC` (the installer sets the host's) | Time zone for dates in agents' mailboxes and memory. |
 | `HIVEPAL_APP_URL` | the latest GitHub release | Where the pairing page (`/pair`) sends people who don't have the app yet, for a build of your own. |
 | `HIVEPAL_WAKE_FROM` | the SMTP user | Sender of wake-up emails. |
 | `LIVEKIT_API_KEY`, `LIVEKIT_NODE_IP` | `hivepal`, discovered | LiveKit key id (the secret is generated) and public IP. |

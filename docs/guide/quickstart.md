@@ -88,8 +88,8 @@ hivepal serve --ai
 
 Now `hivepal call "Got a minute?"` rings the phone, and you can call any agent from the app.
 
-!!! warning "Push notifications"
-    Without Firebase, messages arrive only while the app is open, and a locked phone won't ring.
-    Setting it up takes ten minutes: [Firebase](../firebase.md). Then run `./install.sh --local` again.
+!!! note "Push notifications"
+    Without Firebase, the app wakes through UnifiedPush: during pairing it offers the free ntfy app and
+    sets it up, and a locked phone rings the same. [Firebase](../firebase.md) is optional.
 
 **Next:** [use the app](app.md) · [connect your agents](agents.md) · [build a hive of personal agents](hive.md)
