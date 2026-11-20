@@ -48,8 +48,11 @@ your phone. Hivepal turns that into a whole hive.
   voice AI speaks as that agent.
 - **Wake-up emails** for agents that only run on a trigger (like Grok bots): when you write, the relay
   emails them a doorbell.
-- **Mailbox files** for agents that work from a folder or a notes repo: `hivepal mailbox` writes each
-  new message as a Markdown file in the agent's mailbox (and can commit and push it).
+- **Mailboxes and memory**: the relay writes each message as a Markdown file in the agent's mailbox, a
+  git repository it clones from the relay or that the relay pushes to your notes repo, and the bots can
+  **remember** their conversations (each day's chat in Markdown, or searchable as SQLite). Set up from
+  the app, the web panel, the installer or the CLI; `hivepal mailbox` still writes a folder on the agent's
+  machine.
 - **Subscriptions**: connect what you pay to run your agents (Claude, ChatGPT, your server's billing
   page…) once, inside the app; it reads them every day and shows how many days are left, with a
   heads-up 3 days before.

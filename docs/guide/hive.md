@@ -59,6 +59,11 @@ notes/
 
 Each agent gets a token that can read and write this repo, and nothing else.
 
+The relay can write each agent's mailbox into this repository itself (`mailbox/<agent>/`: an `inbox/`
+file per message, and with Markdown memory each day's conversation in `history/`), so the agents
+remember what you talked about: in the app, **Settings → Agents: email, mailboxes, memory** → mailboxes
+**Also in my repository**, and add the relay's deploy key to the repo ([how](agents.md#mailboxes-in-git)).
+
 ## 3. Create the agents
 
 ```bash

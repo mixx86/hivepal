@@ -41,7 +41,17 @@ answer, it comes back, and in the end your phone rings.
 ## Agents
 
 Every agent, when it was **last seen** (red after a day: its routine may have stopped), and the groups.
-Tap ✎ to rename an agent or edit a group; **New group** creates one.
+Tap ✎ to rename an agent or edit a group; **New group** creates one. Tap ✉ for **how it hears from you**:
+its wake-up email address (save, send a test, turn off) and its mailbox (like the rest, on or off), with
+the `git clone` line it uses.
+
+## How agents hear from you
+
+The setup asks, and **Settings → Agents: email, mailboxes, memory** changes it later (stored in the
+relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay
+logs in before saving it), **mailboxes** for every agent, kept in the relay or also pushed to your
+repository (with the relay's deploy key to copy and **Check access**), and **memory for your bots**: off,
+Markdown or SQLite ([what each does](agents.md#how-agents-hear-from-you-and-remember)).
 
 ## Subscriptions
 

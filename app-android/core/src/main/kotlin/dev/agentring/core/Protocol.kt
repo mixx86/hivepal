@@ -192,6 +192,45 @@ data class Agent(
     val online: Boolean? = null,
     /** Hivepal: when the agent last used its key. */
     @SerialName("last_seen_at") val lastSeenAt: Long? = null,
+    /** Hivepal: the relay emails it when you write (the address is never shown back). */
+    val wakes: Boolean? = null,
+    /** Hivepal: the relay writes its messages as Markdown files in its mailbox. */
+    val mailbox: Boolean? = null,
+)
+
+// ---------- Hivepal: how agents hear from the user, and remember (issue #41) ----------
+
+@Serializable
+data class EmailSettings(
+    val configured: Boolean = false,
+    val address: String? = null,
+    val server: String? = null,
+    @SerialName("from_env") val fromEnv: Boolean? = null,
+)
+
+@Serializable
+data class MailboxesSettings(@SerialName("all_agents") val allAgents: Boolean = false)
+
+@Serializable
+data class MemorySettings(val markdown: Boolean = false, val sqlite: Boolean = false) {
+    val on: Boolean get() = markdown || sqlite
+}
+
+@Serializable
+data class MailboxRepo(
+    val url: String? = null,
+    val branch: String? = null,
+    @SerialName("public_key") val publicKey: String? = null,
+    @SerialName("last_push_at") val lastPushAt: Long? = null,
+    @SerialName("last_error") val lastError: String? = null,
+)
+
+@Serializable
+data class DeliverySettings(
+    val email: EmailSettings = EmailSettings(),
+    val mailboxes: MailboxesSettings = MailboxesSettings(),
+    val memory: MemorySettings = MemorySettings(),
+    @SerialName("mailbox_repo") val mailboxRepo: MailboxRepo = MailboxRepo(),
 )
 
 @Serializable

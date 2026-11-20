@@ -4,7 +4,9 @@
  * A static page: it holds no data and adds no API. You paste the relay's API key (kept in this tab's
  * sessionStorage only) and the page uses the same REST API as the CLI with it: the status of each
  * piece, the paired phones and a pairing QR, the agents with ready-to-copy setup for each harness,
- * wake-up emails per agent (with a test email), and a test message and a test call. Everything is drawn with textContent; the CSP allows only this
+ * how agents hear from the user and remember (email account, mailboxes in git, external repository with
+ * the relay's deploy key, memory), per agent its wake-up email and mailbox, and a test message and a
+ * test call. Everything is drawn with textContent; the CSP allows only this
  * page's own script (by hash) and data: images (the QR).
  */
 import { createHash } from "node:crypto";
@@ -62,8 +64,10 @@ async function load() {
       row("ok", "Push", st.push_provider === "none" ? "No Firebase: phones are woken through UnifiedPush (the ntfy app), set up by the app" : "Firebase configured; phones may use UnifiedPush (ntfy) instead"),
       row(f.calls ? "ok" : "warn", "Calls", f.calls ? "LiveKit configured (UDP 50000-50100 open to the phone)" : "LiveKit isn't configured"),
       row(f.voice ? "ok" : "warn", "Voice", f.voice ? "Voice notes and transcripts" : "No Gemini key: no voice notes or transcripts"),
-      row(f.wake_email ? "ok" : "off", "Wake-up emails", f.wake_email ? "Mail server configured: give agents an address below" : "Optional: to email agents that run on a trigger, give the relay a mail server (HIVEPAL_SMTP_URL in deploy/.env)"));
+      row(f.wake_email ? "ok" : "off", "Wake-up emails", f.wake_email ? "Email account set: give agents an address below" : "Optional: set an email account below to email agents that run on a trigger"));
     wakeOn = !!f.wake_email;
+    delivery = await api("GET", "/v1/settings/delivery");
+    drawDelivery();
     const devices = await api("GET", "/v1/devices");
     $("devices").replaceChildren(...(devices.devices || devices).map((d) =>
       row(d.push_via === "none" ? "warn" : "ok", d.name, "seen " + ago(d.last_seen_at) + (d.app_version ? " · app " + d.app_version : "") +
@@ -74,6 +78,7 @@ async function load() {
       const r = row(a.last_seen_at && Date.now() - a.last_seen_at < 86400000 ? "ok" : "warn", a.name + " (" + a.agent_id + ")",
           "last seen " + ago(a.last_seen_at) + (a.wakes ? " · wake-up email on" : ""));
       if (wakeOn) r.lastChild.append(wakeForm(a));
+      r.lastChild.append(mailboxForm(a));
       return r;
     }));
   } catch (e) {
@@ -83,6 +88,68 @@ async function load() {
 }
 
 let wakeOn = false;
+let delivery = null;
+
+/** The relay-wide card: email account, mailboxes, external repository, memory. */
+function drawDelivery() {
+  const d = delivery, e = d.email || {}, r = d.mailbox_repo || {}, m = d.memory || {};
+  const out = el("small");
+  const say = (t) => { out.textContent = t; };
+  const act = async (fn, ok) => { say("…"); try { delivery = await fn(); drawDelivery(); load(); } catch (err) { say(err.message); return; } };
+
+  // Email account.
+  const addr = el("input", { type: "email", placeholder: "account to send from (a spare Gmail works)", autocomplete: "off", value: e.address || "" });
+  const pass = el("input", { type: "password", placeholder: "its password (Gmail: an app password)", autocomplete: "new-password" });
+  const server = el("input", { placeholder: "server host:port (only if not Gmail, iCloud, Yahoo, Fastmail, GMX, Zoho)" });
+  const emailForm = el("form", { class: "wake" }, addr, pass, server, el("button", { class: "ghost small", textContent: "Save" }));
+  emailForm.onsubmit = (ev) => { ev.preventDefault(); act(() => api("PUT", "/v1/settings/email", { address: addr.value.trim(), password: pass.value, ...(server.value.trim() ? { server: server.value.trim() } : {}) })); };
+  const emailOff = el("button", { class: "ghost small", type: "button", textContent: "Turn off", hidden: !e.configured });
+  emailOff.onclick = () => act(() => api("PUT", "/v1/settings/email", { address: null }));
+
+  // Mailboxes and memory.
+  const all = el("input", { type: "checkbox", checked: !!(d.mailboxes && d.mailboxes.all_agents) });
+  all.onchange = () => act(() => api("PUT", "/v1/settings/mailboxes", { all_agents: all.checked }));
+  const mem = el("select", {}, ...[["off", "Off: each run starts from the bot's own instructions"], ["markdown", "Markdown: each day's conversation in its mailbox"], ["sqlite", "SQLite: the bot searches it (or downloads it)"], ["both", "Both"]]
+    .map(([v, t]) => el("option", { value: v, textContent: t })));
+  mem.value = m.markdown && m.sqlite ? "both" : m.markdown ? "markdown" : m.sqlite ? "sqlite" : "off";
+  mem.onchange = () => act(() => api("PUT", "/v1/settings/memory", { markdown: mem.value === "markdown" || mem.value === "both", sqlite: mem.value === "sqlite" || mem.value === "both" }));
+
+  // External repository.
+  const url = el("input", { placeholder: "git@github.com:you/notes.git (empty: mailboxes stay in the relay)", value: r.url || "" });
+  const branch = el("input", { placeholder: "branch (optional)", value: r.branch || "" });
+  const repoForm = el("form", { class: "wake" }, url, branch, el("button", { class: "ghost small", textContent: "Save" }));
+  repoForm.onsubmit = (ev) => { ev.preventDefault(); act(() => api("PUT", "/v1/settings/mailbox-repo", { url: url.value.trim() || null, ...(branch.value.trim() ? { branch: branch.value.trim() } : {}) })); };
+  const check = el("button", { class: "ghost small", type: "button", textContent: "Check access", hidden: !r.url });
+  check.onclick = async () => { say("Cloning…"); try { await api("POST", "/v1/settings/mailbox-repo/test"); say("The relay can clone and push to it."); } catch (err) { say(err.message); } };
+  const repoState = r.url ? (r.last_error ? "Last error: " + r.last_error : r.last_push_at ? "Last push " + ago(r.last_push_at) : "Nothing pushed yet") : "";
+
+  $("delivery").replaceChildren(
+    el("h4", { textContent: "Email account for wake-up emails" }),
+    el("small", { textContent: e.configured ? "Sending from " + e.address + " via " + e.server + (e.from_env ? " (from deploy/.env)" : "") + ". The relay logs in before saving." : "Off. The relay logs in before saving, so a wrong password shows up here." }),
+    emailForm, emailOff,
+    el("h4", { textContent: "Mailboxes (Markdown files in git the agents read)" }),
+    el("label", {}, all, document.createTextNode(" Every agent has a mailbox (or turn it on per agent below)")),
+    el("small", { textContent: "Each agent's mailbox is a git repository in the relay; optionally also pushed to an external repository (mailbox/<agent>/):" }),
+    repoForm,
+    ...(r.url ? [el("small", { textContent: repoState }), el("p", { textContent: "Add the relay's deploy key to the repository, with write access:" }), snippet(r.public_key || "?"), check] : []),
+    el("h4", { textContent: "Memory for bots" }),
+    mem,
+    out);
+}
+
+/** An agent's mailbox: default / on / off, and how it clones it. */
+function mailboxForm(a) {
+  const sel = el("select", {}, el("option", { value: "default", textContent: "Mailbox: default" }), el("option", { value: "on", textContent: "Mailbox: on" }), el("option", { value: "off", textContent: "Mailbox: off" }));
+  sel.value = "default";
+  const out = el("div");
+  const draw = (on) => out.replaceChildren(...(on ? [el("small", { textContent: "Clone it with the agent's own key:" }), snippet("git clone https://x:<" + a.agent_id + "'s key>@" + location.host + "/v1/agents/" + a.agent_id + "/mailbox.git")] : []));
+  sel.onchange = async () => {
+    try { const r = await api("PUT", "/v1/agents/" + a.agent_id + "/mailbox", { enabled: sel.value === "default" ? null : sel.value === "on" }); draw(!!r.mailbox); }
+    catch (e) { out.replaceChildren(el("small", { textContent: e.message })); }
+  };
+  draw(!!a.mailbox);
+  return el("div", { class: "wake" }, sel, out);
+}
 /** An agent's wake-up email: set or change it (the relay never shows it back), turn it off, send a test. */
 function wakeForm(a) {
   const input = el("input", { type: "email", placeholder: a.wakes ? "on · new address to change it" : "address that starts it (optional)", autocomplete: "off" });
@@ -139,7 +206,11 @@ $("addForm").onsubmit = async (ev) => {
       el("h4", { textContent: "Claude Code (or codex, cursor, openclaw, hermes)" }),
       snippet("HIVEPAL_HOME=" + home + " hivepal init --relay " + relay + " --api-key " + a.api_key + "\nHIVEPAL_HOME=" + home + " hivepal connect claude-code"),
       el("h4", { textContent: "HTTP (n8n, anything)" }),
-      snippet("curl -X POST " + relay + "/v1/messages -H 'authorization: Bearer " + a.api_key + "' -H 'content-type: application/json' -d '{\"text\":\"Hello from " + name + "\"}'"));
+      snippet("curl -X POST " + relay + "/v1/messages -H 'authorization: Bearer " + a.api_key + "' -H 'content-type: application/json' -d '{\"text\":\"Hello from " + name + "\"}'"),
+      el("h4", { textContent: "Its mailbox (Markdown files, with its memory when it's kept as Markdown)" }),
+      snippet("git clone https://x:" + a.api_key + "@" + location.host + "/v1/agents/" + id + "/mailbox.git"),
+      el("h4", { textContent: "Its memory as SQLite (when on)" }),
+      snippet("curl -H 'authorization: Bearer " + a.api_key + "' '" + relay + "/v1/agents/" + id + "/memory?q=gym'"));
     $("agentId").value = ""; $("agentName").value = "";
     load();
   } catch (e) { $("error").textContent = e.message; }
@@ -193,6 +264,8 @@ const PAGE = `<!doctype html>
   img { background: #fff; border-radius: 12px; padding: 8px; max-width: 100%; }
   #error { color: #FF6B8B; }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  select { background: #050B16; color: #E6F4FF; border: 1px solid #1F4E7A; border-radius: 10px; padding: .4rem .6rem; font: inherit; max-width: 100%; }
+  label { color: #CFE6FF; display: block; margin: .3rem 0; }
   form.wake { margin-top: .35rem; } form.wake input { flex: 1 1 12rem; padding: .3rem .6rem; font-size: .85rem; }
   .row > div { flex: 1; min-width: 0; }
 </style>
@@ -212,6 +285,7 @@ const PAGE = `<!doctype html>
       <h4>Add an agent</h4>
       <form id="addForm"><input id="agentId" placeholder="id (planner)" pattern="[a-z0-9][a-z0-9_-]{0,31}" required><input id="agentName" placeholder="Name (Planner)" maxlength="64" required><button>Add</button></form>
       <div id="newAgent"></div></div>
+    <h2>How agents hear from you, and remember</h2><div class="card" id="delivery"></div>
     <h2>Try it</h2><div class="card"><div class="actions"><button class="ghost" id="testMsg" type="button">Send a test message</button><button class="ghost" id="testCall" type="button">Ring my phone</button></div><p id="testOut"></p></div>
   </section>
 </main>

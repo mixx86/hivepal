@@ -12,6 +12,12 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Added
 
+- App: a setup step (you may skip it) and **Settings → Agents: email, mailboxes, memory**: the relay's
+  email account, mailboxes kept in the relay or also in your repository (deploy key, **Check access**)
+  and memory for bots (off, Markdown, SQLite, both); in **Agents**, ✉ per agent: wake-up address (save,
+  test, off) and mailbox, with its `git clone` line. The web panel has the same card and per-agent
+  mailbox, and gives a new agent's mailbox and memory commands.
+
 - CLI: `hivepal delivery` (show), `delivery email|repo|mailboxes|memory`, `hivepal bots mailbox <id>
   on|off|default`, and `hivepal memory [words]` / `--download file.sqlite` for a bot's own memory.
 - Installer: asks how agents hear from you (email, Markdown mailboxes in git, both, none), where the
@@ -56,6 +62,9 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ### Fixed
 
+- App: the setup's last page said messages only arrive while the app is open whenever the relay had no
+  Firebase, even with UnifiedPush set up; it now warns only without any push channel. Docs: the
+  quickstart said a locked phone won't ring without Firebase.
 - Web panel: it said that without Firebase the phone only gets messages while the app is open; phones
   then use UnifiedPush. Each phone now shows how it's woken, and warns when it has no push yet.
 - Installer: without a Firebase folder it said "no push"; phones then use UnifiedPush (ntfy). The

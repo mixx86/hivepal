@@ -38,7 +38,10 @@ It asks for:
 | Voice AI | `gemini` | Who talks on AI calls: `gemini` (free tier, recommended), `openai`, `grok`, `phonic`, `openrouter`, `local` (your own OpenAI-Realtime-compatible server) or `none`. See [voice](../voice.md). |
 | Its API key | `AIza…` | Optional. Without one there are no AI calls. For `local`, the server's address instead (and a key only if it asks for one). |
 | Gemini key for transcripts | `AIza…` | Only asked when the voice AI isn't Gemini, and optional: the relay transcribes voice notes with Gemini. |
-| Wake-up email account | `bots.hive@gmail.com` | Optional: the account the relay emails [wake-up emails](agents.md#wake-up-emails) from, with its (app) password; the mail server is guessed for common providers. Later: `./install.sh --email`. |
+| How agents hear from you | `mailbox` | `email`, `mailbox`, `both` or `none`: a wake-up email and/or Markdown mailboxes in git ([details](agents.md#how-agents-hear-from-you-and-remember)). |
+| Email account | `bots.hive@gmail.com` | With email: the account the relay sends from and its (app) password; the mail server is guessed for common providers. Later: `./install.sh --email`. |
+| Mailbox repository | `git@github.com:you/notes.git` | With mailboxes: an external repository the relay pushes to, or empty to keep them in the relay. It prints the relay's deploy key to add with write access, and checks it. |
+| Memory | `markdown` | `off`, `markdown`, `sqlite` or `both`: whether bots remember their conversations. All of this: `./install.sh --delivery` later, or the app. |
 | Firebase folder | `~/firebase` | A folder with `firebase-service-account.json` and `google-services.json`. Optional: without it the phone uses UnifiedPush (ntfy). |
 
 Then it writes `deploy/.env` (keep it private: it holds the relay's API key), starts everything, configures the daemon inside Docker and shows the QR code to pair the phone.
@@ -47,6 +50,7 @@ Answers can come from the environment for an unattended install:
 
 ```bash
 HIVEPAL_DOMAIN=hive.example.com HIVEPAL_GEMINI_API_KEY=AIza… HIVEPAL_FIREBASE_DIR=~/firebase ./install.sh --yes
+# delivery: HIVEPAL_DELIVERY=mailbox HIVEPAL_MAILBOX_REPO=git@github.com:you/notes.git HIVEPAL_MEMORY=both
 # another voice AI: HIVEPAL_VOICE_PROVIDER=grok HIVEPAL_VOICE_API_KEY=xai-… (local: HIVEPAL_VOICE_URL=ws://…)
 # or through the one-line install: … | HIVEPAL_DOMAIN=… sh -s -- --yes
 ```

@@ -56,6 +56,13 @@ take `--json` for machine-readable output.
 | `hivepal bots add <id> <Name>` | A new agent; prints its key once. |
 | `hivepal bots rename <id> <Name>` · `bots key <id>` · `bots remove <id>` | Rename, new key, revoke. |
 | `hivepal bots wake <id> <email\|off>` | Email this address when the user writes to the agent; `--test` sends one now and reports the mail server's answer. |
+| `hivepal bots mailbox <id> on\|off\|default` | Whether the relay writes this agent's mailbox (Markdown in git); prints its `git clone` line. |
+| `hivepal delivery` | How agents hear from you and remember: email account, mailboxes, repository (with the relay's deploy key), memory. |
+| `hivepal delivery email <address\|off>` | The relay's email account for wake-up emails (asks the password, or `--password-stdin`; `--server host:port`). |
+| `hivepal delivery repo <url\|off>` | An external repository for the mailboxes (`--branch`); `--test` checks the relay can clone and push. |
+| `hivepal delivery mailboxes on\|off` | A mailbox for every agent (or only those turned on). |
+| `hivepal delivery memory off\|markdown\|sqlite\|both` | Whether and how bots remember their conversations. |
+| `hivepal memory [words]` | Search your own memory (newest first; `--conv`, `--limit`, `--agent`); `--download file.sqlite` saves it. |
 | `hivepal groups` · `groups add <id> <Name> --members a,b` · `groups set` · `groups remove` | Groups. |
 | `hivepal subs` · `subs set …` · `subs rm <id>` | Subscriptions (the app writes them; these are for scripts). |
 
