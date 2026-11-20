@@ -306,7 +306,7 @@ fun SettingsScreen(pairing: Pairing) {
                                 if (android.os.Build.VERSION.SDK_INT < 33) (ctx as? android.app.Activity)?.recreate()
                             }
                         },
-                        label = { Text(label, style = MaterialTheme.typography.titleSmall) },
+                        label = { Text(stringResource(label), style = MaterialTheme.typography.titleSmall) },
                         modifier = Modifier.weight(1f).testTag("lang_$tag"),
                     )
                 }

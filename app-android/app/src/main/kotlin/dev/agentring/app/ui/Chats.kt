@@ -188,7 +188,7 @@ fun ChatsScreen(pairing: Pairing, onOpen: (String) -> Unit) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 interactionSource = fab,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).pressBounce(fab).breathingGlow(radius = 1.6f)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp).pressBounce(fab).softGlow(radius = 1.6f)
                     .testTag("new_group"),
             )
         }

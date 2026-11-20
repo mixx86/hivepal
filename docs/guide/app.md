@@ -47,8 +47,12 @@ the `git clone` line it uses.
 
 ## How agents hear from you
 
-The setup asks, and **Settings → Agents: email, mailboxes, memory** changes it later (stored in the
-relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay
+The setup's **Your agents: notices and memory** step asks a few short questions, one per page. First,
+how an agent finds out you wrote: it reads Hivepal itself (Claude Code, OpenClaw, a script: no notice
+needed), or some need a notice; then how the notice gets there (email, a mailbox, or both); where the
+mailboxes live; and last, whether your bots remember. A summary closes it. Each answer is saved as
+you give it, and you can skip the step. **Settings → Agents: email, mailboxes, memory** shows all of it
+at once and changes it later (stored in the relay, so the web panel shows the same): the **email** account wake-up emails are sent from (the relay
 logs in before saving it), **mailboxes** for every agent, kept in the relay or also pushed to your
 repository (with the relay's deploy key to copy and **Check access**), and **memory for your bots**: off,
 Markdown or SQLite ([what each does](agents.md#how-agents-hear-from-you-and-remember)).

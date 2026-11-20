@@ -442,7 +442,7 @@ fun ChatScreen(pairing: Pairing, conv: String, onBack: () -> Unit) {
                     enabled = !sending,
                     interactionSource = sendSource,
                     colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(containerColor = Color.Transparent),
-                    modifier = Modifier.size(54.dp).pressBounce(sendSource).breathingGlow()
+                    modifier = Modifier.size(54.dp).pressBounce(sendSource).softGlow()
                         .background(BrandBrush, androidx.compose.foundation.shape.CircleShape).testTag("send_button"),
                 ) {
                     when {

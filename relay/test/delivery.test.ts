@@ -303,3 +303,34 @@ describe("memory as SQLite", () => {
   });
 });
 
+
+describe("errors people can act on", () => {
+  it("a mail server that can't be reached says so in words", async () => {
+    const { mailError } = await import("../src/routes/delivery.js");
+    // What nodemailer's verify() throws (seen with a closed port, and an unknown host).
+    const refused = Object.assign(new AggregateError([Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:1026"), { code: "ECONNREFUSED" })], ""), { code: "ESOCKET", command: "CONN" });
+    expect(mailError(Object.assign(new Error("getaddrinfo ENOTFOUND x.invalid"), { code: "EDNS", originalCode: "ENOTFOUND" }), "smtps://x.invalid:465")).toMatch(/find the server x\.invalid/);
+    expect(mailError(refused, "smtp://localhost:1026")).toMatch(/Couldn't connect to localhost:1026/);
+    expect(mailError(Object.assign(new Error("getaddrinfo ENOTFOUND smtp.nope.test"), { code: "ENOTFOUND" }), "smtps://smtp.nope.test:465")).toMatch(/find the server smtp\.nope\.test/);
+    expect(mailError(Object.assign(new Error("535 bad credentials"), { code: "EAUTH", responseCode: 535 }), "smtps://smtp.gmail.com:465")).toMatch(/refused the address or password.*app password/);
+    expect(mailError(new Error(""), "smtp://x:25")).not.toMatch(/said: $/);
+  });
+
+  it("a repository check that works clears the error of the one before", async () => {
+    b = await setup({}, { mailbox: { flushDelayMs: 60_000, allowFileRepos: true } });
+    const remote = join(tmp(), "notes.git");
+    await b.app.inject({ method: "PUT", url: "/v1/settings/mailbox-repo", headers: AGENT, payload: { url: `file://${remote}` } });
+    expect((await b.app.inject({ method: "POST", url: "/v1/settings/mailbox-repo/test", headers: AGENT })).statusCode).toBe(502);
+    expect(b.ctx.mailbox!.repoStatus().last_error).toMatch(/clone failed/);
+    git(tmpdir(), "init", "-q", "--bare", "-b", "main", remote);
+    expect((await b.app.inject({ method: "POST", url: "/v1/settings/mailbox-repo/test", headers: AGENT })).statusCode).toBe(204);
+    const view = (await b.app.inject({ method: "GET", url: "/v1/settings/delivery", headers: AGENT })).json();
+    expect(view.mailbox_repo.last_error).toBeUndefined();
+    // Another repository forgets the old one's error.
+    await b.app.inject({ method: "PUT", url: "/v1/settings/mailbox-repo", headers: AGENT, payload: { url: `file://${remote}x` } });
+    await b.app.inject({ method: "POST", url: "/v1/settings/mailbox-repo/test", headers: AGENT });
+    expect(b.ctx.mailbox!.repoStatus().last_error).toBeDefined();
+    await b.app.inject({ method: "PUT", url: "/v1/settings/mailbox-repo", headers: AGENT, payload: { url: `file://${remote}` } });
+    expect(b.ctx.mailbox!.repoStatus().last_error).toBeUndefined();
+  });
+});
