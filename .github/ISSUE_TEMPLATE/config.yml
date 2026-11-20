@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and setup help
+    url: https://github.com/mixx86/hivepal/discussions
+    about: How do I…? Is it possible to…? Ask in Discussions; issues are for bugs and ideas.
+  - name: FAQ and guides
+    url: https://mixx86.github.io/hivepal-web/faq/
+    about: Common problems (messages only while the app is open, a locked phone doesn't ring, which APK…).
   - name: Report a security vulnerability
     url: https://github.com/mixx86/hivepal/security/policy
     about: Please report vulnerabilities privately, as described in SECURITY.md.
   - name: Calls don't ring on my phone
-    url: https://github.com/mixx86/hivepal/blob/HEAD/docs/troubleshooting-oem.md
+    url: https://mixx86.github.io/hivepal-web/troubleshooting-oem/
     about: Battery savers and OEM background killers — check this guide before opening a bug.
