@@ -10,6 +10,12 @@ Every pull request that changes behaviour adds a line under **Unreleased**;
 
 ## [Unreleased]
 
+### Security
+
+- Relay: the wake-up email account's password (in the saved SMTP URL) is encrypted at rest with a key
+  in its own file, `DATA_DIR/secret_key` (0600); a copy of the database alone no longer gives it away.
+  A password saved in plain text by an older relay is encrypted the first time it's read.
+
 ## [0.8.0] - 2026-11-20
 
 ### Added

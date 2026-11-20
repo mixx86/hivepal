@@ -114,6 +114,11 @@ crontab -e                                  # daily at 04:30:
 # 30 4 * * *  /home/you/hivepal/scripts/backup-relay.sh
 ```
 
+The copy holds the relay's keys and your conversations: keep it private (the script makes it readable
+only by you). The wake-up email account's password is not readable from it: the relay encrypts it with
+a key in its own file, `secret_key`, in the same volume. Restored without that file, the relay still
+works and only asks for the email account again (app → Settings, or the web panel).
+
 ## Keeping a small server light
 
 - Build images elsewhere (`scripts/deploy-images.sh`), then `docker image prune -f` and

@@ -4,7 +4,59 @@
  * agents' mailboxes to. `HIVEPAL_SMTP_URL` stays as the initial value until one is saved here.
  * Secrets (the email password) are never returned.
  */
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import type { Db } from "./db/database.js";
+
+/**
+ * Secrets the relay saves in its database (the email account's password, inside the SMTP URL) are encrypted
+ * with a key kept in a separate file, DATA_DIR/secret_key (mode 0600). A copy of the database alone, such as
+ * the one scripts/backup-relay.sh makes, then doesn't give away a password that also opens an account outside
+ * Hivepal. Without a file (tests, an in-memory relay) the key lives only in memory.
+ */
+export class SecretBox {
+  private key: Buffer | undefined;
+
+  constructor(private readonly file?: string) {}
+
+  private k(): Buffer {
+    if (this.key) return this.key;
+    if (!this.file) return (this.key = randomBytes(32));
+    try {
+      this.key = Buffer.from(readFileSync(this.file, "utf8").trim(), "base64");
+    } catch {
+      const fresh = randomBytes(32);
+      try {
+        writeFileSync(this.file, fresh.toString("base64") + "\n", { mode: 0o600, flag: "wx" });
+        this.key = fresh;
+      } catch {
+        this.key = Buffer.from(readFileSync(this.file, "utf8").trim(), "base64"); // another process made it first
+      }
+    }
+    if (this.key.length !== 32) throw new Error(`${this.file} must hold a 32-byte key (base64)`);
+    return this.key;
+  }
+
+  seal(plain: string): string {
+    const iv = randomBytes(12);
+    const c = createCipheriv("aes-256-gcm", this.k(), iv);
+    const body = Buffer.concat([c.update(plain, "utf8"), c.final()]);
+    return "enc:v1:" + Buffer.concat([iv, c.getAuthTag(), body]).toString("base64url");
+  }
+
+  /** The plain text; a value saved before encryption comes back as is; undefined if it can't be decrypted. */
+  open(value: string): string | undefined {
+    if (!value.startsWith("enc:v1:")) return value;
+    try {
+      const raw = Buffer.from(value.slice(7), "base64url");
+      const d = createDecipheriv("aes-256-gcm", this.k(), raw.subarray(0, 12));
+      d.setAuthTag(raw.subarray(12, 28));
+      return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString("utf8");
+    } catch {
+      return undefined; // another key (secret_key lost, or a database from another relay)
+    }
+  }
+}
 
 const SMTP = "setting:smtp_url";
 const REPO = "setting:mailbox_repo";
@@ -65,7 +117,10 @@ export interface EmailView {
 }
 
 export class Settings {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly box: SecretBox = new SecretBox(),
+  ) {}
 
   private get(key: string): string | undefined {
     return (this.db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | undefined)?.value;
@@ -79,13 +134,20 @@ export class Settings {
   /** The SMTP URL in use: saved here ("" = turned off here), else the environment's. */
   smtpUrl(): string | undefined {
     const saved = this.get(SMTP);
-    if (saved !== undefined) return saved || undefined;
+    if (saved !== undefined) {
+      if (!saved) return undefined;
+      const url = this.box.open(saved);
+      // Saved by an older relay in plain text: encrypt it now.
+      if (url !== undefined && !saved.startsWith("enc:")) this.set(SMTP, this.box.seal(url));
+      // Can't be decrypted (the key file is gone): not configured, so the app and panel ask for it again.
+      return url || undefined;
+    }
     return process.env.HIVEPAL_SMTP_URL || undefined;
   }
 
   setSmtpUrl(url: string | null): void {
     // "" rather than deleting: turning it off here must win over the environment.
-    this.set(SMTP, url ?? "");
+    this.set(SMTP, url ? this.box.seal(url) : "");
   }
 
   email(): EmailView {

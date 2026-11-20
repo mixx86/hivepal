@@ -4,7 +4,7 @@
  */
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -332,5 +332,34 @@ describe("errors people can act on", () => {
     expect(b.ctx.mailbox!.repoStatus().last_error).toBeDefined();
     await b.app.inject({ method: "PUT", url: "/v1/settings/mailbox-repo", headers: AGENT, payload: { url: `file://${remote}` } });
     expect(b.ctx.mailbox!.repoStatus().last_error).toBeUndefined();
+  });
+});
+
+describe("the email password at rest", () => {
+  it("is encrypted with a key in its own file; an old plain value is encrypted when read; another key can't read it", async () => {
+    const { Settings, SecretBox } = await import("../src/settings.js");
+    const { openDatabase } = await import("../src/db/database.js");
+    const dir = tmp();
+    const db = openDatabase(":memory:");
+    const box = new SecretBox(join(dir, "secret_key"));
+    const s = new Settings(db, box);
+    const url = "smtps://bots%40gmail.com:app%20pass@smtp.gmail.com:465";
+    s.setSmtpUrl(url);
+    const raw = () => (db.prepare("SELECT value FROM meta WHERE key = 'setting:smtp_url'").get() as { value: string }).value;
+    expect(raw()).toMatch(/^enc:v1:/);
+    expect(raw()).not.toContain("app");
+    expect(s.smtpUrl()).toBe(url);
+    expect(s.email()).toMatchObject({ configured: true, address: "bots@gmail.com" });
+    expect(statSync(join(dir, "secret_key")).mode & 0o777).toBe(0o600);
+    // The same key file, read again (a restart), still opens it.
+    expect(new Settings(db, new SecretBox(join(dir, "secret_key"))).smtpUrl()).toBe(url);
+    // Saved by an older relay in plain text: it works, and is encrypted on the way.
+    db.prepare("UPDATE meta SET value = ? WHERE key = 'setting:smtp_url'").run(url);
+    expect(s.smtpUrl()).toBe(url);
+    expect(raw()).toMatch(/^enc:v1:/);
+    // The key file lost (a database restored elsewhere): not configured, so it is asked for again.
+    const other = new Settings(db, new SecretBox(join(tmp(), "secret_key")));
+    expect(other.smtpUrl()).toBeUndefined();
+    expect(other.email().configured).toBe(false);
   });
 });
