@@ -89,13 +89,10 @@ woken through UnifiedPush with the free ntfy app, which the app sets up when you
 starts everything, configures the daemon and shows the QR code to pair the phone. Running it again
 updates and restarts.
 
-**The app:**
-
-```bash
-./scripts/build-app.sh --install   # JDK 17+ and the Android SDK; installs over USB (adb)
-```
-
-Open Hivepal on the phone and scan the QR code from `hivepal pair`.
+**The app:** run `hivepal pair` and scan its QR code with the phone's camera. The page it opens offers
+the app (`hivepal-X.Y.Z.apk` from the [latest release](https://github.com/mixx86/hivepal/releases/latest))
+and then opens it with the pairing code. To build it yourself instead: `./scripts/build-app.sh --install`
+(JDK 17+ and the Android SDK; installs over USB).
 
 ## Use it from your agents
 
