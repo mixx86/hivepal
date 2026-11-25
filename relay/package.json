@@ -19,9 +19,9 @@
   "dependencies": {
     "@fastify/websocket": "^11.3.7",
     "fastify": "^5.12.8",
-    "jose": "^6.2.15",
-    "livekit-server-sdk": "2.19.2",
-    "nodemailer": "10.3.1",
+    "jose": "^6.2.17",
+    "livekit-server-sdk": "2.19.3",
+    "nodemailer": "10.5.0",
     "qrcode-generator": "1.5.2"
   },
   "devDependencies": {
@@ -32,6 +32,6 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^4.1.12",
-    "ws": "^8.22.1"
+    "ws": "^8.22.2"
   }
 }
